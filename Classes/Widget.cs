@@ -1,4 +1,5 @@
-﻿using CefSharp.WinForms;
+﻿using CefSharp;
+using CefSharp.WinForms;
 using System;
 using System.Drawing;
 using System.IO;
@@ -52,6 +53,7 @@ namespace Widgets
         public override void AppendWidget(Form f, string path)
         {
             browser = new ChromiumWebBrowser(path);
+            browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             f.Controls.Add(browser);
         }
 
@@ -80,6 +82,82 @@ namespace Widgets
             window.Activated += OnFormActivated;
             AppendWidget(window, widgetPath);
             window.ShowDialog();
+        }
+
+        private bool isMouseDown = false;
+        private bool isMouseOver = false;
+
+        private void OnBrowserInitialized(object sender, EventArgs e)
+        {
+            browser.ExecuteScriptAsync(@"
+                const wrapper = document.createElement('div');
+                wrapper.setAttribute('id', 'browserWrapper');
+                wrapper.style.position = 'fixed';
+                wrapper.style.background = 'rgba(1, 1, 1, .98)';
+                wrapper.style.width = '100%';
+                wrapper.style.height = '100%';
+                wrapper.style.zIndex = '999';
+                wrapper.style.display = 'none';
+
+                const del = document.createElement('div');
+                del.style.position = 'fixed';
+                del.style.margin = '0';
+                del.style.top = '50%';
+                del.style.left = '50%';
+                del.style.padding = '20px';
+                del.style.borderRadius = '10px';
+                del.style.background = 'rgba(255, 255, 255, 0.1)';
+                del.style.transform = 'translate(-50%, -50%)';
+                del.style.cursor = 'pointer';
+                del.innerHTML = `<svg width='20px' fill='white' viewBox='0 0 448 512'><path d='M135.2 17.69C140.6 6.848 151.7 0 163.8 0H284.2C296.3 0 307.4 6.848 312.8 17.69L320 32H416C433.7 32 448 46.33 448 64C448 81.67 433.7 96 416 96H32C14.33 96 0 81.67 0 64C0 46.33 14.33 32 32 32H128L135.2 17.69zM394.8 466.1C393.2 492.3 372.3 512 346.9 512H101.1C75.75 512 54.77 492.3 53.19 466.1L31.1 128H416L394.8 466.1z'/></svg>`;
+                wrapper.appendChild(del);
+                document.body?.appendChild(wrapper);
+                
+                const interval = setInterval(() => {
+                    if (document.body)
+                    {
+                        document.body.appendChild(wrapper);
+                        createEvents();
+                        clearInterval(interval);
+                    }
+                }, 0);
+
+                const createEvents = () => {
+                    document.body.onmouseleave = () => { 
+                        document.getElementById('browserWrapper').style.display = 'none';
+                        CefSharp.PostMessage('onmouseleave');
+                    }
+                    document.body.onmouseenter = () => { 
+                        document.getElementById('browserWrapper').style.display = 'block';                
+                        CefSharp.PostMessage('onmouseenter');
+                    }
+                    document.body.onmousedown = () => CefSharp.PostMessage('onmousedown');
+                    document.body.onmouseup = () => CefSharp.PostMessage('onmouseup');
+                }
+            ");
+            browser.JavascriptMessageReceived += OnBrowserMessageReceived;
+        }
+
+        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
+        {
+            switch (e.Message)
+            {
+                case "onmouseleave":
+                    isMouseOver = false;
+                    break;
+
+                case "onmouseenter":
+                    isMouseOver = true;
+                    break;
+
+                case "onmousedown":
+                    isMouseDown = true;
+                    break;
+
+                case "onmouseup":
+                    isMouseDown = false;
+                    break;
+            }
         }
 
         private void OnFormActivated(object sender, EventArgs e)
