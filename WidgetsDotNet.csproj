@@ -67,7 +67,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\FilesManager.cs" />
-    <Compile Include="Classes\User32.cs" />
+    <Compile Include="Classes\WindowEssentials.cs" />
     <Compile Include="Classes\Widget.cs" />
     <Compile Include="Classes\WidgetMap.cs" />
     <Compile Include="Program.cs" />

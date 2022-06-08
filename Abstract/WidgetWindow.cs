@@ -4,7 +4,7 @@ using System.Windows.Forms;
 
 namespace Widgets
 {
-    abstract class WidgetWindow : User32
+    abstract class WidgetWindow : WindowEssentials
     {
         abstract public Form window { get; set; }
         abstract public ChromiumWebBrowser browser { get; set; }

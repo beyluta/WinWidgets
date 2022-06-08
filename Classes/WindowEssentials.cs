@@ -4,7 +4,7 @@ using System.Windows;
 
 namespace Widgets
 {
-    class User32
+    class WindowEssentials
     {
         public const int SW_MAXIMIZE = 3;
         public const int SW_MINIMIZE = 6;

@@ -2,7 +2,7 @@
 using Widgets;
 using Widgets.Manager;
 
-internal class Program : User32
+internal class Program : WindowEssentials
 {
     static void Main(string[] args)
     {
