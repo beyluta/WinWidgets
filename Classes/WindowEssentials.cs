@@ -10,6 +10,10 @@ namespace Widgets
         public const int SW_MINIMIZE = 6;
         public const int SW_HIDE = 0;
         public const UInt32 WM_CLOSE = 0x0010;
+        public const int GWL_EXSTYLE = -20;
+        public const int WS_EX_LAYERED = 0x80000;
+        public const int LWA_ALPHA = 0x2;
+        public const int LWA_COLORKEY = 0x1;
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
@@ -65,10 +69,5 @@ namespace Widgets
 
         [DllImport("user32.dll")]
         public static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
-
-        public const int GWL_EXSTYLE = -20;
-        public const int WS_EX_LAYERED = 0x80000;
-        public const int LWA_ALPHA = 0x2;
-        public const int LWA_COLORKEY = 0x1;
     }
 }

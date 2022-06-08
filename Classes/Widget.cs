@@ -57,18 +57,22 @@ namespace Widgets
             f.Controls.Add(browser);
         }
 
+        bool allowWidgetSettingsOverlay = true;
+
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
             string sizeString = GetMetaTagValue("windowSize");
             string radiusString = GetMetaTagValue("windowBorderRadius");
             string locationString = GetMetaTagValue("windowLocation");
             string topMostString = GetMetaTagValue("topMost");
+            string overlay = GetMetaTagValue("windowOverlay");
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
             int metaWidth = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
             int metaHeight = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : 0;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : 0;
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
+            allowWidgetSettingsOverlay = overlay == "true" ? true : false;
 
             window = new Form();
             window.Size = new Size(metaWidth, metaHeight);
@@ -89,7 +93,9 @@ namespace Widgets
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            browser.ExecuteScriptAsync(@"
+            if (allowWidgetSettingsOverlay)
+            {
+                browser.ExecuteScriptAsync(@"
                 const wrapper = document.createElement('div');
                 wrapper.setAttribute('id', 'browserWrapper');
                 wrapper.style.position = 'fixed';
@@ -137,6 +143,8 @@ namespace Widgets
                     document.getElementById('wrapperDeleteIcon').onclick = () => CefSharp.PostMessage('deletewidget');
                 }
             ");
+            }
+        
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
         }
 
@@ -169,6 +177,7 @@ namespace Widgets
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
+            browser.MenuHandler = new WidgetMenuHandler(handle);
         }
 
         public override string GetMetaTagValue(string name)
