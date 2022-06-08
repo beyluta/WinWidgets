@@ -9,6 +9,10 @@ namespace Widgets
         public const int SW_MAXIMIZE = 3;
         public const int SW_MINIMIZE = 6;
         public const int SW_HIDE = 0;
+        public const UInt32 WM_CLOSE = 0x0010;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", EntryPoint = "FindWindow")]
         public static extern IntPtr FindWindowByCaption(IntPtr ZeroOnly, string lpWindowName);

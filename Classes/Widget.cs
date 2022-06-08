@@ -100,6 +100,7 @@ namespace Widgets
                 wrapper.style.display = 'none';
 
                 const del = document.createElement('div');
+                del.setAttribute('id', 'wrapperDeleteIcon');
                 del.style.position = 'fixed';
                 del.style.margin = '0';
                 del.style.top = '50%';
@@ -133,6 +134,7 @@ namespace Widgets
                     }
                     document.body.onmousedown = () => CefSharp.PostMessage('onmousedown');
                     document.body.onmouseup = () => CefSharp.PostMessage('onmouseup');
+                    document.getElementById('wrapperDeleteIcon').onclick = () => CefSharp.PostMessage('deletewidget');
                 }
             ");
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
@@ -156,6 +158,10 @@ namespace Widgets
 
                 case "onmouseup":
                     isMouseDown = false;
+                    break;
+
+                case "deletewidget":
+                    SendMessage(handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
                     break;
             }
         }
