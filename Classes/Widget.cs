@@ -72,7 +72,7 @@ namespace Widgets
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : 0;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : 0;
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
-            allowWidgetSettingsOverlay = overlay == "true" ? true : false;
+            allowWidgetSettingsOverlay = overlay != null ? bool.Parse(overlay) : true;
 
             window = new Form();
             window.Size = new Size(width, height);
@@ -127,21 +127,25 @@ namespace Widgets
                 }, 0);
 
                 const createEvents = () => {
+                    let mouseDrag;
+
                     document.body.onmouseleave = () => { 
                         document.getElementById('browserWrapper').style.display = 'none';
                         CefSharp.PostMessage('onmouseleave');
                     }
+
                     document.body.onmouseenter = () => { 
                         document.getElementById('browserWrapper').style.display = 'block';                
                         CefSharp.PostMessage('onmouseenter');
                     }
-                    var mouseDrag;
-                    document.body.onmousedown = () => {
+
+                    document.body.onmousedown = (e) => {
                         mouseDrag = setInterval(() => {
-                            CefSharp.PostMessage('mouseDrag');
+                            e.buttons === 1 && CefSharp.PostMessage('mouseDrag');
                         }, 0);
                         CefSharp.PostMessage('onmousedown');
                     }
+
                     document.body.onmouseup = () => {
                          clearInterval(mouseDrag);
                          CefSharp.PostMessage('onmouseup');
