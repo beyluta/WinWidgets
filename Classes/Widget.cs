@@ -179,11 +179,5 @@ namespace Widgets
         {
             throw new System.NotImplementedException();
         }
-
-        public override void SetWindowTransparency(IntPtr handle, byte alpha)
-        {
-            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_LAYERED);
-            SetLayeredWindowAttributes(handle, 0, alpha, LWA_ALPHA);
-        }
     }
 }

@@ -13,7 +13,12 @@ namespace Widgets
         abstract public void CreateWindow(int w, int h, string t, FormStartPosition p);
         abstract public void AppendWidget(Form f, string path);
         abstract public void OpenWidget(int id);
-        abstract public void SetWindowTransparency(IntPtr handle, byte alpha);
+
+        public void SetWindowTransparency(IntPtr handle, byte alpha)
+        {
+            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_LAYERED);
+            SetLayeredWindowAttributes(handle, 0, alpha, LWA_ALPHA);
+        }
 
         public string GetMetaTagValue(string name, string widgetPath)
         {

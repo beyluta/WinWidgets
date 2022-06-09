@@ -124,11 +124,5 @@ namespace Widgets.Manager
                 widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
             }
         }
-
-        public override void SetWindowTransparency(IntPtr handle, byte alpha)
-        {
-            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_LAYERED);
-            SetLayeredWindowAttributes(handle, 0, alpha, LWA_ALPHA);
-        }
     }
 }
