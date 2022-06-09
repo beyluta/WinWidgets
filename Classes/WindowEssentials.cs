@@ -14,6 +14,10 @@ namespace Widgets
         public const int WS_EX_LAYERED = 0x80000;
         public const int LWA_ALPHA = 0x2;
         public const int LWA_COLORKEY = 0x1;
+        public const short SWP_NOMOVE = 0X2;
+        public const short SWP_NOSIZE = 1;
+        public const short SWP_NOZORDER = 0X4;
+        public const int SWP_SHOWWINDOW = 0x0040;
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
@@ -62,5 +66,8 @@ namespace Widgets
 
         [DllImport("user32.dll")]
         public static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowPos")]
+        public static extern IntPtr SetWindowPos(IntPtr hWnd, int hWndInsertAfter, int x, int Y, int cx, int cy, int wFlags);
     }
 }
