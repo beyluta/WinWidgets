@@ -11,6 +11,13 @@ namespace Widgets.Manager
 {
     class WidgetsManager : WidgetWindow
     {
+        private string widgetPath = String.Empty;
+        private WidgetMap widgets = new WidgetMap(100);
+        private Form _window;
+        private ChromiumWebBrowser _browser;
+        private IntPtr _handle;
+        private string managerUIPath = FilesManager.assetsPath + "/index.html";
+
         public WidgetsManager()
         {
             CefSettings options = new CefSettings();
@@ -19,15 +26,11 @@ namespace Widgets.Manager
             CreateWindow(600, 500, "Widget Manager", FormStartPosition.CenterScreen);
         }
 
-        private Form _window;
-
         public override Form window
         {
             get { return _window; }
             set { _window = value; }
         }
-
-        private string managerUIPath = FilesManager.assetsPath + "/index.html";
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
@@ -48,15 +51,11 @@ namespace Widgets.Manager
             handle = window.Handle;
         }
 
-        private ChromiumWebBrowser _browser;
-
         public override ChromiumWebBrowser browser
         {
             get { return _browser; }
             set { _browser = value; }
         }
-
-        IntPtr _handle;
 
         public override IntPtr handle 
         { 
@@ -82,7 +81,7 @@ namespace Widgets.Manager
                 injectHTML += $@"
                     const e{i} = document.createElement('div');
                     e{i}.classList.add('widget');
-                    e{i}.innerText = '{GetMetaTagValue("applicationTitle")}';
+                    e{i}.innerText = '{GetMetaTagValue("applicationTitle", files[i])}';
                     document.getElementById('widgets').appendChild(e{i});
                     e{i}.onclick = () => CefSharp.PostMessage('{i}');
                 ";
@@ -115,8 +114,6 @@ namespace Widgets.Manager
             }
         }
 
-        WidgetMap widgets = new WidgetMap(100);
-
         public override void OpenWidget(int id)
         {
             if (widgets.HasSpaceLeft())
@@ -125,36 +122,6 @@ namespace Widgets.Manager
                 widgets.AddWidget(widget);
                 widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
                 widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
-            }
-        }
-
-        string widgetPath = String.Empty;
-
-        public override string GetMetaTagValue(string name)
-        {
-            string[] html = File.ReadAllLines(widgetPath);
-            for (int i = 0; i < html.Length; i++)
-            {
-                if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
-                {
-                    return html[i].Split('"')[3];
-                }
-            }
-            return null;
-        }
-
-        private void AutoExecuteWidgets()
-        {
-            string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
-
-            for (int i = 0; i < files.Length; i++)
-            {
-                widgetPath = files[i];
-
-                if (GetMetaTagValue("autoExec") == "true")
-                {
-                    OpenWidget(i);
-                }
             }
         }
 

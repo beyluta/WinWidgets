@@ -10,6 +10,13 @@ namespace Widgets
     class Widget : WidgetWindow
     {
         private int id;
+        private IntPtr _handle;
+        private string _widgetPath;
+        private Form _window;
+        private ChromiumWebBrowser _browser;
+        private bool allowWidgetSettingsOverlay = true;
+        private bool isMouseDown = false;
+        private bool isMouseOver = false;
 
         public Widget(int id)
         {
@@ -18,15 +25,12 @@ namespace Widgets
 
         public Widget() { }
 
-        IntPtr _handle;
-
         public override IntPtr handle
         {
             get { return _handle; }
             set { _handle = value; }
         }
 
-        private string _widgetPath;
 
         public string widgetPath 
         { 
@@ -34,15 +38,11 @@ namespace Widgets
             set { _widgetPath = value; }
         }
 
-        private Form _window;
-
         public override Form window
         {
             get { return _window; }
             set { _window = value; }
         }
-
-        private ChromiumWebBrowser _browser;
 
         public override ChromiumWebBrowser browser
         {
@@ -57,15 +57,13 @@ namespace Widgets
             f.Controls.Add(browser);
         }
 
-        bool allowWidgetSettingsOverlay = true;
-
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
-            string sizeString = GetMetaTagValue("windowSize");
-            string radiusString = GetMetaTagValue("windowBorderRadius");
-            string locationString = GetMetaTagValue("windowLocation");
-            string topMostString = GetMetaTagValue("topMost");
-            string overlay = GetMetaTagValue("windowOverlay");
+            string sizeString = GetMetaTagValue("windowSize", widgetPath);
+            string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
+            string locationString = GetMetaTagValue("windowLocation", widgetPath);
+            string topMostString = GetMetaTagValue("topMost", widgetPath);
+            string overlay = GetMetaTagValue("windowOverlay", widgetPath);
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
             int metaWidth = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
             int metaHeight = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
@@ -87,9 +85,6 @@ namespace Widgets
             AppendWidget(window, widgetPath);
             window.ShowDialog();
         }
-
-        private bool isMouseDown = false;
-        private bool isMouseOver = false;
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
@@ -178,19 +173,6 @@ namespace Widgets
         {
             handle = window.Handle;
             browser.MenuHandler = new WidgetMenuHandler(handle);
-        }
-
-        public override string GetMetaTagValue(string name)
-        {
-            string[] html = File.ReadAllLines(widgetPath);
-            for (int i = 0; i < html.Length; i++)
-            {
-                if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
-                {
-                    return html[i].Split('"')[3];
-                }
-            }
-            return null;
         }
 
         public override void OpenWidget(int id)

@@ -15,6 +15,18 @@ namespace Widgets
         public const int LWA_ALPHA = 0x2;
         public const int LWA_COLORKEY = 0x1;
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+
+            public static implicit operator Point(POINT point)
+            {
+                return new Point(point.X, point.Y);
+            }
+        }
+
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         public static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
 
@@ -39,27 +51,8 @@ namespace Widgets
             int nHeightEllipse // height of ellipse
         );
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct POINT
-        {
-            public int X;
-            public int Y;
-
-            public static implicit operator Point(POINT point)
-            {
-                return new Point(point.X, point.Y);
-            }
-        }
-
         [DllImport("user32.dll")]
         public static extern bool GetCursorPos(out POINT lpPoint);
-
-        public static Point GetCursorPosition()
-        {
-            POINT lpPoint;
-            GetCursorPos(out lpPoint);
-            return lpPoint;
-        }
 
         [DllImport("user32.dll")]
         public static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
