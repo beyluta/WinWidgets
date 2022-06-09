@@ -17,6 +17,8 @@ namespace Widgets
         private bool allowWidgetSettingsOverlay = true;
         private bool isMouseDown = false;
         private bool isMouseOver = false;
+        private int width;
+        private int height;
 
         public Widget(int id)
         {
@@ -65,22 +67,22 @@ namespace Widgets
             string topMostString = GetMetaTagValue("topMost", widgetPath);
             string overlay = GetMetaTagValue("windowOverlay", widgetPath);
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
-            int metaWidth = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
-            int metaHeight = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
+            width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
+            height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : 0;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : 0;
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
             allowWidgetSettingsOverlay = overlay == "true" ? true : false;
 
             window = new Form();
-            window.Size = new Size(metaWidth, metaHeight);
+            window.Size = new Size(width, height);
             window.StartPosition = p;
             window.Location = new Point(locationX, locationY);
             window.Text = t;
             window.TopMost = topMost;
             window.FormBorderStyle = FormBorderStyle.None;
             window.ShowInTaskbar = false;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, metaWidth, metaHeight, roundess, roundess));
+            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, width, height, roundess, roundess));
             window.Activated += OnFormActivated;
             AppendWidget(window, widgetPath);
             window.ShowDialog();
@@ -133,8 +135,17 @@ namespace Widgets
                         document.getElementById('browserWrapper').style.display = 'block';                
                         CefSharp.PostMessage('onmouseenter');
                     }
-                    document.body.onmousedown = () => CefSharp.PostMessage('onmousedown');
-                    document.body.onmouseup = () => CefSharp.PostMessage('onmouseup');
+                    var mouseDrag;
+                    document.body.onmousedown = () => {
+                        mouseDrag = setInterval(() => {
+                            CefSharp.PostMessage('mouseDrag');
+                        }, 0);
+                        CefSharp.PostMessage('onmousedown');
+                    }
+                    document.body.onmouseup = () => {
+                         clearInterval(mouseDrag);
+                         CefSharp.PostMessage('onmouseup');
+                    }
                     document.getElementById('wrapperDeleteIcon').onclick = () => CefSharp.PostMessage('deletewidget');
                 }
             ");
@@ -165,6 +176,12 @@ namespace Widgets
 
                 case "deletewidget":
                     SendMessage(handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    break;
+
+                case "mouseDrag":
+                    POINT pos;
+                    GetCursorPos(out pos);
+                    SetWindowPos(handle, 0, pos.X - width / 2, pos.Y - height / 2, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
                     break;
             }
         }
