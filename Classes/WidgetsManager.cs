@@ -23,7 +23,7 @@ namespace Widgets.Manager
             CefSettings options = new CefSettings();
             Cef.Initialize(options);
             FilesManager.CreateHTMLFilesDirectory();
-            CreateWindow(600, 500, "Widget Manager", FormStartPosition.CenterScreen);
+            CreateWindow(1000, 800, "Widget Manager", FormStartPosition.CenterScreen);
         }
 
         public override Form window
@@ -38,8 +38,6 @@ namespace Widgets.Manager
             window.Size = new Size(w, h);
             window.StartPosition = p;
             window.Text = t;
-            window.FormBorderStyle = FormBorderStyle.None;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 15, 15));
             window.Activated += OnFormActivated;
             window.Icon = Resources.favicon;
             AppendWidget(window, managerUIPath);
@@ -78,17 +76,16 @@ namespace Widgets.Manager
             for (int i = 0; i < files.Length; i++)
             {
                 widgetPath = files[i];
-                injectHTML += $@"
+                injectHTML +=  "window.onload = function() {" + $@"
                     const e{i} = document.createElement('div');
                     e{i}.classList.add('widget');
-                    e{i}.innerText = '{GetMetaTagValue("applicationTitle", files[i])}';
+                    e{i}.classList.add('flex-row');
+                    e{i}.innerHTML = '<p>{GetMetaTagValue("applicationTitle", files[i])}</p>';
                     document.getElementById('widgets').appendChild(e{i});
                     e{i}.onclick = () => CefSharp.PostMessage('{i}');
-                ";
+                    document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
+                " + "}";
             }
-            browser.ExecuteScriptAsync($@"document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder')");
-            browser.ExecuteScriptAsync($@"document.getElementById('close').onclick = () => CefSharp.PostMessage('closeApplication')");
-            browser.ExecuteScriptAsync($@"document.getElementById('minimize').onclick = () => CefSharp.PostMessage('minimizeApplication')");
             browser.ExecuteScriptAsync(injectHTML);
         }
 
@@ -98,14 +95,6 @@ namespace Widgets.Manager
             {
                 case "widgetsFolder":
                     Process.Start(FilesManager.widgetsPath);
-                    break;
-
-                case "closeApplication":
-                    Application.Exit();
-                    break;
-
-                case "minimizeApplication":
-                    ShowWindow(handle, SW_MINIMIZE);
                     break;
 
                 default:

@@ -1,144 +1,249 @@
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+  :root {
+    --black: #323232;
+    --lightgray: #e0e0e0;
+    --gray: #b9b9b9;
+    --darkgray: #b8b8b8;
+    --blue: #18a8fa;
+    --darkblue: #1393db;
+  }
+
+  body,
+  html {
+    margin: 0;
+    padding: 0;
+    font-family: "Jaldi", sans-serif;
+    color: var(--black);
+  }
+
+  svg {
+    fill: var(--gray);
+    cursor: pointer;
+  }
+
+  .flex-row {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .flex-column {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .half {
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  .sidebar {
+    height: 100vh;
+    max-width: 100px;
+    width: 100%;
+    justify-content: center;
+    align-items: center;
+    border-right: solid 1px var(--lightgray);
+    gap: 80px;
+  }
+
+  .maincontent {
+    width: 100%;
+    padding: 25px 30px;
+  }
+
+  .headings {
+    margin-bottom: 50px;
+  }
+
+  .headings > h2 {
+    margin: 0;
+    padding: 0;
+  }
+
+  .headings > h3 {
+    font-weight: normal;
+    margin: 0;
+    padding: 0;
+    color: var(--gray);
+  }
+
+  @keyframes loadingwidget {
+    0% {
+      background: var(--gray);
+    }
+    50% {
+      background: var(--lightgray);
+    }
+    100% {
+      background: var(--gray);
+    }
+  }
+
+  .widgets {
+    gap: 20px;
+  }
+
+  .widget {
+    width: 300px;
+    height: 200px;
+    background-color: var(--gray);
+    border-radius: 20px;
+    animation: loadingwidget 2s linear infinite;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .widget > p {
+    margin: 0;
+    padding: 0;
+    font-size: 20px;
+    opacity: 0;
+    color: var(--black);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .widget:hover > p {
+    opacity: 1;
+  }
+
+  .searchcontainer {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+    border-radius: 15px;
+    height: 50px;
+    margin-top: 20px;
+  }
+
+  .search {
+    margin-left: 25px;
+    gap: 10px;
+  }
+
+  .search > input {
+    border: none;
+    background-color: transparent;
+    resize: none;
+    outline: none;
+    color: var(--darkgray);
+  }
+
+  .search > input::placeholder {
+    color: var(--gray);
+  }
+
+  .folder {
+    margin-right: 25px;
+  }
+</style>
+
+<script>
+  function changeTab(element) {
+    const dashboard = document.getElementById("dashboard");
+    const settings = document.getElementById("settings");
+    const update = document.getElementById("update");
+    dashboard.style.fill = "var(--gray)";
+    settings.style.fill = "var(--gray)";
+    update.style.fill = "var(--gray)";
+    element.style.fill = "var(--black)";
+  }
+</script>
+
 <!DOCTYPE html>
-    <head>
-        <title>Test</title>
-    </head>
-    <body>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-                -webkit-touch-callout: none; /* iOS Safari */
-                -webkit-user-select: none; /* Safari */
-                -khtml-user-select: none; /* Konqueror HTML */
-                -moz-user-select: none; /* Old versions of Firefox */
-                -ms-user-select: none; /* Internet Explorer/Edge */
-                user-select: none;
-            }
-
-            p {
-                color: gray;
-                font-family: Verdana, Geneva, Tahoma, sans-serif;
-            }
-
-            .flex-row {
-                display: flex;
-                flex-direction: row;
-            }
-
-            .flex-column {
-                display: flex;
-                flex-direction: column;
-            }
-
-            .container {
-                width: 100vw;
-                height: 100vh;
-                background: #ececec;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                gap: 15px;
-            }
-
-            .widget {
-                margin: 0;
-                padding: 10px 20px;
-                transition: all .1s ease-in-out;
-                color: gray;
-                font-family: Verdana, Geneva, Tahoma, sans-serif;
-                font-size: 13px;
-                cursor: pointer;
-            }
-
-            .widget:hover {
-                background: #f5f5f5;
-            }
-
-            .search {
-                background: white;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                border-radius: 10px;
-                height: 60px;
-                width: 500px;
-                display: flex;
-                flex-direction: row;
-                align-items: center;
-            }
-
-            .text-icon > input {
-                border: none;
-                border-radius: 10px;
-                outline: none;
-                padding: 10px;
-                font-family: Verdana, Geneva, Tahoma, sans-serif;
-                color: gray;
-            }
-
-            .text-icon {
-                display: flex;
-                flex-direction: row;
-                margin-left: 20px;
-                fill: gray;
-            }
-
-            .result-container {
-                width: 500px;
-                max-width: 500px;
-                max-height: 160px;
-                overflow-y: auto;
-                background: white;
-                height: auto;
-                border-radius: 10px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            }
-
-            .close {
-                position: fixed;
-                top: 0;
-                right: 0;
-                margin: 10px 15px;
-                fill: gray;
-                cursor: pointer;
-            }
-
-            .icons {
-                transition: all .3s ease-in-out;
-            }
-
-            .icons:hover {
-                cursor: pointer;
-                opacity: 0.8;
-            }
-        </style>
-
-
-        <div class="container" id="container">
-            <div class="close flex-row" style="gap: 20px;">
-                <svg xmlns="http://www.w3.org/2000/svg" id="minimize" width="20px" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M0 448C0 430.3 14.33 416 32 416H480C497.7 416 512 430.3 512 448C512 465.7 497.7 480 480 480H32C14.33 480 0 465.7 0 448z"/></svg>
-                <svg xmlns="http://www.w3.org/2000/svg" id="close" width="20px" viewBox="0 0 320 512"><!--! Font Awesome Pro 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M310.6 361.4c12.5 12.5 12.5 32.75 0 45.25C304.4 412.9 296.2 416 288 416s-16.38-3.125-22.62-9.375L160 301.3L54.63 406.6C48.38 412.9 40.19 416 32 416S15.63 412.9 9.375 406.6c-12.5-12.5-12.5-32.75 0-45.25l105.4-105.4L9.375 150.6c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0L160 210.8l105.4-105.4c12.5-12.5 32.75-12.5 45.25 0s12.5 32.75 0 45.25l-105.4 105.4L310.6 361.4z"/></svg>
-            </div>
-
-            <div class="search">
-                <div class="flex-row" style="justify-content: space-between; width: 100%; align-items: center; margin-right: 20px;">
-                    <div class="text-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20px" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M500.3 443.7l-119.7-119.7c27.22-40.41 40.65-90.9 33.46-144.7C401.8 87.79 326.8 13.32 235.2 1.723C99.01-15.51-15.51 99.01 1.724 235.2c11.6 91.64 86.08 166.7 177.6 178.9c53.8 7.189 104.3-6.236 144.7-33.46l119.7 119.7c15.62 15.62 40.95 15.62 56.57 0C515.9 484.7 515.9 459.3 500.3 443.7zM79.1 208c0-70.58 57.42-128 128-128s128 57.42 128 128c0 70.58-57.42 128-128 128S79.1 278.6 79.1 208z"/></svg>
-                        <input type="text" placeholder="Search for widget" id="search">
-                    </div>
-
-                    <div class="flex-row">
-                        <svg class="icons" id="folder" xmlns="http://www.w3.org/2000/svg" style="fill: gray;" width="20px" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M512 144v288c0 26.5-21.5 48-48 48h-416C21.5 480 0 458.5 0 432v-352C0 53.5 21.5 32 48 32h160l64 64h192C490.5 96 512 117.5 512 144z"/></svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex-column result-container" id="widgets">
-                <div class="text-icon" style="border-bottom: solid 1.5px rgba(1,1,1,0.1); margin: 0;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" viewBox="0 0 512 512" style="margin-left: 20px;"><!--! Font Awesome Pro 6.1.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license (Commercial License) Copyright 2022 Fonticons, Inc. --><path d="M495.9 166.6C499.2 175.2 496.4 184.9 489.6 191.2L446.3 230.6C447.4 238.9 448 247.4 448 256C448 264.6 447.4 273.1 446.3 281.4L489.6 320.8C496.4 327.1 499.2 336.8 495.9 345.4C491.5 357.3 486.2 368.8 480.2 379.7L475.5 387.8C468.9 398.8 461.5 409.2 453.4 419.1C447.4 426.2 437.7 428.7 428.9 425.9L373.2 408.1C359.8 418.4 344.1 427 329.2 433.6L316.7 490.7C314.7 499.7 307.7 506.1 298.5 508.5C284.7 510.8 270.5 512 255.1 512C241.5 512 227.3 510.8 213.5 508.5C204.3 506.1 197.3 499.7 195.3 490.7L182.8 433.6C167 427 152.2 418.4 138.8 408.1L83.14 425.9C74.3 428.7 64.55 426.2 58.63 419.1C50.52 409.2 43.12 398.8 36.52 387.8L31.84 379.7C25.77 368.8 20.49 357.3 16.06 345.4C12.82 336.8 15.55 327.1 22.41 320.8L65.67 281.4C64.57 273.1 64 264.6 64 256C64 247.4 64.57 238.9 65.67 230.6L22.41 191.2C15.55 184.9 12.82 175.3 16.06 166.6C20.49 154.7 25.78 143.2 31.84 132.3L36.51 124.2C43.12 113.2 50.52 102.8 58.63 92.95C64.55 85.8 74.3 83.32 83.14 86.14L138.8 103.9C152.2 93.56 167 84.96 182.8 78.43L195.3 21.33C197.3 12.25 204.3 5.04 213.5 3.51C227.3 1.201 241.5 0 256 0C270.5 0 284.7 1.201 298.5 3.51C307.7 5.04 314.7 12.25 316.7 21.33L329.2 78.43C344.1 84.96 359.8 93.56 373.2 103.9L428.9 86.14C437.7 83.32 447.4 85.8 453.4 92.95C461.5 102.8 468.9 113.2 475.5 124.2L480.2 132.3C486.2 143.2 491.5 154.7 495.9 166.6V166.6zM256 336C300.2 336 336 300.2 336 255.1C336 211.8 300.2 175.1 256 175.1C211.8 175.1 176 211.8 176 255.1C176 300.2 211.8 336 256 336z"/></svg>
-                    <p style="font-size: 14px; margin-left: 10px;">Widget list</p>
-                </div>
-                <!-- <!-- <div class="widget">Widget</div> -->
-            </div>
+<html>
+  <head></head>
+  <body>
+    <div class="half flex-row">
+      <div class="sidebar flex-column">
+        <div class="sideicon">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="30px"
+            viewBox="0 0 512 512"
+            id="dashboard"
+            style="fill: var(--black)"
+            onclick="changeTab(this)"
+          >
+            <path
+              d="M512 256C512 397.4 397.4 512 256 512C114.6 512 0 397.4 0 256C0 114.6 114.6 0 256 0C397.4 0 512 114.6 512 256zM256 64C238.3 64 224 78.33 224 96C224 113.7 238.3 128 256 128C273.7 128 288 113.7 288 96C288 78.33 273.7 64 256 64zM256 416C291.3 416 320 387.3 320 352C320 334.6 313.1 318.9 301.9 307.4L365.1 161.7C371.3 149.5 365.8 135.4 353.7 130C341.5 124.7 327.4 130.2 322 142.3L257.9 288C257.3 288 256.6 287.1 256 287.1C220.7 287.1 192 316.7 192 352C192 387.3 220.7 416 256 416V416zM144 112C126.3 112 112 126.3 112 144C112 161.7 126.3 176 144 176C161.7 176 176 161.7 176 144C176 126.3 161.7 112 144 112zM96 288C113.7 288 128 273.7 128 256C128 238.3 113.7 224 96 224C78.33 224 64 238.3 64 256C64 273.7 78.33 288 96 288zM416 224C398.3 224 384 238.3 384 256C384 273.7 398.3 288 416 288C433.7 288 448 273.7 448 256C448 238.3 433.7 224 416 224z"
+            />
+          </svg>
         </div>
-    </body>
+
+        <div class="sideicon">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="30px"
+            viewBox="0 0 512 512"
+            id="settings"
+            onclick="changeTab(this)"
+          >
+            <path
+              d="M495.9 166.6C499.2 175.2 496.4 184.9 489.6 191.2L446.3 230.6C447.4 238.9 448 247.4 448 256C448 264.6 447.4 273.1 446.3 281.4L489.6 320.8C496.4 327.1 499.2 336.8 495.9 345.4C491.5 357.3 486.2 368.8 480.2 379.7L475.5 387.8C468.9 398.8 461.5 409.2 453.4 419.1C447.4 426.2 437.7 428.7 428.9 425.9L373.2 408.1C359.8 418.4 344.1 427 329.2 433.6L316.7 490.7C314.7 499.7 307.7 506.1 298.5 508.5C284.7 510.8 270.5 512 255.1 512C241.5 512 227.3 510.8 213.5 508.5C204.3 506.1 197.3 499.7 195.3 490.7L182.8 433.6C167 427 152.2 418.4 138.8 408.1L83.14 425.9C74.3 428.7 64.55 426.2 58.63 419.1C50.52 409.2 43.12 398.8 36.52 387.8L31.84 379.7C25.77 368.8 20.49 357.3 16.06 345.4C12.82 336.8 15.55 327.1 22.41 320.8L65.67 281.4C64.57 273.1 64 264.6 64 256C64 247.4 64.57 238.9 65.67 230.6L22.41 191.2C15.55 184.9 12.82 175.3 16.06 166.6C20.49 154.7 25.78 143.2 31.84 132.3L36.51 124.2C43.12 113.2 50.52 102.8 58.63 92.95C64.55 85.8 74.3 83.32 83.14 86.14L138.8 103.9C152.2 93.56 167 84.96 182.8 78.43L195.3 21.33C197.3 12.25 204.3 5.04 213.5 3.51C227.3 1.201 241.5 0 256 0C270.5 0 284.7 1.201 298.5 3.51C307.7 5.04 314.7 12.25 316.7 21.33L329.2 78.43C344.1 84.96 359.8 93.56 373.2 103.9L428.9 86.14C437.7 83.32 447.4 85.8 453.4 92.95C461.5 102.8 468.9 113.2 475.5 124.2L480.2 132.3C486.2 143.2 491.5 154.7 495.9 166.6V166.6zM256 336C300.2 336 336 300.2 336 255.1C336 211.8 300.2 175.1 256 175.1C211.8 175.1 176 211.8 176 255.1C176 300.2 211.8 336 256 336z"
+            />
+          </svg>
+        </div>
+
+        <div class="sideicon">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="30px"
+            viewBox="0 0 512 512"
+            id="update"
+            onclick="changeTab(this)"
+          >
+            <path
+              d="M0 256C0 114.6 114.6 0 256 0C397.4 0 512 114.6 512 256C512 397.4 397.4 512 256 512C114.6 512 0 397.4 0 256zM371.8 211.8C382.7 200.9 382.7 183.1 371.8 172.2C360.9 161.3 343.1 161.3 332.2 172.2L224 280.4L179.8 236.2C168.9 225.3 151.1 225.3 140.2 236.2C129.3 247.1 129.3 264.9 140.2 275.8L204.2 339.8C215.1 350.7 232.9 350.7 243.8 339.8L371.8 211.8z"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <div class="maincontent">
+        <div class="headings">
+          <h2 id="windowtitle">Installed Widgets</h2>
+          <h3 id="nextwindowtitle">Browse Widgets</h3>
+          <div class="searchcontainer">
+            <div class="search flex-row">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20px"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  d="M500.3 443.7l-119.7-119.7c27.22-40.41 40.65-90.9 33.46-144.7C401.8 87.79 326.8 13.32 235.2 1.723C99.01-15.51-15.51 99.01 1.724 235.2c11.6 91.64 86.08 166.7 177.6 178.9c53.8 7.189 104.3-6.236 144.7-33.46l119.7 119.7c15.62 15.62 40.95 15.62 56.57 0C515.9 484.7 515.9 459.3 500.3 443.7zM79.1 208c0-70.58 57.42-128 128-128s128 57.42 128 128c0 70.58-57.42 128-128 128S79.1 278.6 79.1 208z"
+                />
+              </svg>
+              <input type="text" placeholder="Search for widget" />
+            </div>
+
+            <div class="folder" id="folder">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20px"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  d="M512 144v288c0 26.5-21.5 48-48 48h-416C21.5 480 0 458.5 0 432v-352C0 53.5 21.5 32 48 32h160l64 64h192C490.5 96 512 117.5 512 144z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="widgets flex-row" id="widgets">
+          <div class="widget flex-row">
+            <p>Clock Widget</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
