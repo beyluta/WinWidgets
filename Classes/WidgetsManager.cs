@@ -21,6 +21,7 @@ namespace Widgets.Manager
         public WidgetsManager()
         {
             CefSettings options = new CefSettings();
+            options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
             FilesManager.CreateHTMLFilesDirectory();
             CreateWindow(1000, 800, "Widget Manager", FormStartPosition.CenterScreen);
@@ -76,12 +77,25 @@ namespace Widgets.Manager
             for (int i = 0; i < files.Length; i++)
             {
                 widgetPath = files[i];
+                string localWidgetPath = string.Empty;
+
+                for (int j = 0; j < widgetPath.Length; j++)
+                {
+                    if (widgetPath[j] == '\\')
+                    {
+                        localWidgetPath += '/';
+                    } else
+                    {
+                        localWidgetPath += widgetPath[j];
+                    }
+                }
+
                 injectHTML +=  "window.onload = function() {" + $@"
                     const e{i} = document.createElement('div');
                     e{i}.classList.add('widget');
                     e{i}.classList.add('flex-row');
-                    e{i}.innerHTML = '<p>{GetMetaTagValue("applicationTitle", files[i])}</p>';
-                    document.getElementById('widgets').appendChild(e{i});
+                    e{i}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
+                document.getElementById('widgets').appendChild(e{i});
                     e{i}.onclick = () => CefSharp.PostMessage('{i}');
                     document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
                 " + "}";
