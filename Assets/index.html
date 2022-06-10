@@ -82,7 +82,7 @@
   }
 
   .widgets {
-    gap: 20px;
+    gap: 30px;
   }
 
   .widget {
@@ -96,6 +96,12 @@
     align-items: center;
     cursor: pointer;
     box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease-in-out;
+  }
+
+  .widget:hover {
+    transform: scale(1.1);
+    z-index: 999;
   }
 
   .widget > p {
