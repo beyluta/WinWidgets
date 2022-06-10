@@ -90,15 +90,15 @@ namespace Widgets.Manager
                     }
                 }
 
-                injectHTML +=  "window.onload = function() {" + $@"
+                injectHTML += "window.addEventListener('load', (event) => {" + $@"
                     const e{i} = document.createElement('div');
                     e{i}.classList.add('widget');
                     e{i}.classList.add('flex-row');
                     e{i}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
-                document.getElementById('widgets').appendChild(e{i});
+                    document.getElementById('widgets').appendChild(e{i});
                     e{i}.onclick = () => CefSharp.PostMessage('{i}');
                     document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
-                " + "}";
+                " + "});";
             }
             browser.ExecuteScriptAsync(injectHTML);
         }
