@@ -219,6 +219,49 @@
     margin: 0;
     padding: 0;
   }
+
+  .settings {
+    gap: 20px;
+    flex-wrap: wrap;
+    display: none;
+  }
+
+  .setting {
+    align-items: center;
+    gap: 15px;
+  }
+
+  .switch {
+    width: 50px;
+    height: 20px;
+    border-radius: 20px;
+    background-color: var(--darkgray);
+    justify-content: flex-start;
+    align-items: center;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+  }
+
+  .switchon {
+    justify-content: flex-end;
+    background: var(--darkblue);
+  }
+
+  .circle {
+    width: 25px;
+    height: 25px;
+    border-radius: 100%;
+    background-color: var(--lightgray);
+    z-index: 999;
+  }
+
+  .settingscard {
+    box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+    width: max-content;
+    padding: 10px 30px;
+    border-radius: 25px;
+    flex-grow: 1;
+  }
 </style>
 
 <script>
@@ -256,20 +299,31 @@
       case "dashboard":
         document.getElementById("updates").style.display = "none";
         document.getElementById("widgets").style.display = "flex";
+        document.getElementById("options").style.display = "none";
         document.getElementById("searchcontainer").style.display = "flex";
         break;
 
       case "update":
         document.getElementById("updates").style.display = "flex";
         document.getElementById("widgets").style.display = "none";
+        document.getElementById("options").style.display = "none";
         document.getElementById("searchcontainer").style.display = "none";
         break;
 
       case "settings":
         document.getElementById("updates").style.display = "none";
         document.getElementById("widgets").style.display = "none";
+        document.getElementById("options").style.display = "flex";
         document.getElementById("searchcontainer").style.display = "none";
         break;
+    }
+  }
+
+  function changeSwitch(element) {
+    if (element.classList.contains("switchon")) {
+      element.classList.remove("switchon");
+    } else {
+      element.classList.add("switchon");
     }
   }
 
@@ -383,11 +437,38 @@
         <div class="widgets flex-row" id="widgets">
           <!-- <div class="widget flex-row">
             <iframe
-              onclick="this.stopPropagation()"
               src="C:\Users\Beyluta\Documents\Widgets\clock.html'></iframe>"
             ></iframe>
             <p>Clock Widget</p>
           </div> -->
+        </div>
+
+        <div class="settings flex-row" id="options">
+          <div class="settingscard">
+            <h3>Application settings</h3>
+            <div class="setting flex-row">
+              <div
+                class="switch flex-row switchon"
+                onclick="changeSwitch(this)"
+              >
+                <div class="circle"></div>
+              </div>
+              <p>Run the application on startup</p>
+            </div>
+          </div>
+
+          <div class="settingscard">
+            <h3>Application settings</h3>
+            <div class="setting flex-row">
+              <div
+                class="switch flex-row switchon"
+                onclick="changeSwitch(this)"
+              >
+                <div class="circle"></div>
+              </div>
+              <p>Run the application on startup</p>
+            </div>
+          </div>
         </div>
 
         <div class="updates flex-column" id="updates">
