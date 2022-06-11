@@ -1,0 +1,278 @@
+@import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+:root {
+  --black: #323232;
+  --lightgray: #e0e0e0;
+  --gray: #b9b9b9;
+  --darkgray: #b8b8b8;
+  --blue: #18a8fa;
+  --darkblue: #1393db;
+}
+
+body,
+html {
+  margin: 0;
+  padding: 0;
+  overflow-y: hidden;
+  font-family: "Jaldi", sans-serif;
+  color: var(--black);
+}
+
+svg {
+  fill: var(--gray);
+  cursor: pointer;
+}
+
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.half {
+  max-width: 100vw;
+  width: 100%;
+}
+
+.sidebar {
+  height: 100vh;
+  max-width: 100px;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  border-right: solid 1px var(--lightgray);
+  gap: 80px;
+}
+
+.sidebaricons {
+  gap: 60px;
+  padding-bottom: 30px;
+}
+
+.logo {
+  padding-top: 30px;
+  border-bottom: solid 1px var(--lightgray);
+  padding-bottom: 15px;
+}
+
+.logo > img {
+  width: 45px;
+}
+
+.maincontent {
+  width: 100%;
+  padding: 25px 30px;
+}
+
+.headings {
+  margin-bottom: 50px;
+}
+
+.headings > h2 {
+  margin: 0;
+  padding: 0;
+}
+
+.headings > h3 {
+  font-weight: normal;
+  margin: 0;
+  padding: 0;
+  color: var(--gray);
+}
+
+@keyframes loadingwidget {
+  0% {
+    background: var(--gray);
+  }
+  50% {
+    background: var(--lightgray);
+  }
+  100% {
+    background: var(--gray);
+  }
+}
+
+.widgets {
+  gap: 30px;
+  flex-wrap: wrap;
+  max-height: 100vh;
+  height: auto;
+  overflow-y: auto;
+  padding: 25px;
+}
+
+.widget {
+  position: relative;
+  width: 300px;
+  height: 200px;
+  background-color: var(--gray);
+  border-radius: 20px;
+  animation: loadingwidget 2s linear infinite;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease-in-out;
+}
+
+.widget:hover {
+  transform: scale(1.1);
+  z-index: 999;
+}
+
+.widget > p {
+  margin: 0;
+  padding: 0;
+  font-size: 20px;
+  opacity: 0;
+  color: var(--black);
+  transition: all 0.2s ease-in-out;
+}
+
+.widget > iframe {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  border: none;
+  position: absolute;
+  pointer-events: none;
+}
+
+.widget:hover > p {
+  opacity: 1;
+}
+
+.searchcontainer {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 15px;
+  height: 50px;
+  margin-top: 20px;
+}
+
+.search {
+  margin-left: 25px;
+  gap: 10px;
+  width: 100%;
+}
+
+.search > input {
+  border: none;
+  background-color: transparent;
+  resize: none;
+  outline: none;
+  color: var(--darkgray);
+  width: 100%;
+}
+
+.search > input::placeholder {
+  color: var(--gray);
+}
+
+.folder {
+  margin-right: 25px;
+}
+
+.updates {
+  gap: 20px;
+  display: none;
+}
+
+.update {
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+  max-width: 100%;
+  padding: 50px 0 50px 0;
+  width: 100%;
+  border-radius: 20px;
+  justify-content: center;
+  align-items: center;
+}
+
+.update > svg {
+  fill: var(--black);
+  margin: 0;
+  padding: 0;
+}
+
+.update > h3 {
+  fill: var(--black);
+  margin: 0;
+  padding: 0;
+}
+
+.update > p {
+  margin: 0;
+  padding: 0;
+}
+
+.updatechecker {
+  gap: 15px;
+  transition: all 0.2s ease-in-out;
+  padding: 0px 50px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.updatechecker:hover {
+  gap: 15px;
+  background-color: rgb(245, 245, 245);
+}
+
+.updatechecker > svg {
+  fill: var(--black);
+  margin-top: 20px;
+  margin: 0;
+  padding: 0;
+}
+
+.settings {
+  gap: 20px;
+  flex-wrap: wrap;
+  display: none;
+}
+
+.setting {
+  align-items: center;
+  gap: 15px;
+}
+
+.switch {
+  width: 50px;
+  height: 20px;
+  border-radius: 20px;
+  background-color: var(--darkgray);
+  justify-content: flex-start;
+  align-items: center;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.switchon {
+  justify-content: flex-end;
+  background: var(--darkblue);
+}
+
+.circle {
+  width: 25px;
+  height: 25px;
+  border-radius: 100%;
+  background-color: var(--lightgray);
+  z-index: 999;
+}
+
+.settingscard {
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+  width: max-content;
+  padding: 10px 30px;
+  border-radius: 25px;
+  flex-grow: 1;
+}

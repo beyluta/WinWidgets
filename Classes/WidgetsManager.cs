@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -9,17 +10,27 @@ using WidgetsDotNet.Properties;
 
 namespace Widgets.Manager
 {
-    class WidgetsManager : WidgetWindow
+    internal class WidgetsManager : WidgetWindow
     {
+        private string widgetPath = String.Empty;
+        private WidgetMap widgets = new WidgetMap(100);
+        private Form _window;
+        private ChromiumWebBrowser _browser;
+        private IntPtr _handle;
+        private string managerUIPath = FilesManager.assetsPath + "/index.html";
+        private bool widgetsInitialized = false;
+        private int widgetIndex = 0;
+        RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+        NotifyIcon notifyIcon;
+
         public WidgetsManager()
         {
             CefSettings options = new CefSettings();
+            options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
             FilesManager.CreateHTMLFilesDirectory();
-            CreateWindow(600, 500, "Widget Manager", FormStartPosition.CenterScreen);
+            CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
         }
-
-        private Form _window;
 
         public override Form window
         {
@@ -27,28 +38,19 @@ namespace Widgets.Manager
             set { _window = value; }
         }
 
-        private string managerUIPath = FilesManager.assetsPath + "/index.html";
-
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
             window = new Form();
             window.Size = new Size(w, h);
             window.StartPosition = p;
             window.Text = t;
-            window.FormBorderStyle = FormBorderStyle.None;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, w, h, 15, 15));
             window.Activated += OnFormActivated;
             window.Icon = Resources.favicon;
+            window.Resize += OnFormReized;
+            window.ShowInTaskbar = false;
             AppendWidget(window, managerUIPath);
             window.ShowDialog();
         }
-
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            handle = window.Handle;
-        }
-
-        private ChromiumWebBrowser _browser;
 
         public override ChromiumWebBrowser browser
         {
@@ -56,12 +58,10 @@ namespace Widgets.Manager
             set { _browser = value; }
         }
 
-        IntPtr _handle;
-
-        public override IntPtr handle 
-        { 
-            get { return _handle; } 
-            set { _handle = value; } 
+        public override IntPtr handle
+        {
+            get { return _handle; }
+            set { _handle = value; }
         }
 
         public override void AppendWidget(Form f, string path)
@@ -70,27 +70,155 @@ namespace Widgets.Manager
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             f.Controls.Add(browser);
+
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = Resources.favicon;
+            notifyIcon.Text = "WinWidgets";
+            notifyIcon.Visible = true;
+            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[] { new MenuItem("Open Manager", OnOpenApplication),new MenuItem("Quit", OnExitApplication) });
+            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
+        }
+
+        private void ReloadWidgets()
+        {
+            string injectHTML = string.Empty;
+            string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                widgetPath = files[i];
+                string localWidgetPath = string.Empty;
+
+                for (int j = 0; j < widgetPath.Length; j++)
+                {
+                    if (widgetPath[j] == '\\')
+                    {
+                        localWidgetPath += '/';
+                    }
+                    else
+                    {
+                        localWidgetPath += widgetPath[j];
+                    }
+                }
+
+                if (!widgetsInitialized)
+                {
+                    injectHTML += "window.addEventListener('load', (event) => {" + $@"
+                        const e = document.createElement('div');
+                        e.classList.add('widget');
+                        e.classList.add('flex-row');
+                        e.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
+                        e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
+                        document.getElementById('widgets').appendChild(e);
+                        e.onclick = () => CefSharp.PostMessage('{i}');
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" + @"
+
+                        const switches = document.getElementsByClassName('switch');
+                          for (let s of switches) {
+                            const setting = s.getAttribute('setting');
+                            if (setting == 'startup') {
+                              " + $@"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}" + @"
+                            }
+                        }
+                    " + "});";
+                }
+                else
+                {
+                    widgetIndex++;
+
+                    if (i <= 0)
+                    {
+                        injectHTML += "document.getElementById('widgets').innerHTML = '';";
+                    }
+
+                    injectHTML += $@"
+                        const e{widgetIndex} = document.createElement('div');
+                        e{widgetIndex}.classList.add('widget');
+                        e{widgetIndex}.classList.add('flex-row');
+                        e{widgetIndex}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
+                        document.getElementById('widgets').appendChild(e{widgetIndex});
+                        e{widgetIndex}.onclick = () => CefSharp.PostMessage('{i}');
+                        e{widgetIndex}.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
+                }
+            }
+
+            widgetsInitialized = true;
+            browser.ExecuteScriptAsync(injectHTML);
+        }
+
+        private void OnFormReized(object sender, EventArgs e)
+        {
+            if (window.WindowState == FormWindowState.Minimized)
+            {
+                window.Opacity = 0;
+            }
+        }
+
+        private void OnFormActivated(object sender, EventArgs e)
+        {
+            handle = window.Handle;
+        }
+
+        private void OnOpenApplication(object sender, EventArgs e)
+        {
+            window.Opacity = 100;
+            window.WindowState = FormWindowState.Normal;
+        }
+
+        private void OnExitApplication(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
+        {
+            window.Opacity = 100;
+            window.WindowState = FormWindowState.Normal;
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            string injectHTML = string.Empty;
-            string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
-            for (int i = 0; i < files.Length; i++)
-            {
-                widgetPath = files[i];
-                injectHTML += $@"
-                    const e{i} = document.createElement('div');
-                    e{i}.classList.add('widget');
-                    e{i}.innerText = '{GetMetaTagValue("applicationTitle")}';
-                    document.getElementById('widgets').appendChild(e{i});
-                    e{i}.onclick = () => CefSharp.PostMessage('{i}');
-                ";
-            }
-            browser.ExecuteScriptAsync($@"document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder')");
-            browser.ExecuteScriptAsync($@"document.getElementById('close').onclick = () => CefSharp.PostMessage('closeApplication')");
-            browser.ExecuteScriptAsync($@"document.getElementById('minimize').onclick = () => CefSharp.PostMessage('minimizeApplication')");
-            browser.ExecuteScriptAsync(injectHTML);
+            FileSystemWatcher fileWatcher = new FileSystemWatcher(FilesManager.widgetsPath);
+            fileWatcher.NotifyFilter = NotifyFilters.Attributes
+                                 | NotifyFilters.CreationTime
+                                 | NotifyFilters.DirectoryName
+                                 | NotifyFilters.FileName
+                                 | NotifyFilters.LastAccess
+                                 | NotifyFilters.LastWrite
+                                 | NotifyFilters.Security
+                                 | NotifyFilters.Size;
+
+            fileWatcher.Changed += OnDirectoryChanged;
+            fileWatcher.Created += OnFileCreatedInDirectory;
+            fileWatcher.Deleted += OnFileDeletedInDirectory;
+            fileWatcher.Renamed += OnFileRenamedInDirectory;
+
+            fileWatcher.Filter = "*.html";
+            fileWatcher.IncludeSubdirectories = true;
+            fileWatcher.EnableRaisingEvents = true;
+
+            ReloadWidgets();
+        }
+
+        private void OnFileRenamedInDirectory(object sender, RenamedEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnFileDeletedInDirectory(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnFileCreatedInDirectory(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnDirectoryChanged(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
@@ -101,12 +229,17 @@ namespace Widgets.Manager
                     Process.Start(FilesManager.widgetsPath);
                     break;
 
-                case "closeApplication":
-                    Application.Exit();
-                    break;
-
-                case "minimizeApplication":
-                    ShowWindow(handle, SW_MINIMIZE);
+                case "startup":
+                    if (registryKey.GetValue("WinWidgets") == null)
+                    {
+                        registryKey.SetValue("WinWidgets", Application.StartupPath);
+                        Console.WriteLine("Will start with windows");
+                    }
+                    else
+                    {
+                        registryKey.DeleteValue("WinWidgets");
+                        Console.WriteLine("Won't start with windows");
+                    }
                     break;
 
                 default:
@@ -114,8 +247,6 @@ namespace Widgets.Manager
                     break;
             }
         }
-
-        WidgetMap widgets = new WidgetMap(100);
 
         public override void OpenWidget(int id)
         {
@@ -126,42 +257,6 @@ namespace Widgets.Manager
                 widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
                 widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
             }
-        }
-
-        string widgetPath = String.Empty;
-
-        public override string GetMetaTagValue(string name)
-        {
-            string[] html = File.ReadAllLines(widgetPath);
-            for (int i = 0; i < html.Length; i++)
-            {
-                if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
-                {
-                    return html[i].Split('"')[3];
-                }
-            }
-            return null;
-        }
-
-        private void AutoExecuteWidgets()
-        {
-            string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
-
-            for (int i = 0; i < files.Length; i++)
-            {
-                widgetPath = files[i];
-
-                if (GetMetaTagValue("autoExec") == "true")
-                {
-                    OpenWidget(i);
-                }
-            }
-        }
-
-        public override void SetWindowTransparency(IntPtr handle, byte alpha)
-        {
-            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_LAYERED);
-            SetLayeredWindowAttributes(handle, 0, alpha, LWA_ALPHA);
         }
     }
 }

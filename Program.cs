@@ -8,7 +8,8 @@ internal class Program : WindowEssentials
     {
         ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-        Thread thread = new Thread(() => {
+        Thread thread = new Thread(() =>
+        {
             WidgetsManager manager = new WidgetsManager();
         });
         thread.SetApartmentState(ApartmentState.STA);

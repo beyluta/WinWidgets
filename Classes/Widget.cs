@@ -1,4 +1,5 @@
-﻿using CefSharp.WinForms;
+﻿using CefSharp;
+using CefSharp.WinForms;
 using System;
 using System.Drawing;
 using System.IO;
@@ -9,6 +10,14 @@ namespace Widgets
     class Widget : WidgetWindow
     {
         private int id;
+        private IntPtr _handle;
+        private string _widgetPath;
+        private Form _window;
+        private ChromiumWebBrowser _browser;
+        private bool isMouseDown = false;
+        private bool isMouseOver = false;
+        private int width;
+        private int height;
 
         public Widget(int id)
         {
@@ -17,15 +26,12 @@ namespace Widgets
 
         public Widget() { }
 
-        IntPtr _handle;
-
         public override IntPtr handle
         {
             get { return _handle; }
             set { _handle = value; }
         }
 
-        private string _widgetPath;
 
         public string widgetPath 
         { 
@@ -33,15 +39,11 @@ namespace Widgets
             set { _widgetPath = value; }
         }
 
-        private Form _window;
-
         public override Form window
         {
             get { return _window; }
             set { _window = value; }
         }
-
-        private ChromiumWebBrowser _browser;
 
         public override ChromiumWebBrowser browser
         {
@@ -52,63 +54,105 @@ namespace Widgets
         public override void AppendWidget(Form f, string path)
         {
             browser = new ChromiumWebBrowser(path);
+            browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             f.Controls.Add(browser);
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
-            string sizeString = GetMetaTagValue("windowSize");
-            string radiusString = GetMetaTagValue("windowBorderRadius");
-            string locationString = GetMetaTagValue("windowLocation");
-            string topMostString = GetMetaTagValue("topMost");
+            string sizeString = GetMetaTagValue("windowSize", widgetPath);
+            string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
+            string locationString = GetMetaTagValue("windowLocation", widgetPath);
+            string topMostString = GetMetaTagValue("topMost", widgetPath);
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
-            int metaWidth = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
-            int metaHeight = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
+            width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
+            height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : 0;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : 0;
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
             window = new Form();
-            window.Size = new Size(metaWidth, metaHeight);
+            window.Size = new Size(width, height);
             window.StartPosition = p;
             window.Location = new Point(locationX, locationY);
             window.Text = t;
             window.TopMost = topMost;
             window.FormBorderStyle = FormBorderStyle.None;
             window.ShowInTaskbar = false;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, metaWidth, metaHeight, roundess, roundess));
+            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, width, height, roundess, roundess));
             window.Activated += OnFormActivated;
             AppendWidget(window, widgetPath);
             window.ShowDialog();
         }
 
+        private void OnBrowserInitialized(object sender, EventArgs e)
+        {
+            browser.ExecuteScriptAsync(@"
+                window.onload = () => {
+                    let mouseDrag;
+
+                    document.body.onmouseleave = () => { 
+                        CefSharp.PostMessage('onmouseleave');
+                    }
+
+                    document.body.onmouseenter = () => { 
+                        CefSharp.PostMessage('onmouseenter');
+                    }
+
+                    document.body.onmousedown = (e) => {
+                        mouseDrag = setInterval(() => {
+                            e.buttons === 1 && CefSharp.PostMessage('mouseDrag');
+                        }, 0);
+                        CefSharp.PostMessage('onmousedown');
+                    }
+
+                    document.body.onmouseup = () => {
+                         clearInterval(mouseDrag);
+                         CefSharp.PostMessage('onmouseup');
+                    }
+                }
+            ");
+
+            browser.JavascriptMessageReceived += OnBrowserMessageReceived;
+        }
+
+        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
+        {
+            switch (e.Message)
+            {
+                case "onmouseleave":
+                    isMouseOver = false;
+                    break;
+
+                case "onmouseenter":
+                    isMouseOver = true;
+                    break;
+
+                case "onmousedown":
+                    isMouseDown = true;
+                    break;
+
+                case "onmouseup":
+                    isMouseDown = false;
+                    break;
+
+                case "mouseDrag":
+                    POINT pos;
+                    GetCursorPos(out pos);
+                    SetWindowPos(handle, 0, pos.X - width / 2, pos.Y - height / 2, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
+                    break;
+            }
+        }
+
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-        }
-
-        public override string GetMetaTagValue(string name)
-        {
-            string[] html = File.ReadAllLines(widgetPath);
-            for (int i = 0; i < html.Length; i++)
-            {
-                if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
-                {
-                    return html[i].Split('"')[3];
-                }
-            }
-            return null;
+            browser.MenuHandler = new WidgetMenuHandler(handle);
         }
 
         public override void OpenWidget(int id)
         {
             throw new System.NotImplementedException();
-        }
-
-        public override void SetWindowTransparency(IntPtr handle, byte alpha)
-        {
-            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_LAYERED);
-            SetLayeredWindowAttributes(handle, 0, alpha, LWA_ALPHA);
         }
     }
 }
