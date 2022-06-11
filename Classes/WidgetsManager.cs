@@ -9,7 +9,7 @@ using WidgetsDotNet.Properties;
 
 namespace Widgets.Manager
 {
-    class WidgetsManager : WidgetWindow
+    internal class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
         private WidgetMap widgets = new WidgetMap(100);
@@ -17,6 +17,8 @@ namespace Widgets.Manager
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
         private string managerUIPath = FilesManager.assetsPath + "/index.html";
+        private bool widgetsInitialized = false;
+        private int widgetIndex = 0;
 
         public WidgetsManager()
         {
@@ -56,10 +58,10 @@ namespace Widgets.Manager
             set { _browser = value; }
         }
 
-        public override IntPtr handle 
-        { 
-            get { return _handle; } 
-            set { _handle = value; } 
+        public override IntPtr handle
+        {
+            get { return _handle; }
+            set { _handle = value; }
         }
 
         public override void AppendWidget(Form f, string path)
@@ -72,8 +74,33 @@ namespace Widgets.Manager
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
+            FileSystemWatcher fileWatcher = new FileSystemWatcher(FilesManager.widgetsPath);
+            fileWatcher.NotifyFilter = NotifyFilters.Attributes
+                                 | NotifyFilters.CreationTime
+                                 | NotifyFilters.DirectoryName
+                                 | NotifyFilters.FileName
+                                 | NotifyFilters.LastAccess
+                                 | NotifyFilters.LastWrite
+                                 | NotifyFilters.Security
+                                 | NotifyFilters.Size;
+
+            fileWatcher.Changed += OnDirectoryChanged;
+            fileWatcher.Created += OnFileCreatedInDirectory;
+            fileWatcher.Deleted += OnFileDeletedInDirectory;
+            fileWatcher.Renamed += OnFileRenamedInDirectory;
+
+            fileWatcher.Filter = "*.html";
+            fileWatcher.IncludeSubdirectories = true;
+            fileWatcher.EnableRaisingEvents = true;
+
+            ReloadWidgets();
+        }
+
+        private void ReloadWidgets()
+        {
             string injectHTML = string.Empty;
             string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
+
             for (int i = 0; i < files.Length; i++)
             {
                 widgetPath = files[i];
@@ -84,23 +111,66 @@ namespace Widgets.Manager
                     if (widgetPath[j] == '\\')
                     {
                         localWidgetPath += '/';
-                    } else
+                    }
+                    else
                     {
                         localWidgetPath += widgetPath[j];
                     }
                 }
 
-                injectHTML += "window.addEventListener('load', (event) => {" + $@"
-                    const e{i} = document.createElement('div');
-                    e{i}.classList.add('widget');
-                    e{i}.classList.add('flex-row');
-                    e{i}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
-                    document.getElementById('widgets').appendChild(e{i});
-                    e{i}.onclick = () => CefSharp.PostMessage('{i}');
-                    document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
-                " + "});";
+                if (!widgetsInitialized)
+                {
+                        injectHTML += "window.addEventListener('load', (event) => {" + $@"
+                        const e = document.createElement('div');
+                        e.classList.add('widget');
+                        e.classList.add('flex-row');
+                        e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
+                        document.getElementById('widgets').appendChild(e);
+                        e.onclick = () => CefSharp.PostMessage('{i}');
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
+                    " + "});";
+                } else
+                {
+                    widgetIndex++;
+
+                    if (i <= 0)
+                    {
+                        injectHTML += "document.getElementById('widgets').innerHTML = '';";
+                    }
+
+                    injectHTML += $@"
+                        const e{widgetIndex} = document.createElement('div');
+                        e{widgetIndex}.classList.add('widget');
+                        e{widgetIndex}.classList.add('flex-row');
+                        e{widgetIndex}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
+                        document.getElementById('widgets').appendChild(e{widgetIndex});
+                        e{widgetIndex}.onclick = () => CefSharp.PostMessage('{i}');
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
+                }
             }
+
+            widgetsInitialized = true;
             browser.ExecuteScriptAsync(injectHTML);
+        }
+
+        private void OnFileRenamedInDirectory(object sender, RenamedEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnFileDeletedInDirectory(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnFileCreatedInDirectory(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
+        }
+
+        private void OnDirectoryChanged(object sender, FileSystemEventArgs e)
+        {
+            ReloadWidgets();
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
