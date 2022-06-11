@@ -21,6 +21,7 @@ namespace Widgets.Manager
         private bool widgetsInitialized = false;
         private int widgetIndex = 0;
         RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+        NotifyIcon notifyIcon;
 
         public WidgetsManager()
         {
@@ -28,7 +29,7 @@ namespace Widgets.Manager
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
             FilesManager.CreateHTMLFilesDirectory();
-            CreateWindow(1000, 800, "WinWidgets | Manager", FormStartPosition.CenterScreen);
+            CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
         public override Form window
@@ -45,13 +46,10 @@ namespace Widgets.Manager
             window.Text = t;
             window.Activated += OnFormActivated;
             window.Icon = Resources.favicon;
+            window.Resize += OnFormReized;
+            window.ShowInTaskbar = false;
             AppendWidget(window, managerUIPath);
             window.ShowDialog();
-        }
-
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            handle = window.Handle;
         }
 
         public override ChromiumWebBrowser browser
@@ -66,12 +64,37 @@ namespace Widgets.Manager
             set { _handle = value; }
         }
 
+        private void OnFormReized(object sender, EventArgs e)
+        {
+            if (window.WindowState == FormWindowState.Minimized)
+            {
+                window.Opacity = 0;
+            }
+        }
+
+        private void OnFormActivated(object sender, EventArgs e)
+        {
+            handle = window.Handle;
+        }
+
         public override void AppendWidget(Form f, string path)
         {
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             f.Controls.Add(browser);
+
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = Resources.favicon;
+            notifyIcon.Text = "WinWidgets";
+            notifyIcon.Visible = true;
+            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
+        }
+
+        private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
+        {
+            window.Opacity = 100;
+            window.WindowState = FormWindowState.Normal;
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)
