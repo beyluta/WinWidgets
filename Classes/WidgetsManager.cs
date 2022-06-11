@@ -28,7 +28,7 @@ namespace Widgets.Manager
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
             FilesManager.CreateHTMLFilesDirectory();
-            CreateWindow(1000, 800, "Widget Manager", FormStartPosition.CenterScreen);
+            CreateWindow(1000, 800, "WinWidgets | Manager", FormStartPosition.CenterScreen);
         }
 
         public override Form window
