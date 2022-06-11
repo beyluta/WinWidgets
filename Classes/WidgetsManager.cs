@@ -132,14 +132,12 @@ namespace Widgets.Manager
                         e.onclick = () => CefSharp.PostMessage('{i}');
                         document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" + @"
 
-                        window.onload = () => {
                         const switches = document.getElementsByClassName('switch');
                           for (let s of switches) {
                             const setting = s.getAttribute('setting');
                             if (setting == 'startup') {
                               " + $@"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}" + @"
                             }
-                          }
                         }
                     " + "});";
                 }
