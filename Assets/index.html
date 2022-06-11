@@ -167,6 +167,58 @@
   .folder {
     margin-right: 25px;
   }
+
+  .updates {
+    gap: 20px;
+    display: none;
+  }
+
+  .update {
+    box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
+    max-width: 100%;
+    padding: 50px 0 50px 0;
+    width: 100%;
+    border-radius: 20px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .update > svg {
+    fill: var(--black);
+    margin: 0;
+    padding: 0;
+  }
+
+  .update > h3 {
+    fill: var(--black);
+    margin: 0;
+    padding: 0;
+  }
+
+  .update > p {
+    margin: 0;
+    padding: 0;
+  }
+
+  .updatechecker {
+    gap: 15px;
+    transition: all 0.2s ease-in-out;
+    padding: 0px 50px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+
+  .updatechecker:hover {
+    gap: 15px;
+    background-color: rgb(245, 245, 245);
+  }
+
+  .updatechecker > svg {
+    fill: var(--black);
+    margin-top: 20px;
+    margin: 0;
+    padding: 0;
+  }
 </style>
 
 <script>
@@ -199,6 +251,26 @@
     settings.style.fill = "var(--gray)";
     update.style.fill = "var(--gray)";
     element.style.fill = "var(--black)";
+
+    switch (element.getAttribute("tab")) {
+      case "dashboard":
+        document.getElementById("updates").style.display = "none";
+        document.getElementById("widgets").style.display = "flex";
+        document.getElementById("searchcontainer").style.display = "flex";
+        break;
+
+      case "update":
+        document.getElementById("updates").style.display = "flex";
+        document.getElementById("widgets").style.display = "none";
+        document.getElementById("searchcontainer").style.display = "none";
+        break;
+
+      case "settings":
+        document.getElementById("updates").style.display = "none";
+        document.getElementById("widgets").style.display = "none";
+        document.getElementById("searchcontainer").style.display = "none";
+        break;
+    }
   }
 
   window.onload = () => {
@@ -232,6 +304,7 @@
             viewBox="0 0 512 512"
             id="dashboard"
             style="fill: var(--black)"
+            tab="dashboard"
             onclick="changeTab(this)"
           >
             <path
@@ -246,6 +319,7 @@
             width="30px"
             viewBox="0 0 512 512"
             id="settings"
+            tab="settings"
             onclick="changeTab(this)"
           >
             <path
@@ -260,6 +334,7 @@
             width="30px"
             viewBox="0 0 512 512"
             id="update"
+            tab="update"
             onclick="changeTab(this)"
           >
             <path
@@ -273,7 +348,7 @@
         <div class="headings">
           <h2 id="windowtitle">Installed Widgets</h2>
           <h3 id="nextwindowtitle">Browse Widgets</h3>
-          <div class="searchcontainer">
+          <div class="searchcontainer" id="searchcontainer">
             <div class="search flex-row">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -313,6 +388,60 @@
             ></iframe>
             <p>Clock Widget</p>
           </div> -->
+        </div>
+
+        <div class="updates flex-column" id="updates">
+          <div class="update flex-column" id="uptodate">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="50px"
+              viewBox="0 0 448 512"
+            >
+              <path
+                d="M438.6 105.4C451.1 117.9 451.1 138.1 438.6 150.6L182.6 406.6C170.1 419.1 149.9 419.1 137.4 406.6L9.372 278.6C-3.124 266.1-3.124 245.9 9.372 233.4C21.87 220.9 42.13 220.9 54.63 233.4L159.1 338.7L393.4 105.4C405.9 92.88 426.1 92.88 438.6 105.4H438.6z"
+              />
+            </svg>
+            <h3>This Software is up-to-date</h3>
+            <p>Last checked today @ 11:54</p>
+            <div class="updatechecker flex-row">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20px"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  d="M468.9 32.11c13.87 0 27.18 10.77 27.18 27.04v145.9c0 10.59-8.584 19.17-19.17 19.17h-145.7c-16.28 0-27.06-13.32-27.06-27.2c0-6.634 2.461-13.4 7.96-18.9l45.12-45.14c-28.22-23.14-63.85-36.64-101.3-36.64c-88.09 0-159.8 71.69-159.8 159.8S167.8 415.9 255.9 415.9c73.14 0 89.44-38.31 115.1-38.31c18.48 0 31.97 15.04 31.97 31.96c0 35.04-81.59 70.41-147 70.41c-123.4 0-223.9-100.5-223.9-223.9S132.6 32.44 256 32.44c54.6 0 106.2 20.39 146.4 55.26l47.6-47.63C455.5 34.57 462.3 32.11 468.9 32.11z"
+                />
+              </svg>
+              <p>Check for update</p>
+            </div>
+          </div>
+
+          <div class="update flex-column" id="outdated">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="40px"
+              viewBox="0 0 320 512"
+            >
+              <path
+                d="M310.6 361.4c12.5 12.5 12.5 32.75 0 45.25C304.4 412.9 296.2 416 288 416s-16.38-3.125-22.62-9.375L160 301.3L54.63 406.6C48.38 412.9 40.19 416 32 416S15.63 412.9 9.375 406.6c-12.5-12.5-12.5-32.75 0-45.25l105.4-105.4L9.375 150.6c-12.5-12.5-12.5-32.75 0-45.25s32.75-12.5 45.25 0L160 210.8l105.4-105.4c12.5-12.5 32.75-12.5 45.25 0s12.5 32.75 0 45.25l-105.4 105.4L310.6 361.4z"
+              />
+            </svg>
+            <h3>Newer versions of this software exists</h3>
+            <p>Update to version 1.13.10</p>
+            <div class="updatechecker flex-row">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20px"
+                viewBox="0 0 512 512"
+              >
+                <path
+                  d="M480 352h-133.5l-45.25 45.25C289.2 409.3 273.1 416 256 416s-33.16-6.656-45.25-18.75L165.5 352H32c-17.67 0-32 14.33-32 32v96c0 17.67 14.33 32 32 32h448c17.67 0 32-14.33 32-32v-96C512 366.3 497.7 352 480 352zM432 456c-13.2 0-24-10.8-24-24c0-13.2 10.8-24 24-24s24 10.8 24 24C456 445.2 445.2 456 432 456zM233.4 374.6C239.6 380.9 247.8 384 256 384s16.38-3.125 22.62-9.375l128-128c12.49-12.5 12.49-32.75 0-45.25c-12.5-12.5-32.76-12.5-45.25 0L288 274.8V32c0-17.67-14.33-32-32-32C238.3 0 224 14.33 224 32v242.8L150.6 201.4c-12.49-12.5-32.75-12.5-45.25 0c-12.49 12.5-12.49 32.75 0 45.25L233.4 374.6z"
+                />
+              </svg>
+              <p>Update now</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
