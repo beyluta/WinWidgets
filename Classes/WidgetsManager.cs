@@ -64,19 +64,6 @@ namespace Widgets.Manager
             set { _handle = value; }
         }
 
-        private void OnFormReized(object sender, EventArgs e)
-        {
-            if (window.WindowState == FormWindowState.Minimized)
-            {
-                window.Opacity = 0;
-            }
-        }
-
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            handle = window.Handle;
-        }
-
         public override void AppendWidget(Form f, string path)
         {
             browser = new ChromiumWebBrowser(path);
@@ -88,37 +75,8 @@ namespace Widgets.Manager
             notifyIcon.Icon = Resources.favicon;
             notifyIcon.Text = "WinWidgets";
             notifyIcon.Visible = true;
+            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[] { new MenuItem("Open Manager", OnOpenApplication),new MenuItem("Quit", OnExitApplication) });
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
-        }
-
-        private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
-        {
-            window.Opacity = 100;
-            window.WindowState = FormWindowState.Normal;
-        }
-
-        private void OnBrowserInitialized(object sender, EventArgs e)
-        {
-            FileSystemWatcher fileWatcher = new FileSystemWatcher(FilesManager.widgetsPath);
-            fileWatcher.NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 | NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Security
-                                 | NotifyFilters.Size;
-
-            fileWatcher.Changed += OnDirectoryChanged;
-            fileWatcher.Created += OnFileCreatedInDirectory;
-            fileWatcher.Deleted += OnFileDeletedInDirectory;
-            fileWatcher.Renamed += OnFileRenamedInDirectory;
-
-            fileWatcher.Filter = "*.html";
-            fileWatcher.IncludeSubdirectories = true;
-            fileWatcher.EnableRaisingEvents = true;
-
-            ReloadWidgets();
         }
 
         private void ReloadWidgets()
@@ -187,6 +145,60 @@ namespace Widgets.Manager
 
             widgetsInitialized = true;
             browser.ExecuteScriptAsync(injectHTML);
+        }
+
+        private void OnFormReized(object sender, EventArgs e)
+        {
+            if (window.WindowState == FormWindowState.Minimized)
+            {
+                window.Opacity = 0;
+            }
+        }
+
+        private void OnFormActivated(object sender, EventArgs e)
+        {
+            handle = window.Handle;
+        }
+
+        private void OnOpenApplication(object sender, EventArgs e)
+        {
+            window.Opacity = 100;
+            window.WindowState = FormWindowState.Normal;
+        }
+
+        private void OnExitApplication(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
+        {
+            window.Opacity = 100;
+            window.WindowState = FormWindowState.Normal;
+        }
+
+        private void OnBrowserInitialized(object sender, EventArgs e)
+        {
+            FileSystemWatcher fileWatcher = new FileSystemWatcher(FilesManager.widgetsPath);
+            fileWatcher.NotifyFilter = NotifyFilters.Attributes
+                                 | NotifyFilters.CreationTime
+                                 | NotifyFilters.DirectoryName
+                                 | NotifyFilters.FileName
+                                 | NotifyFilters.LastAccess
+                                 | NotifyFilters.LastWrite
+                                 | NotifyFilters.Security
+                                 | NotifyFilters.Size;
+
+            fileWatcher.Changed += OnDirectoryChanged;
+            fileWatcher.Created += OnFileCreatedInDirectory;
+            fileWatcher.Deleted += OnFileDeletedInDirectory;
+            fileWatcher.Renamed += OnFileRenamedInDirectory;
+
+            fileWatcher.Filter = "*.html";
+            fileWatcher.IncludeSubdirectories = true;
+            fileWatcher.EnableRaisingEvents = true;
+
+            ReloadWidgets();
         }
 
         private void OnFileRenamedInDirectory(object sender, RenamedEventArgs e)
