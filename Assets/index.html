@@ -170,6 +170,23 @@
 </style>
 
 <script>
+  function filter(s) {
+    const children = document.getElementById("widgets").children;
+    for (let element of children) {
+      if (s.length > 0) {
+        if (
+          element.getAttribute("name").toLowerCase().includes(s.toLowerCase())
+        ) {
+          element.style.display = "flex";
+        } else {
+          element.style.display = "none";
+        }
+      } else {
+        element.style.display = "flex";
+      }
+    }
+  }
+
   function changeText(id, text) {
     document.getElementById(id).innerHTML = text;
   }
@@ -195,6 +212,7 @@
         changeText("windowtitle", "Installed Widgets");
         changeText("nextwindowtitle", "Browse Widgets");
       }
+      filter(searchWidget.value);
     };
   };
 </script>

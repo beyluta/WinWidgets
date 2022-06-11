@@ -124,6 +124,7 @@ namespace Widgets.Manager
                         const e = document.createElement('div');
                         e.classList.add('widget');
                         e.classList.add('flex-row');
+                        e.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
                         e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e);
                         e.onclick = () => CefSharp.PostMessage('{i}');
@@ -145,6 +146,7 @@ namespace Widgets.Manager
                         e{widgetIndex}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e{widgetIndex});
                         e{widgetIndex}.onclick = () => CefSharp.PostMessage('{i}');
+                        e{widgetIndex}.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
                         document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
                 }
             }
