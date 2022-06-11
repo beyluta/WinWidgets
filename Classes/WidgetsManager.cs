@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -19,6 +20,7 @@ namespace Widgets.Manager
         private string managerUIPath = FilesManager.assetsPath + "/index.html";
         private bool widgetsInitialized = false;
         private int widgetIndex = 0;
+        RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
 
         public WidgetsManager()
         {
@@ -120,7 +122,7 @@ namespace Widgets.Manager
 
                 if (!widgetsInitialized)
                 {
-                        injectHTML += "window.addEventListener('load', (event) => {" + $@"
+                    injectHTML += "window.addEventListener('load', (event) => {" + $@"
                         const e = document.createElement('div');
                         e.classList.add('widget');
                         e.classList.add('flex-row');
@@ -128,9 +130,20 @@ namespace Widgets.Manager
                         e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e);
                         e.onclick = () => CefSharp.PostMessage('{i}');
-                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" + @"
+
+                        window.onload = () => {
+                        const switches = document.getElementsByClassName('switch');
+                          for (let s of switches) {
+                            const setting = s.getAttribute('setting');
+                            if (setting == 'startup') {
+                              " + $@"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}" + @"
+                            }
+                          }
+                        }
                     " + "});";
-                } else
+                }
+                else
                 {
                     widgetIndex++;
 
@@ -181,6 +194,19 @@ namespace Widgets.Manager
             {
                 case "widgetsFolder":
                     Process.Start(FilesManager.widgetsPath);
+                    break;
+
+                case "startup":
+                    if (registryKey.GetValue("WinWidgets") == null)
+                    {
+                        registryKey.SetValue("WinWidgets", Application.StartupPath);
+                        Console.WriteLine("Will start with windows");
+                    }
+                    else
+                    {
+                        registryKey.DeleteValue("WinWidgets");
+                        Console.WriteLine("Won't start with windows");
+                    }
                     break;
 
                 default:

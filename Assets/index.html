@@ -325,6 +325,8 @@
     } else {
       element.classList.add("switchon");
     }
+
+    CefSharp.PostMessage(element.getAttribute("setting"));
   }
 
   window.onload = () => {
@@ -448,21 +450,9 @@
             <h3>Application settings</h3>
             <div class="setting flex-row">
               <div
-                class="switch flex-row switchon"
+                class="switch flex-row"
                 onclick="changeSwitch(this)"
-              >
-                <div class="circle"></div>
-              </div>
-              <p>Run the application on startup</p>
-            </div>
-          </div>
-
-          <div class="settingscard">
-            <h3>Application settings</h3>
-            <div class="setting flex-row">
-              <div
-                class="switch flex-row switchon"
-                onclick="changeSwitch(this)"
+                setting="startup"
               >
                 <div class="circle"></div>
               </div>
