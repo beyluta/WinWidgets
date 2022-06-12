@@ -17,7 +17,8 @@ namespace Widgets
         {
             model.Clear();
             model.AddItem(0, "Toggle Move");
-            model.AddItem((CefMenuCommand)1, "Close Widget");
+            model.AddItem((CefMenuCommand)1, "Toggle Always on Top");
+            model.AddItem((CefMenuCommand)2, "Close Widget");
         }
 
         public bool OnContextMenuCommand(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, CefMenuCommand commandId, CefEventFlags eventFlags)
@@ -38,6 +39,13 @@ namespace Widgets
                     return true;
 
                 case (CefMenuCommand)1:
+                    widget.window.Invoke(new MethodInvoker(delegate ()
+                    {
+                        widget.window.TopMost = widget.window.TopMost == false ? true : false;
+                    }));
+                    return true;
+
+                case (CefMenuCommand)2:
                     widget.window.Invoke(new MethodInvoker(delegate ()
                     {
                         widget.window.Close();
