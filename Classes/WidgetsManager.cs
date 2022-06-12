@@ -26,6 +26,7 @@ namespace Widgets.Manager
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
         private Configuration appConfig;
+        private JObject versionObject;
 
         public override Form window
         {
@@ -119,11 +120,12 @@ namespace Widgets.Manager
                 {
                     HttpClient client = new HttpClient();
                     string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
-                    JObject versionObject = JObject.Parse(response);
+                    versionObject = JObject.Parse(response);
 
                     injectHTML += "window.addEventListener('load', (event) => {" + $@"
                         fetchedVersion = '{(string)versionObject["version"]}';
                         isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
+                        downloadUrl = '{(string)versionObject["downloadUrl"]}';
                         " + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };" + $@"
                         var today = new Date();                   
                         updateCheckTime = today.toLocaleDateString();
@@ -285,6 +287,10 @@ namespace Widgets.Manager
                         registryKey.DeleteValue("WinWidgets");
                         Console.WriteLine("Won't start with windows");
                     }
+                    break;
+
+                case "update":
+                    Process.Start((string)versionObject["downloadUrl"]);
                     break;
 
                 default:

@@ -1,4 +1,4 @@
-let fetchedVersion, isUpToDate, updateCheckTime;
+let fetchedVersion, isUpToDate, updateCheckTime, downloadUrl;
 
 function filter(s) {
   const children = document.getElementById("widgets").children;
@@ -52,6 +52,9 @@ function changeTab(element) {
         document.getElementById("outdated").style.display = "none";
         document.getElementById("uptodate").style.display = "flex";
         document.getElementById(
+          "uptodatelabel"
+        ).innerText = `Software is up-to-date (v${fetchedVersion})`;
+        document.getElementById(
           "updatetime"
         ).innerText = `Last checked on the ${updateCheckTime}`;
       } else {
@@ -62,6 +65,9 @@ function changeTab(element) {
         ).innerText = `Update to new version ${
           fetchedVersion ? fetchedVersion : "click below or check the website"
         }`;
+        updatebutton.onclick = () => {
+          CefSharp.PostMessage("update");
+        };
       }
       break;
 
