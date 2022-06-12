@@ -119,7 +119,7 @@ namespace Widgets.Manager
                 if (!widgetsInitialized)
                 {
                     HttpClient client = new HttpClient();
-                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                    string response = client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version").Result;
                     versionObject = JObject.Parse(response);
 
                     injectHTML += "window.addEventListener('load', (event) => {" + $@"
