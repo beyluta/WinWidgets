@@ -82,7 +82,11 @@ namespace Widgets.Manager
             notifyIcon.Icon = Resources.favicon;
             notifyIcon.Text = "WinWidgets";
             notifyIcon.Visible = true;
-            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[] { new MenuItem("Open Manager", OnOpenApplication),new MenuItem("Quit", OnExitApplication) });
+            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
+            { new MenuItem("Open Manager", OnOpenApplication),
+              new MenuItem("-"),
+              new MenuItem("Quit", OnExitApplication)
+            });
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
 
