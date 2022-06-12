@@ -1,9 +1,6 @@
 ﻿using System.Threading;
 using Widgets;
 using Widgets.Manager;
-using System;
-using Newtonsoft.Json;
-using System.IO;
 
 internal class Program : WindowEssentials
 {
