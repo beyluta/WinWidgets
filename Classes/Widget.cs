@@ -9,6 +9,8 @@ namespace Widgets
 {
     class Widget : WidgetWindow
     {
+        public bool moveModeEnabled = false;
+
         private int id;
         private IntPtr _handle;
         private string _widgetPath;
@@ -116,6 +118,11 @@ namespace Widgets
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
         }
 
+        public override void OpenWidget(int id)
+        {
+            throw new System.NotImplementedException();
+        }
+
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
         {
             switch (e.Message)
@@ -137,9 +144,12 @@ namespace Widgets
                     break;
 
                 case "mouseDrag":
-                    POINT pos;
-                    GetCursorPos(out pos);
-                    SetWindowPos(handle, 0, pos.X - width / 2, pos.Y - height / 2, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
+                    if (moveModeEnabled)
+                    {
+                        POINT pos;
+                        GetCursorPos(out pos);
+                        SetWindowPos(handle, 0, pos.X - width / 2, pos.Y - height / 2, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
+                    }
                     break;
             }
         }
@@ -147,12 +157,7 @@ namespace Widgets
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-            browser.MenuHandler = new WidgetMenuHandler(handle);
-        }
-
-        public override void OpenWidget(int id)
-        {
-            throw new System.NotImplementedException();
+            browser.MenuHandler = new WidgetMenuHandler(this);
         }
     }
 }

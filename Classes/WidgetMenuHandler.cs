@@ -3,19 +3,20 @@ using System;
 
 namespace Widgets
 {
-    class WidgetMenuHandler : WindowEssentials, IContextMenuHandler
+    internal class WidgetMenuHandler : WindowEssentials, IContextMenuHandler
     {
-        private IntPtr handle;
+        private Widget widget;
 
-        public WidgetMenuHandler(IntPtr handle)
+        public WidgetMenuHandler(Widget widget)
         {
-            this.handle = handle;
+            this.widget = widget;
         }
 
         public void OnBeforeContextMenu(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, IMenuModel model)
         {
             model.Clear();
-            model.AddItem(0, "Close Widget");
+            model.AddItem(0, "Toggle Move");
+            model.AddItem((CefMenuCommand)1, "Close Widget");
         }
 
         public bool OnContextMenuCommand(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, CefMenuCommand commandId, CefEventFlags eventFlags)
@@ -23,14 +24,28 @@ namespace Widgets
             switch (commandId)
             {
                 case 0:
-                    SendMessage(handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    if (widget.moveModeEnabled)
+                    {
+                        widget.SetWindowTransparency(widget.handle, 255);
+                        widget.moveModeEnabled = false;
+                    }
+                    else
+                    {
+                        widget.SetWindowTransparency(widget.handle, 200);
+                        widget.moveModeEnabled = true;
+                    }
+                    return true;
+
+                case (CefMenuCommand)1:
+                    SendMessage(widget.handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
                     return true;
             }
 
             return false;
         }
 
-        public void OnContextMenuDismissed(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame) { }
+        public void OnContextMenuDismissed(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame)
+        { }
 
         public bool RunContextMenu(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, IMenuModel model, IRunContextMenuCallback callback)
         {
