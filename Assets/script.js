@@ -1,4 +1,4 @@
-let fetchedVersion, isUpToDate;
+let fetchedVersion, isUpToDate, updateCheckTime;
 
 function filter(s) {
   const children = document.getElementById("widgets").children;
@@ -51,9 +51,17 @@ function changeTab(element) {
       if (isUpToDate) {
         document.getElementById("outdated").style.display = "none";
         document.getElementById("uptodate").style.display = "flex";
+        document.getElementById(
+          "updatetime"
+        ).innerText = `Last checked on the ${updateCheckTime}`;
       } else {
         document.getElementById("outdated").style.display = "flex";
         document.getElementById("uptodate").style.display = "none";
+        document.getElementById(
+          "newversion"
+        ).innerText = `Update to new version ${
+          fetchedVersion ? fetchedVersion : "click below or check the website"
+        }`;
       }
       break;
 

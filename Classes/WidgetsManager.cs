@@ -124,6 +124,9 @@ namespace Widgets.Manager
                     injectHTML += "window.addEventListener('load', (event) => {" + $@"
                         fetchedVersion = '{(string)versionObject["version"]}';
                         isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
+                        " + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };" + $@"
+                        var today = new Date();                   
+                        updateCheckTime = today.toLocaleDateString();
                         const e = document.createElement('div');
                         e.classList.add('widget');
                         e.classList.add('flex-row');
