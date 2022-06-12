@@ -34,6 +34,8 @@ function changeTab(element) {
       document.getElementById("widgets").style.display = "flex";
       document.getElementById("options").style.display = "none";
       document.getElementById("searchcontainer").style.display = "flex";
+      document.getElementById("nextwindowtitle").style.display = "block";
+      document.getElementById("windowtitle").innerHTML = "Installed Widgets";
       break;
 
     case "update":
@@ -41,6 +43,8 @@ function changeTab(element) {
       document.getElementById("widgets").style.display = "none";
       document.getElementById("options").style.display = "none";
       document.getElementById("searchcontainer").style.display = "none";
+      document.getElementById("nextwindowtitle").style.display = "none";
+      document.getElementById("windowtitle").innerHTML = "Check for updates";
       break;
 
     case "settings":
@@ -48,6 +52,8 @@ function changeTab(element) {
       document.getElementById("widgets").style.display = "none";
       document.getElementById("options").style.display = "flex";
       document.getElementById("searchcontainer").style.display = "none";
+      document.getElementById("nextwindowtitle").style.display = "none";
+      document.getElementById("windowtitle").innerHTML = "Settings";
       break;
   }
 }
