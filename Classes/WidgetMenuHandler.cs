@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using System;
+using System.Windows.Forms;
 
 namespace Widgets
 {
@@ -37,7 +38,10 @@ namespace Widgets
                     return true;
 
                 case (CefMenuCommand)1:
-                    SendMessage(widget.handle, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                    widget.window.Invoke(new MethodInvoker(delegate ()
+                    {
+                        widget.window.Close();
+                    }));
                     return true;
             }
 

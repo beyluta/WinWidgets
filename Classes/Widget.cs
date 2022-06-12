@@ -16,8 +16,6 @@ namespace Widgets
         private string _widgetPath;
         private Form _window;
         private ChromiumWebBrowser _browser;
-        private bool isMouseDown = false;
-        private bool isMouseOver = false;
         private int width;
         private int height;
 
@@ -93,14 +91,6 @@ namespace Widgets
                 window.onload = () => {
                     let mouseDrag;
 
-                    document.body.onmouseleave = () => { 
-                        CefSharp.PostMessage('onmouseleave');
-                    }
-
-                    document.body.onmouseenter = () => { 
-                        CefSharp.PostMessage('onmouseenter');
-                    }
-
                     document.body.onmousedown = (e) => {
                         mouseDrag = setInterval(() => {
                             e.buttons === 1 && CefSharp.PostMessage('mouseDrag');
@@ -127,28 +117,15 @@ namespace Widgets
         {
             switch (e.Message)
             {
-                case "onmouseleave":
-                    isMouseOver = false;
-                    break;
-
-                case "onmouseenter":
-                    isMouseOver = true;
-                    break;
-
-                case "onmousedown":
-                    isMouseDown = true;
-                    break;
-
-                case "onmouseup":
-                    isMouseDown = false;
-                    break;
-
                 case "mouseDrag":
                     if (moveModeEnabled)
                     {
                         POINT pos;
                         GetCursorPos(out pos);
-                        SetWindowPos(handle, 0, pos.X - width / 2, pos.Y - height / 2, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
+                        window.Invoke(new MethodInvoker(delegate ()
+                        {
+                            window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
+                        }));
                     }
                     break;
             }

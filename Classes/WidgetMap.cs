@@ -4,14 +4,14 @@ namespace Widgets
 {
     class WidgetMap
     {
+        private ArrayList widgets = new ArrayList();
         private int maxItems;
+        public ArrayList Widgets { get => widgets; }
 
         public WidgetMap(int maxItems = 1)
         {
             this.maxItems = maxItems;
         }
-
-        private ArrayList widgets = new ArrayList();
 
         public void AddWidget(Widget widget)
         {

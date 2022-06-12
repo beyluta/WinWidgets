@@ -84,6 +84,7 @@ namespace Widgets.Manager
             notifyIcon.Visible = true;
             notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
             { new MenuItem("Open Manager", OnOpenApplication),
+              new MenuItem("Stop All Widgets", OnStopAllWidgets),
               new MenuItem("-"),
               new MenuItem("Quit", OnExitApplication)
             });
@@ -166,6 +167,17 @@ namespace Widgets.Manager
                 widgets.AddWidget(widget);
                 widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
                 widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
+            }
+        }
+
+        private void OnStopAllWidgets(object sender, EventArgs e)
+        {
+            foreach (Widget w in widgets.Widgets)
+            {
+                w.window.Invoke(new MethodInvoker(delegate ()
+                {
+                    w.window.Close();
+                }));
             }
         }
 
