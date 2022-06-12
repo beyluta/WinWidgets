@@ -275,4 +275,5 @@ svg {
   padding: 10px 30px;
   border-radius: 25px;
   flex-grow: 1;
+  height: max-content;
 }
