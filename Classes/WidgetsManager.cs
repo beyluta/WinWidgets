@@ -1,6 +1,7 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
 using Microsoft.Win32;
+using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -20,22 +21,40 @@ namespace Widgets.Manager
         private string managerUIPath = FilesManager.assetsPath + "/index.html";
         private bool widgetsInitialized = false;
         private int widgetIndex = 0;
-        RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-        NotifyIcon notifyIcon;
+        private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+        private NotifyIcon notifyIcon;
+        private Configuration appConfig;
+
+        public override Form window
+        {
+            get { return _window; }
+            set { _window = value; }
+        }
+
+        public override ChromiumWebBrowser browser
+        {
+            get { return _browser; }
+            set { _browser = value; }
+        }
+
+        public override IntPtr handle
+        {
+            get { return _handle; }
+            set { _handle = value; }
+        }
 
         public WidgetsManager()
         {
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
-            FilesManager.CreateHTMLFilesDirectory();
-            CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
-        }
 
-        public override Form window
-        {
-            get { return _window; }
-            set { _window = value; }
+            FilesManager.CreateHTMLFilesDirectory();
+
+            string json = File.ReadAllText(FilesManager.assetsPath + "/config.json");
+            appConfig = JsonConvert.DeserializeObject<Configuration>(json);
+
+            CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
@@ -50,18 +69,6 @@ namespace Widgets.Manager
             window.ShowInTaskbar = false;
             AppendWidget(window, managerUIPath);
             window.ShowDialog();
-        }
-
-        public override ChromiumWebBrowser browser
-        {
-            get { return _browser; }
-            set { _browser = value; }
-        }
-
-        public override IntPtr handle
-        {
-            get { return _handle; }
-            set { _handle = value; }
         }
 
         public override void AppendWidget(Form f, string path)
@@ -145,6 +152,17 @@ namespace Widgets.Manager
 
             widgetsInitialized = true;
             browser.ExecuteScriptAsync(injectHTML);
+        }
+
+        public override void OpenWidget(int id)
+        {
+            if (widgets.HasSpaceLeft())
+            {
+                Widget widget = new Widget(id);
+                widgets.AddWidget(widget);
+                widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
+                widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
+            }
         }
 
         private void OnFormReized(object sender, EventArgs e)
@@ -245,17 +263,6 @@ namespace Widgets.Manager
                 default:
                     OpenWidget(int.Parse((string)e.Message));
                     break;
-            }
-        }
-
-        public override void OpenWidget(int id)
-        {
-            if (widgets.HasSpaceLeft())
-            {
-                Widget widget = new Widget(id);
-                widgets.AddWidget(widget);
-                widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
-                widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
             }
         }
     }
