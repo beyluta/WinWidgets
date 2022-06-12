@@ -79,6 +79,7 @@ namespace Widgets.Manager
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
+            browser.MenuHandler = new WidgetManagerMenuHandler();
             f.Controls.Add(browser);
 
             notifyIcon = new NotifyIcon();

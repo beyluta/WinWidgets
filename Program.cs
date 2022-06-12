@@ -6,7 +6,7 @@ internal class Program : WindowEssentials
 {
     static void Main(string[] args)
     {
-        //ShowWindow(GetConsoleWindow(), SW_HIDE);
+        ShowWindow(GetConsoleWindow(), SW_HIDE);
 
         Thread thread = new Thread(() =>
         {

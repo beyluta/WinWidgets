@@ -2,7 +2,6 @@
 using CefSharp.WinForms;
 using System;
 using System.Drawing;
-using System.IO;
 using System.Windows.Forms;
 
 namespace Widgets

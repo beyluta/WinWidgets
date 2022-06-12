@@ -71,6 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Classes\FilesManager.cs" />
+    <Compile Include="Classes\WidgetManagerMenuHandler.cs" />
     <Compile Include="Classes\WidgetMenuHandler.cs" />
     <Compile Include="Classes\WindowEssentials.cs" />
     <Compile Include="Classes\Widget.cs" />
