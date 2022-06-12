@@ -1,3 +1,5 @@
+let fetchedVersion, isUpToDate;
+
 function filter(s) {
   const children = document.getElementById("widgets").children;
   for (let element of children) {
@@ -45,6 +47,14 @@ function changeTab(element) {
       document.getElementById("searchcontainer").style.display = "none";
       document.getElementById("nextwindowtitle").style.display = "none";
       document.getElementById("windowtitle").innerHTML = "Check for updates";
+
+      if (isUpToDate) {
+        document.getElementById("outdated").style.display = "none";
+        document.getElementById("uptodate").style.display = "flex";
+      } else {
+        document.getElementById("outdated").style.display = "flex";
+        document.getElementById("uptodate").style.display = "none";
+      }
       break;
 
     case "settings":

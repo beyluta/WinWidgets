@@ -2,10 +2,12 @@
 using CefSharp.WinForms;
 using Microsoft.Win32;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
@@ -91,7 +93,7 @@ namespace Widgets.Manager
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
 
-        private void ReloadWidgets()
+        private async void ReloadWidgets()
         {
             string injectHTML = string.Empty;
             string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
@@ -115,7 +117,13 @@ namespace Widgets.Manager
 
                 if (!widgetsInitialized)
                 {
+                    HttpClient client = new HttpClient();
+                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                    JObject versionObject = JObject.Parse(response);
+
                     injectHTML += "window.addEventListener('load', (event) => {" + $@"
+                        fetchedVersion = '{(string)versionObject["version"]}';
+                        isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
                         const e = document.createElement('div');
                         e.classList.add('widget');
                         e.classList.add('flex-row');
