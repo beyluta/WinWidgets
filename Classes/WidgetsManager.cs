@@ -189,7 +189,6 @@ namespace Widgets.Manager
             {
                 w.window.Invoke(new MethodInvoker(delegate ()
                 {
-                    w.window.Dispose();
                     w.window.Close();
                 }));
             }

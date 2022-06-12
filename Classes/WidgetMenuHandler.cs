@@ -40,7 +40,6 @@ namespace Widgets
                 case (CefMenuCommand)1:
                     widget.window.Invoke(new MethodInvoker(delegate ()
                     {
-                        widget.window.Dispose();
                         widget.window.Close();
                     }));
                     return true;
