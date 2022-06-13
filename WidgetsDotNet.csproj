@@ -85,7 +85,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Classes\FilesManager.cs" />
+    <Compile Include="Classes\WidgetAssets.cs" />
     <Compile Include="Classes\WidgetManagerMenuHandler.cs" />
     <Compile Include="Classes\WidgetMenuHandler.cs" />
     <Compile Include="Classes\WindowEssentials.cs" />

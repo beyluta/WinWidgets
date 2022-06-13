@@ -23,7 +23,6 @@ namespace Widgets
             set { _handle = value; }
         }
 
-
         public string widgetPath 
         { 
             get { return _widgetPath; }

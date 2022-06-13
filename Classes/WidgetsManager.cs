@@ -17,11 +17,10 @@ namespace Widgets.Manager
     internal class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
-        private WidgetList widgets = new WidgetList();
         private Form _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
-        private string managerUIPath = FilesManager.assetsPath + "/index.html";
+        private string managerUIPath = WidgetAssets.assetsPath + "/index.html";
         private bool widgetsInitialized = false;
         private int widgetIndex = 0;
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
@@ -53,9 +52,9 @@ namespace Widgets.Manager
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
 
-            FilesManager.CreateHTMLFilesDirectory();
+            WidgetAssets.CreateHTMLFilesDirectory();
 
-            string json = File.ReadAllText(FilesManager.assetsPath + "/config.json");
+            string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
             appConfig = JsonConvert.DeserializeObject<Configuration>(json);
 
             CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
@@ -99,7 +98,7 @@ namespace Widgets.Manager
         private async void ReloadWidgets()
         {
             string injectHTML = string.Empty;
-            string[] files = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath);
+            string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -177,8 +176,8 @@ namespace Widgets.Manager
         public override void OpenWidget(int id)
         {
             Widget widget = new Widget();
-            widgets.AddWidget(widget);
-            widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
+            WidgetAssets.widgets.AddWidget(widget);
+            widget.widgetPath = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath)[id];
             widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
         }
 
@@ -186,7 +185,7 @@ namespace Widgets.Manager
         {
             ArrayList deletedWidgets = new ArrayList();
 
-            foreach (Widget widget in widgets.Widgets)
+            foreach (Widget widget in WidgetAssets.widgets.Widgets)
             {
                 widget.window.Invoke(new MethodInvoker(delegate ()
                 {
@@ -197,7 +196,7 @@ namespace Widgets.Manager
 
             foreach (Widget widget in deletedWidgets)
             {
-                widgets.RemoveWidget(widget);
+                WidgetAssets.widgets.RemoveWidget(widget);
             }
         }
 
@@ -233,7 +232,7 @@ namespace Widgets.Manager
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            FileSystemWatcher fileWatcher = new FileSystemWatcher(FilesManager.widgetsPath);
+            FileSystemWatcher fileWatcher = new FileSystemWatcher(WidgetAssets.widgetsPath);
             fileWatcher.NotifyFilter = NotifyFilters.Attributes
                                  | NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
@@ -280,7 +279,7 @@ namespace Widgets.Manager
             switch (e.Message)
             {
                 case "widgetsFolder":
-                    Process.Start(FilesManager.widgetsPath);
+                    Process.Start(WidgetAssets.widgetsPath);
                     break;
 
                 case "startup":

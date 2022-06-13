@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using System.Windows.Forms;
+using Widgets.Manager;
 
 namespace Widgets
 {
@@ -48,6 +49,7 @@ namespace Widgets
                     widget.window.Invoke(new MethodInvoker(delegate ()
                     {
                         widget.window.Close();
+                        WidgetAssets.widgets.RemoveWidget(widget);
                     }));
                     return true;
             }
