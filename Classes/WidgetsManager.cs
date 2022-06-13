@@ -287,12 +287,10 @@ namespace Widgets.Manager
                     if (registryKey.GetValue("WinWidgets") == null)
                     {
                         registryKey.SetValue("WinWidgets", Application.StartupPath);
-                        Console.WriteLine("Will start with windows");
                     }
                     else
                     {
                         registryKey.DeleteValue("WinWidgets");
-                        Console.WriteLine("Won't start with windows");
                     }
                     break;
 
