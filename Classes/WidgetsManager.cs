@@ -128,7 +128,7 @@ namespace Widgets.Manager
                         isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
                         downloadUrl = '{(string)versionObject["downloadUrl"]}';
                         " + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };" + $@"
-                        var today = new Date();                   
+                        var today = new Date();
                         updateCheckTime = today.toLocaleDateString();
                         const e = document.createElement('div');
                         e.classList.add('widget');
@@ -177,7 +177,7 @@ namespace Widgets.Manager
         {
             if (widgets.HasSpaceLeft())
             {
-                Widget widget = new Widget(id);
+                Widget widget = new Widget();
                 widgets.AddWidget(widget);
                 widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
                 widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);

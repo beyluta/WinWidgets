@@ -10,20 +10,12 @@ namespace Widgets
     {
         public bool moveModeEnabled = false;
 
-        private int id;
         private IntPtr _handle;
         private string _widgetPath;
         private Form _window;
         private ChromiumWebBrowser _browser;
         private int width;
         private int height;
-
-        public Widget(int id)
-        {
-            this.id = id;
-        }
-
-        public Widget() { }
 
         public override IntPtr handle
         {
