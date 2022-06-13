@@ -2,28 +2,22 @@
 
 namespace Widgets
 {
-    class WidgetMap
+    class WidgetList
     {
         private ArrayList widgets = new ArrayList();
-        private int maxItems;
         public ArrayList Widgets { get => widgets; }
-
-        public WidgetMap(int maxItems = 1)
-        {
-            this.maxItems = maxItems;
-        }
 
         public void AddWidget(Widget widget)
         {
-            if (!widgets.Contains(widget) && HasSpaceLeft())
+            if (!widgets.Contains(widget))
             {
                 widgets.Add(widget);
             }
         }
 
-        public bool HasSpaceLeft()
+        public void RemoveWidget(Widget widget)
         {
-            return widgets.Count < maxItems ? true : false;
+            widgets.Remove(widget);
         }
     }
 }

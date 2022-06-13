@@ -4,6 +4,7 @@ using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -16,7 +17,7 @@ namespace Widgets.Manager
     internal class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
-        private WidgetMap widgets = new WidgetMap(100);
+        private WidgetList widgets = new WidgetList();
         private Form _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
@@ -175,23 +176,28 @@ namespace Widgets.Manager
 
         public override void OpenWidget(int id)
         {
-            if (widgets.HasSpaceLeft())
-            {
-                Widget widget = new Widget();
-                widgets.AddWidget(widget);
-                widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
-                widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
-            }
+            Widget widget = new Widget();
+            widgets.AddWidget(widget);
+            widget.widgetPath = FilesManager.GetPathToHTMLFiles(FilesManager.widgetsPath)[id];
+            widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
         }
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            foreach (Widget w in widgets.Widgets)
+            ArrayList deletedWidgets = new ArrayList();
+
+            foreach (Widget widget in widgets.Widgets)
             {
-                w.window.Invoke(new MethodInvoker(delegate ()
+                widget.window.Invoke(new MethodInvoker(delegate ()
                 {
-                    w.window.Close();
+                    widget.window.Close();
+                    deletedWidgets.Add(widget);
                 }));
+            }
+
+            foreach (Widget widget in deletedWidgets)
+            {
+                widgets.RemoveWidget(widget);
             }
         }
 
