@@ -50,6 +50,9 @@ namespace Widgets
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
+            POINT mousePos;
+            GetCursorPos(out mousePos);
+
             string sizeString = GetMetaTagValue("windowSize", widgetPath);
             string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
             string locationString = GetMetaTagValue("windowLocation", widgetPath);
@@ -57,8 +60,8 @@ namespace Widgets
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
             width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
             height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
-            int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : 0;
-            int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : 0;
+            int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
+            int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
             window = new Form();

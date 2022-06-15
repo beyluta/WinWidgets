@@ -124,15 +124,6 @@ svg {
   z-index: 999;
 }
 
-.widget > p {
-  margin: 0;
-  padding: 0;
-  font-size: 20px;
-  opacity: 0;
-  color: var(--black);
-  transition: all 0.2s ease-in-out;
-}
-
 .widget > iframe {
   width: 100%;
   height: 100%;
@@ -141,10 +132,6 @@ svg {
   border: none;
   position: absolute;
   pointer-events: none;
-}
-
-.widget:hover > p {
-  opacity: 1;
 }
 
 .searchcontainer {
@@ -276,4 +263,37 @@ svg {
   border-radius: 25px;
   flex-grow: 1;
   height: max-content;
+}
+
+.development {
+  gap: 30px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  height: 100%;
+  display: none;
+}
+
+.instruction {
+  margin: 0;
+}
+
+.instruction > p {
+  margin: 0;
+}
+
+.instruction > h3 {
+  margin: 0;
+  padding: 0;
+}
+
+.code-blocks {
+  gap: 20px;
+  margin: 20px 0 0 0;
+}
+
+.code-blocks > .code {
+  background-color: var(--lightgray);
+  color: var(--black);
+  padding: 10px;
+  border-radius: 4px;
 }
