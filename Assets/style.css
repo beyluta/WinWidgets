@@ -99,7 +99,7 @@ svg {
 .widgets {
   gap: 30px;
   flex-wrap: wrap;
-  max-height: 100vh;
+  max-height: calc(100vh - 300px);
   height: auto;
   overflow-y: auto;
   padding: 25px;
