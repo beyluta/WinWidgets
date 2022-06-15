@@ -25,9 +25,11 @@ function changeTab(element) {
   const dashboard = document.getElementById("dashboard");
   const settings = document.getElementById("settings");
   const update = document.getElementById("update");
+  const development = document.getElementById("development");
   dashboard.style.fill = "var(--gray)";
   settings.style.fill = "var(--gray)";
   update.style.fill = "var(--gray)";
+  development.style.fill = "var(--gray)";
   element.style.fill = "var(--black)";
 
   switch (element.getAttribute("tab")) {
@@ -38,6 +40,7 @@ function changeTab(element) {
       document.getElementById("searchcontainer").style.display = "flex";
       document.getElementById("nextwindowtitle").style.display = "block";
       document.getElementById("windowtitle").innerHTML = "Installed Widgets";
+      document.getElementById("development-container").style.display = "none";
       break;
 
     case "update":
@@ -47,6 +50,7 @@ function changeTab(element) {
       document.getElementById("searchcontainer").style.display = "none";
       document.getElementById("nextwindowtitle").style.display = "none";
       document.getElementById("windowtitle").innerHTML = "Check for updates";
+      document.getElementById("development-container").style.display = "none";
 
       if (isUpToDate) {
         document.getElementById("outdated").style.display = "none";
@@ -71,6 +75,16 @@ function changeTab(element) {
       }
       break;
 
+    case "development":
+      document.getElementById("updates").style.display = "none";
+      document.getElementById("widgets").style.display = "none";
+      document.getElementById("options").style.display = "none";
+      document.getElementById("searchcontainer").style.display = "none";
+      document.getElementById("nextwindowtitle").style.display = "none";
+      document.getElementById("windowtitle").innerHTML = "Development";
+      document.getElementById("development-container").style.display = "flex";
+      break;
+
     case "settings":
       document.getElementById("updates").style.display = "none";
       document.getElementById("widgets").style.display = "none";
@@ -78,6 +92,7 @@ function changeTab(element) {
       document.getElementById("searchcontainer").style.display = "none";
       document.getElementById("nextwindowtitle").style.display = "none";
       document.getElementById("windowtitle").innerHTML = "Settings";
+      document.getElementById("development-container").style.display = "none";
       break;
   }
 }

@@ -277,3 +277,36 @@ svg {
   flex-grow: 1;
   height: max-content;
 }
+
+.development {
+  gap: 30px;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  height: 100%;
+  display: none;
+}
+
+.instruction {
+  margin: 0;
+}
+
+.instruction > p {
+  margin: 0;
+}
+
+.instruction > h3 {
+  margin: 0;
+  padding: 0;
+}
+
+.code-blocks {
+  gap: 20px;
+  margin: 20px 0 0 0;
+}
+
+.code-blocks > .code {
+  background-color: var(--lightgray);
+  color: var(--black);
+  padding: 10px;
+  border-radius: 4px;
+}
