@@ -1,19 +1,23 @@
-﻿using System.Threading;
+﻿using System.Linq;
+using System.Threading;
 using Widgets;
 using Widgets.Manager;
 
 internal class Program : WindowEssentials
 {
-    static void Main(string[] args)
+    private static void Main(string[] args)
     {
         ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-        Thread thread = new Thread(() =>
+        var exists = System.Diagnostics.Process.GetProcessesByName(System.IO.Path.GetFileNameWithoutExtension(System.Reflection.Assembly.GetEntryAssembly().Location)).Count() > 1;
+        if (!exists)
         {
-            WidgetsManager manager = new WidgetsManager();
-        });
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
+            Thread thread = new Thread(() =>
+            {
+                WidgetsManager manager = new WidgetsManager();
+            });
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Start();
+        }
     }
 }
-
