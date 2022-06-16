@@ -57,7 +57,7 @@ namespace Widgets.Manager
             string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
             appConfig = JsonConvert.DeserializeObject<Configuration>(json);
 
-            CreateWindow(1000, 800, "WinWidgets", FormStartPosition.CenterScreen);
+            CreateWindow(1500, 1100, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
@@ -133,6 +133,8 @@ namespace Widgets.Manager
                         const e = document.createElement('div');
                         e.classList.add('widget');
                         e.classList.add('flex-row');
+                        e.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';
+                        e.style.height = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
                         e.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
                         e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e);
