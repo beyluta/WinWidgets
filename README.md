@@ -20,9 +20,9 @@
     Open-Source Widget application for Windows 10 and Windows 11
     <br />
     <br />
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Report Bug</a>
+    <a href="https://github.com/beyluta/WinWidgets/issues">Report Bug</a>
     ·
-    <a href="https://github.com/othneildrew/Best-README-Template/issues">Request Feature</a>
+    <a href="https://github.com/beyluta/WinWidgets/issues">Request Feature</a>
   </p>
 </div>
 
