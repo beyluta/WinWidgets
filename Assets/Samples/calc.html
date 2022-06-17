@@ -1,0 +1,126 @@
+<!-- Sample HTML Template made for the Open-Source software WinWidgets -->
+<style>
+  body,
+  html {
+    background: rgb(19, 19, 19);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: "Courier New", Courier, monospace;
+    overflow: hidden;
+    user-select: none;
+    -moz-user-select: none;
+  }
+
+  .calculator-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 310px;
+    margin-right: 40px;
+    z-index: 1;
+  }
+
+  .buttons {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+  }
+
+  .button:hover {
+    transform: scale(1.1);
+  }
+
+  .button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: black;
+    opacity: 0.8;
+    color: white;
+    padding: 10px 30px;
+    border-radius: 10px;
+    min-width: 20px;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+  }
+
+  .display {
+    background: black;
+    opacity: 0.8;
+    color: white;
+    width: 100%;
+    padding: 20px;
+    border-radius: 10px;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+  }
+
+  .equals {
+    background: rgb(209, 67, 15);
+  }
+</style>
+
+<script>
+  function onClear() {
+    document.getElementById("calculation").innerText = "";
+  }
+
+  function onEqualsClicked() {
+    const calc = document.getElementById("calculation");
+    calc.innerText = eval(calc.innerText);
+  }
+
+  function onButtonClicked(e) {
+    document.getElementById("calculation").innerText += e.innerText;
+  }
+</script>
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="applicationTitle" content="Calculator" />
+    <meta name="windowSize" content="450 400" />
+    <meta name="windowBorderRadius" content="10" />
+    <meta name="previewSize" content="450 400" />
+    <meta name="windowOpacity" content="240" />
+  </head>
+  <body>
+    <div class="calculator-body">
+      <div class="display" id="calculation"></div>
+      <div
+        class="buttons"
+        style="justify-content: flex-end; display: flex; width: 350px"
+      >
+        <div class="button" onclick="onButtonClicked(this)">(</div>
+        <div class="button" onclick="onButtonClicked(this)">)</div>
+        <div class="button" onclick="onClear()">C</div>
+      </div>
+      <div class="buttons">
+        <div class="button" onclick="onButtonClicked(this)">7</div>
+        <div class="button" onclick="onButtonClicked(this)">8</div>
+        <div class="button" onclick="onButtonClicked(this)">9</div>
+        <div class="button" onclick="onButtonClicked(this)">/</div>
+      </div>
+      <div class="buttons">
+        <div class="button" onclick="onButtonClicked(this)">4</div>
+        <div class="button" onclick="onButtonClicked(this)">5</div>
+        <div class="button" onclick="onButtonClicked(this)">6</div>
+        <div class="button" onclick="onButtonClicked(this)">*</div>
+      </div>
+      <div class="buttons">
+        <div class="button" onclick="onButtonClicked(this)">1</div>
+        <div class="button" onclick="onButtonClicked(this)">2</div>
+        <div class="button" onclick="onButtonClicked(this)">3</div>
+        <div class="button" onclick="onButtonClicked(this)">+</div>
+      </div>
+      <div class="buttons">
+        <div class="button" onclick="onButtonClicked(this)">-</div>
+        <div class="button" onclick="onButtonClicked(this)">0</div>
+        <div class="button" onclick="onButtonClicked(this)">.</div>
+        <div class="button equals" onclick="onEqualsClicked()">=</div>
+      </div>
+    </div>
+  </body>
+</html>
