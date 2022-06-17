@@ -83,7 +83,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-📎Pedro Ribeiro - <a href="https://pedroribeiro.site">Portfolio</a>
+📎 Pedro Ribeiro - <a href="https://pedroribeiro.site">Portfolio</a>
 <br>
 📫 Email: beyluta1@gmail.com
 
