@@ -134,7 +134,7 @@ namespace Widgets.Manager
                         e.classList.add('widget');
                         e.classList.add('flex-row');
                         e.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';
-                        e.style.height = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
+                        e.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
                         e.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
                         e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e);
