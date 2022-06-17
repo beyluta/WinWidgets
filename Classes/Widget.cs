@@ -57,11 +57,13 @@ namespace Widgets
             string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
             string locationString = GetMetaTagValue("windowLocation", widgetPath);
             string topMostString = GetMetaTagValue("topMost", widgetPath);
+            string opacityString = GetMetaTagValue("windowOpacity", widgetPath);
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
             width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
             height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
+            byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
             window = new Form();
@@ -74,6 +76,7 @@ namespace Widgets
             window.ShowInTaskbar = false;
             window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, width, height, roundess, roundess));
             window.Activated += OnFormActivated;
+            SetWindowTransparency(window.Handle, opacity);
             AppendWidget(window, widgetPath);
             window.ShowDialog();
         }

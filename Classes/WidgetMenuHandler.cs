@@ -26,22 +26,13 @@ namespace Widgets
             switch (commandId)
             {
                 case 0:
-                    if (widget.moveModeEnabled)
-                    {
-                        widget.SetWindowTransparency(widget.handle, 255);
-                        widget.moveModeEnabled = false;
-                    }
-                    else
-                    {
-                        widget.SetWindowTransparency(widget.handle, 200);
-                        widget.moveModeEnabled = true;
-                    }
+                    widget.moveModeEnabled = widget.moveModeEnabled ? false : true;
                     return true;
 
                 case (CefMenuCommand)1:
                     widget.window.Invoke(new MethodInvoker(delegate ()
                     {
-                        widget.window.TopMost = widget.window.TopMost == false ? true : false;
+                        widget.window.TopMost = widget.window.TopMost ? false : true;
                     }));
                     return true;
 
