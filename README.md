@@ -36,8 +36,21 @@ This is what makes this project interesting:
 * 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
 * ⌨️ Have better control over your widget's window with built-in front-end tags
 
+## Screenshots and usage
+1. Dashboard with all your installed widgets
+<img src="Assets/Images/step1.png">
 
+2. Click on any widget to open it up
+<img src="Assets/Images/step2.png">
 
+3. Right-click on the widget to see the menu
+<img src="Assets/Images/step3.png">
+
+4. The application stays in the system tray when minimized
+<img src="Assets/Images/step4.png">
+
+5. Go to your Widgets folder under `C://Users/USER/Documents` to add new widgets
+<img src="Assets/Images/step5.png">
 
 ### Built With
 
@@ -72,7 +85,8 @@ List of software required. Make sure all of these are installed
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+5. Add yourself to the CONTRIBUTORS.txt file
+6. Open a Pull Request
 
 <!-- LICENSE -->
 ## License
