@@ -49,7 +49,7 @@ This is what makes this project interesting:
 4. The application stays in the system tray when minimized
 <img src="Assets/Images/step4.png">
 
-5. Go to your Widgets folder under `C://Users/USER/Documents` to add new widgets
+5. Go to your widgets folder under `C://Users/USER/Documents` to add new widgets. There is a sample widget under `Assets/Samples` copy the html file to the widgets folder
 <img src="Assets/Images/step5.png">
 
 ### Built With
