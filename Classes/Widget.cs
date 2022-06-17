@@ -2,6 +2,7 @@
 using CefSharp.WinForms;
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace Widgets
@@ -48,34 +49,54 @@ namespace Widgets
             f.Controls.Add(browser);
         }
 
-        public override void CreateWindow(int w, int h, string t, FormStartPosition p)
+        public override void CreateWindow(int width, int height, string title, FormStartPosition startPosition)
         {
             POINT mousePos;
             GetCursorPos(out mousePos);
-
             string sizeString = GetMetaTagValue("windowSize", widgetPath);
             string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
             string locationString = GetMetaTagValue("windowLocation", widgetPath);
             string topMostString = GetMetaTagValue("topMost", widgetPath);
             string opacityString = GetMetaTagValue("windowOpacity", widgetPath);
             int roundess = radiusString != null ? int.Parse(radiusString) : 0;
-            width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : w;
-            height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : h;
+            this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
+            this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
             int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
             int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
             byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
             bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
             window = new Form();
-            window.Size = new Size(width, height);
-            window.StartPosition = p;
+            window.Size = new Size(this.width, this.height);
+            window.StartPosition = startPosition;
             window.Location = new Point(locationX, locationY);
-            window.Text = t;
+            window.Text = title;
             window.TopMost = topMost;
             window.FormBorderStyle = FormBorderStyle.None;
             window.ShowInTaskbar = false;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, width, height, roundess, roundess));
+            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
             window.Activated += OnFormActivated;
+            window.BackColor = Color.Black;
+
+            /*
+            @@  The code below is setting the window to have a blurred background.
+            @@  It does not work as of yet because this software uses winforms as its base. But it will be changed to WPF soon.
+            */
+            AccentPolicy accentPolicy = new AccentPolicy
+            {
+                AccentState = AccentState.ACCENT_ENABLE_BLURBEHIND,
+            };
+            int accentSize = Marshal.SizeOf(accentPolicy);
+            IntPtr accentPtr = Marshal.AllocHGlobal(accentSize);
+            Marshal.StructureToPtr(accentPolicy, accentPtr, false);
+            WindowCompositionAttributeData data = new WindowCompositionAttributeData
+            {
+                Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
+                SizeOfData = accentSize,
+                Data = accentPtr
+            };
+            SetWindowCompositionAttribute(window.Handle, ref data);
+
             SetWindowTransparency(window.Handle, opacity);
             AppendWidget(window, widgetPath);
             window.ShowDialog();

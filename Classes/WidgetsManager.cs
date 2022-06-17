@@ -95,7 +95,7 @@ namespace Widgets.Manager
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
 
-        private async void ReloadWidgets()
+        private void ReloadWidgets()
         {
             string injectHTML = string.Empty;
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
@@ -107,22 +107,25 @@ namespace Widgets.Manager
 
                 for (int j = 0; j < widgetPath.Length; j++)
                 {
-                    if (widgetPath[j] == '\\')
-                    {
-                        localWidgetPath += '/';
-                    }
-                    else
-                    {
-                        localWidgetPath += widgetPath[j];
-                    }
+                    localWidgetPath += widgetPath[j] == '\\' ? '/' : widgetPath[j];
                 }
 
                 if (!widgetsInitialized)
                 {
+                    /*
+                    @@  This is supposed to fetch the newest version string of the app from this api.
+                    @@  However sometimes this does not happen and the app starts without getting the response.
+                    @@
+                    @@  I have also noticed that this problem is even worse when made into an async call, therefore It's now synchronous.
+                    */
                     HttpClient client = new HttpClient();
                     string response = client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version").Result;
                     versionObject = JObject.Parse(response);
 
+                    /*
+                    @@  Injecting some JavaScript into the WidgetManager. There is probably a better way to do this...
+                    @@  It adds the required classes, sytles, attributes, and event handlers.
+                    */
                     injectHTML += "window.addEventListener('load', (event) => {" + $@"
                         fetchedVersion = '{(string)versionObject["version"]}';
                         isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
@@ -139,9 +142,12 @@ namespace Widgets.Manager
                         e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e);
                         e.onclick = () => CefSharp.PostMessage('{i}');
-                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" + @"
+                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" +
 
-                        const switches = document.getElementsByClassName('switch');
+                        /*
+                        @@  These are the settings of the application. Here we add the class 'switchon' so that the style changes in the software.
+                        */
+                        @"const switches = document.getElementsByClassName('switch');
                           for (let s of switches) {
                             const setting = s.getAttribute('setting');
                             if (setting == 'startup') {
@@ -154,7 +160,7 @@ namespace Widgets.Manager
                 {
                     widgetIndex++;
 
-                    if (i <= 0)
+                    if (i <= 0) // Clearing all widgets before reloading them again
                     {
                         injectHTML += "document.getElementById('widgets').innerHTML = '';";
                     }
@@ -163,6 +169,8 @@ namespace Widgets.Manager
                         const e{widgetIndex} = document.createElement('div');
                         e{widgetIndex}.classList.add('widget');
                         e{widgetIndex}.classList.add('flex-row');
+                        e{widgetIndex}.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';
+                        e{widgetIndex}.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
                         e{widgetIndex}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
                         document.getElementById('widgets').appendChild(e{widgetIndex});
                         e{widgetIndex}.onclick = () => CefSharp.PostMessage('{i}');
