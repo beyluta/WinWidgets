@@ -14,7 +14,7 @@ using WidgetsDotNet.Properties;
 
 namespace Widgets.Manager
 {
-    internal class WidgetsManager : WidgetWindow
+    class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
         private Form _window;
@@ -68,7 +68,7 @@ namespace Widgets.Manager
             window.Text = t;
             window.Activated += OnFormActivated;
             window.Icon = Resources.favicon;
-            window.Resize += OnFormReized;
+            window.Resize += OnFormResized;
             window.ShowInTaskbar = false;
             AppendWidget(window, managerUIPath);
             window.ShowDialog();
@@ -193,24 +193,24 @@ namespace Widgets.Manager
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            ArrayList deletedWidgets = new ArrayList();
+            ArrayList deleteWidgets = new ArrayList();
 
             foreach (Widget widget in WidgetAssets.widgets.Widgets)
             {
                 widget.window.Invoke(new MethodInvoker(delegate ()
                 {
                     widget.window.Close();
-                    deletedWidgets.Add(widget);
+                    deleteWidgets.Add(widget);
                 }));
             }
 
-            foreach (Widget widget in deletedWidgets)
+            foreach (Widget widget in deleteWidgets)
             {
                 WidgetAssets.widgets.RemoveWidget(widget);
             }
         }
 
-        private void OnFormReized(object sender, EventArgs e)
+        private void OnFormResized(object sender, EventArgs e)
         {
             if (window.WindowState == FormWindowState.Minimized)
             {
@@ -286,6 +286,11 @@ namespace Widgets.Manager
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
         {
+            /*
+            @@  Receives messages from the JavaScript.
+            @@
+            @@  If the message is a number then it defaults to opening a widget by its id.
+            */
             switch (e.Message)
             {
                 case "widgetsFolder":

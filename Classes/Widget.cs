@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace Widgets
 {
-    class Widget : WidgetWindow
+    internal class Widget : WidgetWindow
     {
         public bool moveModeEnabled = false;
 
@@ -24,8 +24,8 @@ namespace Widgets
             set { _handle = value; }
         }
 
-        public string widgetPath 
-        { 
+        public string widgetPath
+        {
             get { return _widgetPath; }
             set { _widgetPath = value; }
         }
@@ -42,17 +42,21 @@ namespace Widgets
             set { _browser = value; }
         }
 
-        public override void AppendWidget(Form f, string path)
+        public override void AppendWidget(Form window, string path)
         {
             browser = new ChromiumWebBrowser(path);
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
-            f.Controls.Add(browser);
+            window.Controls.Add(browser);
         }
 
         public override void CreateWindow(int width, int height, string title, FormStartPosition startPosition)
         {
             POINT mousePos;
             GetCursorPos(out mousePos);
+
+            /*
+            @@  Extracting the <meta> tags from the html document.
+            */
             string sizeString = GetMetaTagValue("windowSize", widgetPath);
             string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
             string locationString = GetMetaTagValue("windowLocation", widgetPath);
@@ -104,6 +108,9 @@ namespace Widgets
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
+            /*
+            @@  Injecting JavaScript code to tell when the window is being dragged.
+            */
             browser.ExecuteScriptAsync(@"
                 window.onload = () => {
                     let mouseDrag;
