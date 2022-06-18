@@ -10,6 +10,7 @@ namespace Widgets
         public const int GWL_EXSTYLE = -20;
         public const int WS_EX_LAYERED = 0x80000;
         public const int LWA_ALPHA = 0x2;
+        public const int HIDE_HOTKEY_ID = 0;
 
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
@@ -84,5 +85,11 @@ namespace Widgets
             public int GradientColor;
             public int AnimationId;
         }
+
+        [DllImport("user32.dll")]
+        public static extern bool RegisterHotKey(IntPtr hWnd, int id, int fsModifiers, int vlc);
+
+        [DllImport("user32.dll")]
+        public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
     }
 }
