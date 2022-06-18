@@ -66,7 +66,7 @@ namespace Widgets.Manager
             window.Size = new Size(w, h);
             window.StartPosition = p;
             window.Text = t;
-            window.Activated += OnFormActivated;
+            window.Activated += delegate { handle = window.Handle; };
             window.Icon = Resources.favicon;
             window.Resize += OnFormResized;
             window.ShowInTaskbar = false;
@@ -90,7 +90,7 @@ namespace Widgets.Manager
             { new MenuItem("Open Manager", OnOpenApplication),
               new MenuItem("Stop All Widgets", OnStopAllWidgets),
               new MenuItem("-"),
-              new MenuItem("Quit", OnExitApplication)
+              new MenuItem("Quit", delegate { Application.Exit(); })
             });
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
@@ -218,20 +218,10 @@ namespace Widgets.Manager
             }
         }
 
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            handle = window.Handle;
-        }
-
         private void OnOpenApplication(object sender, EventArgs e)
         {
             window.Opacity = 100;
             window.WindowState = FormWindowState.Normal;
-        }
-
-        private void OnExitApplication(object sender, EventArgs e)
-        {
-            Application.Exit();
         }
 
         private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
