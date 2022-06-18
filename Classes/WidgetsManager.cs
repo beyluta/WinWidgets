@@ -48,15 +48,44 @@ namespace Widgets.Manager
 
         public WidgetsManager()
         {
+            /*
+            @@  CefSharp configurations.
+            */
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
 
+            /*
+            @@   Creating the default folder C://USERS/MY_USER/Widgets
+            */
             WidgetAssets.CreateHTMLFilesDirectory();
 
+            /*
+            @@  Loading the configurations of this software into the appConfig class instance.
+            */
             string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
             appConfig = JsonConvert.DeserializeObject<Configuration>(json);
 
+            /*
+            @@  Notify Icon at the bottom right.
+            @@
+            @@  It has some useful settings that can be accessed quickly.
+            */
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = Resources.favicon;
+            notifyIcon.Text = "WinWidgets";
+            notifyIcon.Visible = true;
+            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
+            { new MenuItem("Open Manager", OnOpenApplication),
+              new MenuItem("Stop All Widgets", OnStopAllWidgets),
+              new MenuItem("-"),
+              new MenuItem("Quit", delegate { Application.Exit(); })
+            });
+            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
+
+            /*
+            @@  Finally, creating the widget manager window.
+            */
             CreateWindow(1500, 1100, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
@@ -81,18 +110,6 @@ namespace Widgets.Manager
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             browser.MenuHandler = new WidgetManagerMenuHandler();
             f.Controls.Add(browser);
-
-            notifyIcon = new NotifyIcon();
-            notifyIcon.Icon = Resources.favicon;
-            notifyIcon.Text = "WinWidgets";
-            notifyIcon.Visible = true;
-            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
-            { new MenuItem("Open Manager", OnOpenApplication),
-              new MenuItem("Stop All Widgets", OnStopAllWidgets),
-              new MenuItem("-"),
-              new MenuItem("Quit", delegate { Application.Exit(); })
-            });
-            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
 
         private void ReloadWidgets()
@@ -105,6 +122,11 @@ namespace Widgets.Manager
                 widgetPath = files[i];
                 string localWidgetPath = string.Empty;
 
+                /*
+                @@  Replacing '\' with '/' for the path of the widgets.
+                @@
+                @@  This is necessary because otherwise the file cannot be located by the browser.
+                */
                 for (int j = 0; j < widgetPath.Length; j++)
                 {
                     localWidgetPath += widgetPath[j] == '\\' ? '/' : widgetPath[j];
