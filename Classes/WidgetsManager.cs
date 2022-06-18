@@ -252,35 +252,15 @@ namespace Widgets.Manager
                                  | NotifyFilters.Security
                                  | NotifyFilters.Size;
 
-            fileWatcher.Changed += OnDirectoryChanged;
-            fileWatcher.Created += OnFileCreatedInDirectory;
-            fileWatcher.Deleted += OnFileDeletedInDirectory;
-            fileWatcher.Renamed += OnFileRenamedInDirectory;
+            fileWatcher.Changed += delegate { ReloadWidgets(); };
+            fileWatcher.Created += delegate { ReloadWidgets(); };
+            fileWatcher.Deleted += delegate { ReloadWidgets(); };
+            fileWatcher.Renamed += delegate { ReloadWidgets(); };
 
             fileWatcher.Filter = "*.html";
             fileWatcher.IncludeSubdirectories = true;
             fileWatcher.EnableRaisingEvents = true;
 
-            ReloadWidgets();
-        }
-
-        private void OnFileRenamedInDirectory(object sender, RenamedEventArgs e)
-        {
-            ReloadWidgets();
-        }
-
-        private void OnFileDeletedInDirectory(object sender, FileSystemEventArgs e)
-        {
-            ReloadWidgets();
-        }
-
-        private void OnFileCreatedInDirectory(object sender, FileSystemEventArgs e)
-        {
-            ReloadWidgets();
-        }
-
-        private void OnDirectoryChanged(object sender, FileSystemEventArgs e)
-        {
             ReloadWidgets();
         }
 
