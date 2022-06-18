@@ -14,7 +14,7 @@ using WidgetsDotNet.Properties;
 
 namespace Widgets.Manager
 {
-    class WidgetsManager : WidgetWindow
+    internal class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
         private Form _window;
@@ -195,18 +195,18 @@ namespace Widgets.Manager
         {
             ArrayList deleteWidgets = new ArrayList();
 
-            foreach (Widget widget in WidgetAssets.widgets.Widgets)
+            for (int i = 0; i < WidgetAssets.widgets.Widgets.Count; i++)
             {
-                widget.window.Invoke(new MethodInvoker(delegate ()
+                ((Widget)WidgetAssets.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
                 {
-                    widget.window.Close();
-                    deleteWidgets.Add(widget);
+                    ((Widget)WidgetAssets.widgets.Widgets[i]).window.Close();
+                    deleteWidgets.Add(((Widget)WidgetAssets.widgets.Widgets[i]));
                 }));
             }
 
-            foreach (Widget widget in deleteWidgets)
+            for (int i = 0; i < deleteWidgets.Count; i++)
             {
-                WidgetAssets.widgets.RemoveWidget(widget);
+                WidgetAssets.widgets.RemoveWidget((Widget)deleteWidgets[i]);
             }
         }
 
