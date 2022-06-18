@@ -10,10 +10,14 @@ internal class Program : WindowEssentials
     {
         ShowWindow(GetConsoleWindow(), SW_HIDE);
 
-        var exists = System.Diagnostics.Process.GetProcessesByName(System.IO.Path.GetFileNameWithoutExtension(System.Reflection.Assembly.GetEntryAssembly().Location)).Count() > 1;
-        if (!exists)
+        bool processExists = System.Diagnostics.Process.GetProcessesByName(
+            System.IO.Path.GetFileNameWithoutExtension(
+                System.Reflection.Assembly.GetEntryAssembly().Location))
+                    .Count() > 1;
+
+        if (!processExists)
         {
-            WidgetsManager manager = new WidgetsManager();
+            new WidgetsManager();
         }
     }
 }
