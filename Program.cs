@@ -8,7 +8,7 @@ internal class Program : WindowEssentials
     [STAThread]
     private static void Main(string[] args)
     {
-        ShowWindow(GetConsoleWindow(), SW_HIDE);
+        //ShowWindow(GetConsoleWindow(), SW_HIDE);
 
         bool processExists = System.Diagnostics.Process.GetProcessesByName(
             System.IO.Path.GetFileNameWithoutExtension(

@@ -11,6 +11,7 @@ using System.IO;
 using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
+using Snippets;
 
 namespace Widgets.Manager
 {
@@ -273,7 +274,19 @@ namespace Widgets.Manager
             fileWatcher.IncludeSubdirectories = true;
             fileWatcher.EnableRaisingEvents = true;
 
+            UserActivityHook userActivityHook = new UserActivityHook();
+            userActivityHook.KeyDown += new KeyEventHandler(KeyPressed);
+
             ReloadWidgets();
+        }
+
+        private void KeyPressed(object sender, KeyEventArgs e)
+        {
+            int value = e.KeyValue;
+            foreach (Widget widget in WidgetAssets.widgets.Widgets)
+            {
+                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + value + ")");
+            }
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
