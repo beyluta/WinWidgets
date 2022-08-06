@@ -11,10 +11,11 @@ using System.IO;
 using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
+using Snippets;
 
 namespace Widgets.Manager
 {
-    class WidgetsManager : WidgetWindow
+    internal class WidgetsManager : WidgetWindow
     {
         private string widgetPath = String.Empty;
         private Form _window;
@@ -48,15 +49,44 @@ namespace Widgets.Manager
 
         public WidgetsManager()
         {
+            /*
+            @@  CefSharp configurations.
+            */
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
 
+            /*
+            @@   Creating the default folder C://USERS/MY_USER/Widgets
+            */
             WidgetAssets.CreateHTMLFilesDirectory();
 
+            /*
+            @@  Loading the configurations of this software into the appConfig class instance.
+            */
             string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
             appConfig = JsonConvert.DeserializeObject<Configuration>(json);
 
+            /*
+            @@  Notify Icon at the bottom right.
+            @@
+            @@  It has some useful settings that can be accessed quickly.
+            */
+            notifyIcon = new NotifyIcon();
+            notifyIcon.Icon = Resources.favicon;
+            notifyIcon.Text = "WinWidgets";
+            notifyIcon.Visible = true;
+            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
+            { new MenuItem("Open Manager", OnOpenApplication),
+              new MenuItem("Stop All Widgets", OnStopAllWidgets),
+              new MenuItem("-"),
+              new MenuItem("Quit", delegate { Application.Exit(); })
+            });
+            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
+
+            /*
+            @@  Finally, creating the widget manager window.
+            */
             CreateWindow(1500, 1100, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
@@ -66,7 +96,7 @@ namespace Widgets.Manager
             window.Size = new Size(w, h);
             window.StartPosition = p;
             window.Text = t;
-            window.Activated += OnFormActivated;
+            window.Activated += delegate { handle = window.Handle; };
             window.Icon = Resources.favicon;
             window.Resize += OnFormResized;
             window.ShowInTaskbar = false;
@@ -81,18 +111,6 @@ namespace Widgets.Manager
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
             browser.MenuHandler = new WidgetManagerMenuHandler();
             f.Controls.Add(browser);
-
-            notifyIcon = new NotifyIcon();
-            notifyIcon.Icon = Resources.favicon;
-            notifyIcon.Text = "WinWidgets";
-            notifyIcon.Visible = true;
-            notifyIcon.ContextMenu = new ContextMenu(new MenuItem[]
-            { new MenuItem("Open Manager", OnOpenApplication),
-              new MenuItem("Stop All Widgets", OnStopAllWidgets),
-              new MenuItem("-"),
-              new MenuItem("Quit", OnExitApplication)
-            });
-            notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
         }
 
         private void ReloadWidgets()
@@ -105,6 +123,11 @@ namespace Widgets.Manager
                 widgetPath = files[i];
                 string localWidgetPath = string.Empty;
 
+                /*
+                @@  Replacing '\' with '/' for the path of the widgets.
+                @@
+                @@  This is necessary because otherwise the file cannot be located by the browser.
+                */
                 for (int j = 0; j < widgetPath.Length; j++)
                 {
                     localWidgetPath += widgetPath[j] == '\\' ? '/' : widgetPath[j];
@@ -195,18 +218,18 @@ namespace Widgets.Manager
         {
             ArrayList deleteWidgets = new ArrayList();
 
-            foreach (Widget widget in WidgetAssets.widgets.Widgets)
+            for (int i = 0; i < WidgetAssets.widgets.Widgets.Count; i++)
             {
-                widget.window.Invoke(new MethodInvoker(delegate ()
+                ((Widget)WidgetAssets.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
                 {
-                    widget.window.Close();
-                    deleteWidgets.Add(widget);
+                    ((Widget)WidgetAssets.widgets.Widgets[i]).window.Close();
+                    deleteWidgets.Add(((Widget)WidgetAssets.widgets.Widgets[i]));
                 }));
             }
 
-            foreach (Widget widget in deleteWidgets)
+            for (int i = 0; i < deleteWidgets.Count; i++)
             {
-                WidgetAssets.widgets.RemoveWidget(widget);
+                WidgetAssets.widgets.RemoveWidget((Widget)deleteWidgets[i]);
             }
         }
 
@@ -218,20 +241,10 @@ namespace Widgets.Manager
             }
         }
 
-        private void OnFormActivated(object sender, EventArgs e)
-        {
-            handle = window.Handle;
-        }
-
         private void OnOpenApplication(object sender, EventArgs e)
         {
             window.Opacity = 100;
             window.WindowState = FormWindowState.Normal;
-        }
-
-        private void OnExitApplication(object sender, EventArgs e)
-        {
-            Application.Exit();
         }
 
         private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
@@ -252,36 +265,28 @@ namespace Widgets.Manager
                                  | NotifyFilters.Security
                                  | NotifyFilters.Size;
 
-            fileWatcher.Changed += OnDirectoryChanged;
-            fileWatcher.Created += OnFileCreatedInDirectory;
-            fileWatcher.Deleted += OnFileDeletedInDirectory;
-            fileWatcher.Renamed += OnFileRenamedInDirectory;
+            fileWatcher.Changed += delegate { ReloadWidgets(); };
+            fileWatcher.Created += delegate { ReloadWidgets(); };
+            fileWatcher.Deleted += delegate { ReloadWidgets(); };
+            fileWatcher.Renamed += delegate { ReloadWidgets(); };
 
             fileWatcher.Filter = "*.html";
             fileWatcher.IncludeSubdirectories = true;
             fileWatcher.EnableRaisingEvents = true;
 
+            UserActivityHook userActivityHook = new UserActivityHook();
+            userActivityHook.KeyDown += new KeyEventHandler(KeyPressed);
+
             ReloadWidgets();
         }
 
-        private void OnFileRenamedInDirectory(object sender, RenamedEventArgs e)
+        private void KeyPressed(object sender, KeyEventArgs e)
         {
-            ReloadWidgets();
-        }
-
-        private void OnFileDeletedInDirectory(object sender, FileSystemEventArgs e)
-        {
-            ReloadWidgets();
-        }
-
-        private void OnFileCreatedInDirectory(object sender, FileSystemEventArgs e)
-        {
-            ReloadWidgets();
-        }
-
-        private void OnDirectoryChanged(object sender, FileSystemEventArgs e)
-        {
-            ReloadWidgets();
+            int value = e.KeyValue;
+            foreach (Widget widget in WidgetAssets.widgets.Widgets)
+            {
+                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + value + ")");
+            }
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)

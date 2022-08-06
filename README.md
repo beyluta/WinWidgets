@@ -2,10 +2,9 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.0.0-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.1.0-green" alt="WinWidgets version" />
   </a>
 </p>
-
 
 <!-- PROJECT LOGO -->
 <br />
@@ -27,48 +26,54 @@
 </div>
 
 <!-- ABOUT THE PROJECT -->
+
 ## About The Project
+
 WinWidgets offers the possibility to create desktop widgets using HTML, CSS, and JavaScript for your Windows 10 or Windows 11 machine.
 
 This is what makes this project interesting:
-* 🧰 Focus on creating your widgets with all the usual web tools to your disposal
-* 👆 Develop complex widgets using a high-level programming language (JS)
-* 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
-* ⌨️ Have better control over your widget's window with built-in front-end tags
+
+- 🧰 Focus on creating your widgets with all the usual web tools to your disposal
+- 👆 Develop complex widgets using a high-level programming language (JS)
+- 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
+- ⌨️ Have better control over your widget's window with built-in front-end tags
 
 ## Screenshots and usage
+
 1. Dashboard with all your installed widgets
-<img src="Assets/Images/step1.png">
+   <img src="Assets/Images/step1.png">
 
 2. Click on any widget to open it up
-<img src="Assets/Images/step2.png">
+   <img src="Assets/Images/step2.png">
 
 3. Right-click on the widget to see the menu
-<img src="Assets/Images/step3.png">
+   <img src="Assets/Images/step3.png">
 
 4. The application stays in the system tray when minimized
-<img src="Assets/Images/step4.png">
+   <img src="Assets/Images/step4.png">
 
 5. Go to your widgets folder under `C://Users/USER/Documents` to add new widgets. There is a sample widget under `Assets/Samples` copy the html file to the widgets folder
-<img src="Assets/Images/step5.png">
+   <img src="Assets/Images/step5.png">
 
 ### Built With
 
 These are the technologies powering WinWidgets
-* [Dotnet](https://dotnet.microsoft.com/en-us/)
-* [Chromium](https://www.chromium.org/)
-* [CefSharp](https://cefsharp.github.io/)
 
+- [Dotnet](https://dotnet.microsoft.com/en-us/)
+- [Chromium](https://www.chromium.org/)
+- [CefSharp](https://cefsharp.github.io/)
 
 <!-- GETTING STARTED -->
+
 ## Getting Started
 
 ### Prerequisites
 
 List of software required. Make sure all of these are installed
-* Visual Studio 2022
-* .NET Framework 4.7.2
-* Microsoft Visual C++ 2015-2019
+
+- Visual Studio 2022
+- .NET Framework 4.7.2
+- Microsoft Visual C++ 2015-2019
 
 ### Installation
 
@@ -77,8 +82,9 @@ List of software required. Make sure all of these are installed
    ```sh
    git clone https://github.com/beyluta/WinWidgets.git
    ```
-   
+
 <!-- CONTRIBUTING -->
+
 ## Contributing
 
 1. Fork the Project
@@ -89,23 +95,24 @@ List of software required. Make sure all of these are installed
 6. Open a Pull Request
 
 <!-- LICENSE -->
+
 ## License
 
 Distributed under the MIT License. See `LICENSE.txt` for more information.
 
-
 <!-- CONTACT -->
+
 ## Contact
 
 📎 Pedro Ribeiro - <a href="https://pedroribeiro.site">Portfolio</a>
 <br>
 📫 Email: beyluta1@gmail.com
 
-
 <!-- ACKNOWLEDGMENTS -->
+
 ## Acknowledgments
 
 Many thanks to these projects for their super useful resources 😄
 
-* [Img Shields](https://shields.io)
-* [Font Awesome](https://fontawesome.com)
+- [Img Shields](https://shields.io)
+- [Font Awesome](https://fontawesome.com)
