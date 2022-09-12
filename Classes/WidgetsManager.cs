@@ -3,6 +3,7 @@ using CefSharp.WinForms;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Snippets;
 using System;
 using System.Collections;
 using System.Diagnostics;
@@ -11,7 +12,6 @@ using System.IO;
 using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
-using Snippets;
 
 namespace Widgets.Manager
 {
@@ -113,7 +113,7 @@ namespace Widgets.Manager
             f.Controls.Add(browser);
         }
 
-        private void ReloadWidgets()
+        private async void ReloadWidgets()
         {
             string injectHTML = string.Empty;
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
@@ -141,9 +141,17 @@ namespace Widgets.Manager
                     @@
                     @@  I have also noticed that this problem is even worse when made into an async call, therefore It's now synchronous.
                     */
-                    HttpClient client = new HttpClient();
-                    string response = client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version").Result;
-                    versionObject = JObject.Parse(response);
+                    using (HttpClient client = new HttpClient())
+                    {
+                        versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
+
+                        try
+                        {
+                            string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                            versionObject = JObject.Parse(response);
+                        } 
+                        catch { }
+                    }
 
                     /*
                     @@  Injecting some JavaScript into the WidgetManager. There is probably a better way to do this...
