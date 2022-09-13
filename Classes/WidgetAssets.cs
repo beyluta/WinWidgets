@@ -13,7 +13,7 @@ namespace Widgets.Manager
 
         static public string[] GetPathToHTMLFiles(string path)
         {
-            return Directory.GetFiles(path, "*.html");
+            return Directory.GetFiles(path, "*.html", SearchOption.AllDirectories);
         }
 
         static public void CreateHTMLFilesDirectory()
