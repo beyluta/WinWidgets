@@ -104,8 +104,20 @@ namespace Widgets.Manager
             window.ShowDialog();
         }
 
-        public override void AppendWidget(Form f, string path)
+        public override async void AppendWidget(Form f, string path)
         {
+            using (HttpClient client = new HttpClient())
+            {
+                versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
+
+                try
+                {
+                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                    versionObject = JObject.Parse(response);
+                }
+                catch { }
+            }
+
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
@@ -113,7 +125,7 @@ namespace Widgets.Manager
             f.Controls.Add(browser);
         }
 
-        private async void ReloadWidgets()
+        private void ReloadWidgets()
         {
             string injectHTML = string.Empty;
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
@@ -121,38 +133,11 @@ namespace Widgets.Manager
             for (int i = 0; i < files.Length; i++)
             {
                 widgetPath = files[i];
-                string localWidgetPath = string.Empty;
+                string localWidgetPath = widgetPath.Replace('\\', '/');
 
-                /*
-                @@  Replacing '\' with '/' for the path of the widgets.
-                @@
-                @@  This is necessary because otherwise the file cannot be located by the browser.
-                */
-                for (int j = 0; j < widgetPath.Length; j++)
-                {
-                    localWidgetPath += widgetPath[j] == '\\' ? '/' : widgetPath[j];
-                }
 
                 if (!widgetsInitialized)
                 {
-                    /*
-                    @@  This is supposed to fetch the newest version string of the app from this api.
-                    @@  However sometimes this does not happen and the app starts without getting the response.
-                    @@
-                    @@  I have also noticed that this problem is even worse when made into an async call, therefore It's now synchronous.
-                    */
-                    using (HttpClient client = new HttpClient())
-                    {
-                        versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
-
-                        try
-                        {
-                            string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
-                            versionObject = JObject.Parse(response);
-                        } 
-                        catch { }
-                    }
-
                     /*
                     @@  Injecting some JavaScript into the WidgetManager. There is probably a better way to do this...
                     @@  It adds the required classes, sytles, attributes, and event handlers.

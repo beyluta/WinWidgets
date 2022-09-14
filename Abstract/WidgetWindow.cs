@@ -63,14 +63,17 @@ namespace Widgets
         /// <returns>The value inside the content attribute</returns>
         public string GetMetaTagValue(string name, string widgetPath)
         {
-            string[] html = File.ReadAllLines(widgetPath);
-            for (int i = 0; i < html.Length; i++)
+            try
             {
-                if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
+                string[] html = File.ReadAllLines(widgetPath);
+                for (int i = 0; i < html.Length; i++)
                 {
-                    return html[i].Split('"')[3];
+                    if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
+                    {
+                        return html[i].Split('"')[3];
+                    }
                 }
-            }
+            } catch { return null; }
             return null;
         }
     }
