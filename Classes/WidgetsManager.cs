@@ -104,17 +104,28 @@ namespace Widgets.Manager
             window.ShowDialog();
         }
 
-        public override void AppendWidget(Form f, string path)
+        public override async void AppendWidget(Form f, string path)
         {
+            using (HttpClient client = new HttpClient())
+            {
+                versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
+
+                try
+                {
+                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                    versionObject = JObject.Parse(response);
+                }
+                catch { }
+            }
+
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
-            browser.GotFocus += OnBrowserFocusChanged;
             browser.MenuHandler = new WidgetManagerMenuHandler();
             f.Controls.Add(browser);
         }
 
-        private async void ReloadWidgets()
+        private void ReloadWidgets()
         {
             string injectHTML = string.Empty;
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
@@ -127,19 +138,6 @@ namespace Widgets.Manager
 
                 if (!widgetsInitialized)
                 {
-
-                    using (HttpClient client = new HttpClient())
-                    {
-                        versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
-
-                        try
-                        {
-                            string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
-                            versionObject = JObject.Parse(response);
-                        } 
-                        catch { }
-                    }
-
                     /*
                     @@  Injecting some JavaScript into the WidgetManager. There is probably a better way to do this...
                     @@  It adds the required classes, sytles, attributes, and event handlers.
@@ -271,6 +269,8 @@ namespace Widgets.Manager
 
             UserActivityHook userActivityHook = new UserActivityHook();
             userActivityHook.KeyDown += new KeyEventHandler(KeyPressed);
+
+            ReloadWidgets();
         }
 
         private void KeyPressed(object sender, KeyEventArgs e)
@@ -314,11 +314,6 @@ namespace Widgets.Manager
                     OpenWidget(int.Parse((string)e.Message));
                     break;
             }
-        }
-
-        private void OnBrowserFocusChanged(object sender, EventArgs e)
-        {
-            ReloadWidgets();
         }
     }
 }
