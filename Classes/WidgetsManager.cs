@@ -109,6 +109,7 @@ namespace Widgets.Manager
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
+            browser.GotFocus += OnBrowserFocusChanged;
             browser.MenuHandler = new WidgetManagerMenuHandler();
             f.Controls.Add(browser);
         }
@@ -121,26 +122,12 @@ namespace Widgets.Manager
             for (int i = 0; i < files.Length; i++)
             {
                 widgetPath = files[i];
-                string localWidgetPath = string.Empty;
+                string localWidgetPath = widgetPath.Replace('\\', '/');
 
-                /*
-                @@  Replacing '\' with '/' for the path of the widgets.
-                @@
-                @@  This is necessary because otherwise the file cannot be located by the browser.
-                */
-                for (int j = 0; j < widgetPath.Length; j++)
-                {
-                    localWidgetPath += widgetPath[j] == '\\' ? '/' : widgetPath[j];
-                }
 
                 if (!widgetsInitialized)
                 {
-                    /*
-                    @@  This is supposed to fetch the newest version string of the app from this api.
-                    @@  However sometimes this does not happen and the app starts without getting the response.
-                    @@
-                    @@  I have also noticed that this problem is even worse when made into an async call, therefore It's now synchronous.
-                    */
+
                     using (HttpClient client = new HttpClient())
                     {
                         versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
@@ -284,8 +271,6 @@ namespace Widgets.Manager
 
             UserActivityHook userActivityHook = new UserActivityHook();
             userActivityHook.KeyDown += new KeyEventHandler(KeyPressed);
-
-            ReloadWidgets();
         }
 
         private void KeyPressed(object sender, KeyEventArgs e)
@@ -329,6 +314,11 @@ namespace Widgets.Manager
                     OpenWidget(int.Parse((string)e.Message));
                     break;
             }
+        }
+
+        private void OnBrowserFocusChanged(object sender, EventArgs e)
+        {
+            ReloadWidgets();
         }
     }
 }
