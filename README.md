@@ -41,19 +41,19 @@ This is what makes this project interesting:
 ## Screenshots and usage
 
 1. Dashboard with all your installed widgets
-   <img src="Assets/Images/step1.png">
+   <br><img src="Assets/Images/step1.png">
 
 2. Click on any widget to open it up
-   <img src="Assets/Images/step2.png">
+   <br><img src="Assets/Images/step2.png">
 
 3. Right-click on the widget to see the menu
-   <img src="Assets/Images/step3.png">
+   <br><img src="Assets/Images/step3.png">
 
 4. The application stays in the system tray when minimized
-   <img src="Assets/Images/step4.png">
+   <br><img src="Assets/Images/step4.png">
 
 5. Go to your widgets folder under `C://Users/USER/Documents` to add new widgets. There is a sample widget under `Assets/Samples` copy the html file to the widgets folder
-   <img src="Assets/Images/step5.png">
+   <br><img src="Assets/Images/step5.png">
 
 ### Built With
 
