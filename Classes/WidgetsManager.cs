@@ -298,7 +298,7 @@ namespace Widgets.Manager
                 case "startup":
                     if (registryKey.GetValue("WinWidgets") == null)
                     {
-                        registryKey.SetValue("WinWidgets", Application.StartupPath);
+                        registryKey.SetValue("WinWidgets", Application.ExecutablePath);
                     }
                     else
                     {
