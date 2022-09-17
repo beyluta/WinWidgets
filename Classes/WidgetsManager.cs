@@ -137,7 +137,13 @@ namespace Widgets.Manager
                 + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };"
                 + "var today = new Date();"
                 + "updateCheckTime = today.toLocaleDateString();"
-                + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
+                + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');"
+                + "var switches = document.getElementsByClassName('switch');"
+                + "for (let s of switches) {"
+                + "const setting = s.getAttribute('setting');"
+                + "if (setting == 'startup') {"
+                + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
+                + "}}";
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
