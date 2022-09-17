@@ -112,7 +112,7 @@ namespace Widgets.Manager
             }
 
             RemoteResources remoteResources = new RemoteResources();
-            await remoteResources.DownloadRemoteResources();
+            remoteResources.DownloadRemoteResources();
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)

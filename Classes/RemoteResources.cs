@@ -19,7 +19,7 @@ namespace Remote
             appConfig = JsonConvert.DeserializeObject<Configuration>(json);
         }
 
-        public async Task<string> DownloadRemoteResources()
+        public async void DownloadRemoteResources()
         {
             using (HttpClient client = new HttpClient())
             {
@@ -37,7 +37,6 @@ namespace Remote
                 }
                 catch { }
             }
-            return null;
         }
     }
 }
