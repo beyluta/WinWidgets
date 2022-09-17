@@ -1,3 +1,4 @@
 {
-  "version": "1.1.3"
+  "version": "1.1.3",
+  "remoteResources": "https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=resources"
 }

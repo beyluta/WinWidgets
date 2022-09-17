@@ -20,5 +20,16 @@ namespace Widgets.Manager
         {
             Directory.CreateDirectory(widgetsPath);
         }
+
+        static public void CreateHTMLFile(string path, string content)
+        {
+            if (!File.Exists(path))
+            {
+                using (StreamWriter streamWriter = new StreamWriter(path, true))
+                {
+                    streamWriter.WriteLine(content);
+                }
+            }
+        }
     }
 }

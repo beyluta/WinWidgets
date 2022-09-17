@@ -1,6 +1,5 @@
 ﻿using CefSharp.WinForms;
 using System;
-using System.IO;
 using System.Windows.Forms;
 
 namespace Widgets
@@ -65,16 +64,11 @@ namespace Widgets
         {
             try
             {
-                string[] html = File.ReadAllLines(widgetPath);
-                for (int i = 0; i < html.Length; i++)
-                {
-                    if (html[i].Contains("meta") && html[i].Contains(name) && !html[i].Contains("<!--"))
-                    {
-                        return html[i].Split('"')[3];
-                    }
-                }
-            } catch { return null; }
-            return null;
+                var doc = new HtmlAgilityPack.HtmlDocument();
+                doc.Load(widgetPath);
+                return doc.DocumentNode.SelectSingleNode("//meta[@name='" + name + "']").GetAttributeValue("content", null);
+            }
+            catch { return null; }
         }
     }
 }
