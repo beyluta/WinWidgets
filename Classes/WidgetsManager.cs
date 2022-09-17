@@ -87,7 +87,10 @@ namespace Widgets.Manager
             /*
             @@  Finally, creating the widget manager window.
             */
-            CreateWindow(1500, 1100, "WinWidgets", FormStartPosition.CenterScreen);
+            Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
+            int width  = screenResolution.Width / 2;
+            int height = screenResolution.Height - 200;
+            CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
