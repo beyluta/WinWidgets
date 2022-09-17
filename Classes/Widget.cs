@@ -94,18 +94,22 @@ namespace Widgets
             */
             browser.ExecuteScriptAsync(@"
                 window.onload = () => {
-                    let mouseDrag;
+                    let isDrag = false;
 
                     document.body.onmousedown = (e) => {
-                        mouseDrag = setInterval(() => {
-                            e.buttons === 1 && CefSharp.PostMessage('mouseDrag');
-                        }, 0);
-                        CefSharp.PostMessage('onmousedown');
+                        if (e.buttons === 1) {
+                            isDrag = true;
+                        }
                     }
 
                     document.body.onmouseup = () => {
-                         clearInterval(mouseDrag);
-                         CefSharp.PostMessage('onmouseup');
+                         isDrag = false;
+                    }
+
+                    document.body.onmousemove = () => {
+                        if (isDrag) {
+                            CefSharp.PostMessage('mouseDrag');
+                        }
                     }
                 }
             ");
