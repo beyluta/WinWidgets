@@ -22,8 +22,6 @@ namespace Widgets.Manager
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
         private string managerUIPath = WidgetAssets.assetsPath + "/index.html";
-        private bool widgetsInitialized = false;
-        private int widgetIndex = 0;
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
         private Configuration appConfig;
@@ -130,7 +128,16 @@ namespace Widgets.Manager
 
         private void ReloadWidgets()
         {
-            string injectHTML = string.Empty;
+            string template = 
+                $"var container = document.getElementById('widgets');"
+                + $"container.innerHTML = '';"
+                + $"fetchedVersion = '{(string)versionObject["version"]}';"
+                + $"isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};"
+                + $"downloadUrl = '{(string)versionObject["downloadUrl"]}';"
+                + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };"
+                + "var today = new Date();"
+                + "updateCheckTime = today.toLocaleDateString();"
+                + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
             string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
@@ -138,68 +145,20 @@ namespace Widgets.Manager
                 widgetPath = files[i];
                 string localWidgetPath = widgetPath.Replace('\\', '/');
 
-
-                if (!widgetsInitialized)
-                {
-                    /*
-                    @@  Injecting some JavaScript into the WidgetManager. There is probably a better way to do this...
-                    @@  It adds the required classes, sytles, attributes, and event handlers.
-                    */
-                    injectHTML += "window.addEventListener('load', (event) => {" + $@"
-                        fetchedVersion = '{(string)versionObject["version"]}';
-                        isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};
-                        downloadUrl = '{(string)versionObject["downloadUrl"]}';
-                        " + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };" + $@"
-                        var today = new Date();
-                        updateCheckTime = today.toLocaleDateString();
-                        const e = document.createElement('div');
-                        e.classList.add('widget');
-                        e.classList.add('flex-row');
-                        e.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';
-                        e.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
-                        e.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
-                        e.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
-                        document.getElementById('widgets').appendChild(e);
-                        e.onclick = () => CefSharp.PostMessage('{i}');
-                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');" +
-
-                        /*
-                        @@  These are the settings of the application. Here we add the class 'switchon' so that the style changes in the software.
-                        */
-                        @"const switches = document.getElementsByClassName('switch');
-                          for (let s of switches) {
-                            const setting = s.getAttribute('setting');
-                            if (setting == 'startup') {
-                              " + $@"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}" + @"
-                            }
-                        }
-                    " + "});";
-                }
-                else
-                {
-                    widgetIndex++;
-
-                    if (i <= 0) // Clearing all widgets before reloading them again
-                    {
-                        injectHTML += "document.getElementById('widgets').innerHTML = '';";
-                    }
-
-                    injectHTML += $@"
-                        const e{widgetIndex} = document.createElement('div');
-                        e{widgetIndex}.classList.add('widget');
-                        e{widgetIndex}.classList.add('flex-row');
-                        e{widgetIndex}.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';
-                        e{widgetIndex}.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';
-                        e{widgetIndex}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;
-                        document.getElementById('widgets').appendChild(e{widgetIndex});
-                        e{widgetIndex}.onclick = () => CefSharp.PostMessage('{i}');
-                        e{widgetIndex}.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');
-                        document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');";
-                }
+                template += $@"
+                    var e{i} = document.createElement('div');"
+                    + $"e{i}.classList.add('widget');"
+                    + $"e{i}.classList.add('flex-row');"
+                    + $"e{i}.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';"
+                    + $"e{i}.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';"
+                    + $"e{i}.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');"
+                    + $"e{i}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"document.getElementById('widgets').appendChild(e{i});"
+                    + $"e{i}.onclick = () => CefSharp.PostMessage('{i}');"
+                 ;
             }
 
-            widgetsInitialized = true;
-            browser.ExecuteScriptAsync(injectHTML);
+            browser.ExecuteScriptAsyncWhenPageLoaded(template);
         }
 
         public override void OpenWidget(int id)
