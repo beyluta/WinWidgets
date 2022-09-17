@@ -3,6 +3,7 @@ using CefSharp.WinForms;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Remote;
 using Snippets;
 using System;
 using System.Collections;
@@ -60,6 +61,11 @@ namespace Widgets.Manager
             WidgetAssets.CreateHTMLFilesDirectory();
 
             /*
+            @@  Fetching online resources such as standard widgets and software version
+            */
+            PrepareRemoteResources();
+
+            /*
             @@  Loading the configurations of this software into the appConfig class instance.
             */
             string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
@@ -91,6 +97,24 @@ namespace Widgets.Manager
             CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
+        public async void PrepareRemoteResources()
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
+
+                try
+                {
+                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
+                    versionObject = JObject.Parse(response);
+                }
+                catch { }
+            }
+
+            RemoteResources remoteResources = new RemoteResources();
+            await remoteResources.DownloadRemoteResources();
+        }
+
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
         {
             window = new Form();
@@ -105,20 +129,8 @@ namespace Widgets.Manager
             window.ShowDialog();
         }
 
-        public override async void AppendWidget(Form f, string path)
+        public override void AppendWidget(Form f, string path)
         {
-            using (HttpClient client = new HttpClient())
-            {
-                versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
-
-                try
-                {
-                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
-                    versionObject = JObject.Parse(response);
-                }
-                catch { }
-            }
-
             browser = new ChromiumWebBrowser(path);
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
             browser.IsBrowserInitializedChanged += OnBrowserInitialized;
