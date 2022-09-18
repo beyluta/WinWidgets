@@ -2,7 +2,6 @@
 using CefSharp.WinForms;
 using System;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace Widgets
@@ -82,25 +81,6 @@ namespace Widgets
             window.Activated += OnFormActivated;
             window.BackColor = Color.Black;
 
-            /*
-            @@  The code below is setting the window to have a blurred background.
-            @@  It does not work as of yet because this software uses winforms as its base. But it will be changed to WPF soon.
-            */
-            AccentPolicy accentPolicy = new AccentPolicy
-            {
-                AccentState = AccentState.ACCENT_ENABLE_BLURBEHIND,
-            };
-            int accentSize = Marshal.SizeOf(accentPolicy);
-            IntPtr accentPtr = Marshal.AllocHGlobal(accentSize);
-            Marshal.StructureToPtr(accentPolicy, accentPtr, false);
-            WindowCompositionAttributeData data = new WindowCompositionAttributeData
-            {
-                Attribute = WindowCompositionAttribute.WCA_ACCENT_POLICY,
-                SizeOfData = accentSize,
-                Data = accentPtr
-            };
-            SetWindowCompositionAttribute(window.Handle, ref data);
-
             SetWindowTransparency(window.Handle, opacity);
             AppendWidget(window, widgetPath);
             window.ShowDialog();
@@ -113,18 +93,22 @@ namespace Widgets
             */
             browser.ExecuteScriptAsync(@"
                 window.onload = () => {
-                    let mouseDrag;
+                    let isDrag = false;
 
                     document.body.onmousedown = (e) => {
-                        mouseDrag = setInterval(() => {
-                            e.buttons === 1 && CefSharp.PostMessage('mouseDrag');
-                        }, 0);
-                        CefSharp.PostMessage('onmousedown');
+                        if (e.buttons === 1) {
+                            isDrag = true;
+                        }
                     }
 
                     document.body.onmouseup = () => {
-                         clearInterval(mouseDrag);
-                         CefSharp.PostMessage('onmouseup');
+                         isDrag = false;
+                    }
+
+                    document.body.onmousemove = () => {
+                        if (isDrag) {
+                            CefSharp.PostMessage('mouseDrag');
+                        }
                     }
                 }
             ");
