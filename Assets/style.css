@@ -46,7 +46,7 @@ svg {
   width: 100%;
   justify-content: space-between;
   align-items: center;
-  border-right: solid 1px var(--lightgray);
+  border-right: solid 1px rgba(1, 1, 1, 0.08);
   gap: 80px;
 }
 
@@ -57,7 +57,7 @@ svg {
 
 .logo {
   padding-top: 30px;
-  border-bottom: solid 1px var(--lightgray);
+  border-bottom: solid 1px rgba(1, 1, 1, 0.08);
   padding-bottom: 15px;
 }
 
