@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.1.3-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.1.4-green" alt="WinWidgets version" />
   </a>
 </p>
 
@@ -116,3 +116,6 @@ Many thanks to these projects for their super useful resources 😄
 
 - [Img Shields](https://shields.io)
 - [Font Awesome](https://fontawesome.com)
+- [HTML Agility Pack](https://html-agility-pack.net/)
+- [Chromium](https://www.chromium.org/)
+- [CefSharp](https://cefsharp.github.io/)
