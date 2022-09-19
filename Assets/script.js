@@ -82,13 +82,16 @@ function changeTab(element) {
   }
 }
 
-function changeSwitch(element) {
+function setSwitchState(element) {
   if (element.classList.contains("switchon")) {
     element.classList.remove("switchon");
   } else {
     element.classList.add("switchon");
   }
+}
 
+function changeStartup(element) {
+  setSwitchState(element);
   CefSharp.PostMessage(element.getAttribute("setting"));
 }
 
