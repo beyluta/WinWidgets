@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.1.4-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.1.5-green" alt="WinWidgets version" />
   </a>
 </p>
 
@@ -119,3 +119,4 @@ Many thanks to these projects for their super useful resources 😄
 - [HTML Agility Pack](https://html-agility-pack.net/)
 - [Chromium](https://www.chromium.org/)
 - [CefSharp](https://cefsharp.github.io/)
+- [Json.NET](https://www.newtonsoft.com/json)
