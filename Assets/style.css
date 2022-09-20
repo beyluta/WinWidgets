@@ -2,7 +2,7 @@
 
 :root {
   --black: #323232;
-  --lightgray: #e0e0e0;
+  --lightgray: #f1f1f1;
   --gray: #b9b9b9;
   --darkgray: #b8b8b8;
   --blue: #18a8fa;
@@ -16,7 +16,7 @@ html {
   margin: 0;
   padding: 0;
   overflow-y: hidden;
-  font-family: "Jaldi", sans-serif;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   color: var(--black);
 }
 
@@ -46,7 +46,7 @@ svg {
   width: 100%;
   justify-content: space-between;
   align-items: center;
-  border-right: solid 1px var(--lightgray);
+  border-right: solid 1px rgba(1, 1, 1, 0.08);
   gap: 80px;
 }
 
@@ -57,7 +57,7 @@ svg {
 
 .logo {
   padding-top: 30px;
-  border-bottom: solid 1px var(--lightgray);
+  border-bottom: solid 1px rgba(1, 1, 1, 0.08);
   padding-bottom: 15px;
 }
 
@@ -88,13 +88,13 @@ svg {
 
 @keyframes loadingwidget {
   0% {
-    background: var(--gray);
+    background: var(white);
   }
   50% {
     background: var(--lightgray);
   }
   100% {
-    background: var(--gray);
+    background: var(white);
   }
 }
 
@@ -113,14 +113,13 @@ svg {
   width: 300px;
   height: 200px;
   flex-grow: 1;
-  background-color: var(--gray);
-  border-radius: 20px;
+  border-radius: 4px;
   animation: loadingwidget 2s linear infinite;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease-in-out;
+  border: solid 1px rgba(1, 1, 1, 0.08);
 }
 
 .widget:hover {
@@ -144,10 +143,10 @@ svg {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
-  border-radius: 15px;
+  border-radius: 4px;
   height: 50px;
   margin-top: 20px;
+  border: solid 1px rgba(1, 1, 1, 0.08);
 }
 
 .search {
@@ -170,7 +169,8 @@ svg {
 }
 
 .folder {
-  margin-right: 25px;
+  margin: 0 25px 0 0;
+  height: 20px;
 }
 
 .updates {
@@ -179,13 +179,13 @@ svg {
 }
 
 .update {
-  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
   max-width: 100%;
   padding: 50px 0 50px 0;
   width: 100%;
-  border-radius: 20px;
+  border-radius: 4px;
   justify-content: center;
   align-items: center;
+  border: solid 1px rgba(1, 1, 1, 0.08);
 }
 
 .update > svg {
@@ -234,17 +234,20 @@ svg {
 .setting {
   align-items: center;
   gap: 15px;
+  flex-direction: row-reverse;
+  justify-content: space-between;
 }
 
 .switch {
-  width: 50px;
-  height: 20px;
+  width: 39px;
+  height: 23px;
   border-radius: 20px;
   background-color: var(--darkgray);
   justify-content: flex-start;
   align-items: center;
   transition: all 0.2s ease-in-out;
   cursor: pointer;
+  padding: 0 5px;
 }
 
 .switchon {
@@ -253,20 +256,20 @@ svg {
 }
 
 .circle {
-  width: 25px;
-  height: 25px;
+  width: 15px;
+  height: 15px;
   border-radius: 100%;
-  background-color: var(--lightgray);
+  background-color: white;
   z-index: 999;
 }
 
 .settingscard {
-  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.2);
   width: max-content;
   padding: 10px 30px;
-  border-radius: 25px;
+  border-radius: 4px;
   flex-grow: 1;
   height: max-content;
+  border: solid 1px rgba(1, 1, 1, 0.08);
 }
 
 .development {
@@ -296,8 +299,9 @@ svg {
 }
 
 .code-blocks > .code {
-  background-color: var(--lightgray);
+  width: calc(100% - 50px);
   color: var(--black);
   padding: 10px;
   border-radius: 4px;
+  border: solid 1px rgba(1, 1, 1, 0.08);
 }
