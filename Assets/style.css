@@ -298,7 +298,7 @@ svg {
   margin: 20px 0 0 0;
 }
 
-.code-blocks > .code {
+.code {
   width: calc(100% - 50px);
   color: var(--black);
   padding: 10px;

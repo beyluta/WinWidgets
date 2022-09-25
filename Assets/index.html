@@ -230,7 +230,26 @@
               <p>
                 Define the function <span style="padding: 0 10px;border-radius: 4px;border: solid 1px rgba(1,1,1,0.08);">
                 <span style="color: var(--purple)">onNativeKeyEvents </span><span style="color: var(--blue)">(</span><span style="color: var(--orange)">key</span><span style="color: var(--blue)">)</span></span> in your front-end JavaScript code and receive global keypresses 
-                from your computer.
+                from your computer.<br><br>
+                This function will receive a JSON response. The properties of this response will vary between peripherals.
+                <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
+                  <div style="color: var(--dark);">// When the event originates from a keyboard</div>
+                  <span style="color: var(--orange);">{</span><br> 
+                    <div style="margin: 0 0 0 10px;">eventType:  <span style="color: var(--orange);">"keyboardEvent"</span>,<br></div>
+                    <div style="margin: 0 0 0 10px;">state:  <span style="color: var(--orange);">"keyDown"</span>,<br></div>
+                    <div style="margin: 0 0 0 10px;">keyCode:  <span style="color: var(--blue);">214</span>,<br></div>
+                    <span style="color: var(--orange);">}</span>                </div>
+                <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
+                  <div style="color: var(--dark);">// When the event originates from a mouse</div>
+                  <span style="color: var(--orange);">{</span><br> 
+                  <div style="margin: 0 0 0 10px;">eventType:  <span style="color: var(--orange);">"mouseEvent"</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">xPosition:  <span style="color: var(--blue);">80</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">yPosition:  <span style="color: var(--blue);">214</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">buttonPressed:  <span style="color: var(--orange);">"Right"</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">buttonPressCount:  <span style="color: var(--blue);">12</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">mouseWheelOffset:  <span style="color: var(--blue);">5</span></div>
+                  <span style="color: var(--orange);">}</span>
+                </div>
               </p>
             </div>
         </div>

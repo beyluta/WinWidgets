@@ -248,18 +248,33 @@ namespace Widgets.Manager
             fileWatcher.EnableRaisingEvents = true;
 
             UserActivityHook userActivityHook = new UserActivityHook();
-            userActivityHook.KeyDown += new KeyEventHandler(KeyPressed);
-
+            userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
+            userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
+            userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
             ReloadWidgets();
         }
 
-        private void KeyPressed(object sender, KeyEventArgs e)
+        private void SendNativeKeyEvents(string data)
         {
-            int value = e.KeyValue;
             foreach (Widget widget in WidgetAssets.widgets.Widgets)
             {
-                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + value + ")");
+                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + data + ")");
             }
+        }
+
+        private void OnKeyDown(object sender, KeyEventArgs e)
+        {
+            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyDown\", eventType: \"keyboardEvent\" }");
+        }
+
+        private void OnKeyUp(object sender, KeyEventArgs e)
+        {
+            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyUp\", eventType: \"keyboardEvent\" }");
+        }
+
+        private void OnMouseActivity(object sender, MouseEventArgs e)
+        {
+            SendNativeKeyEvents("{ eventType: \"mouseEvent\", xPosition: \"" + e.X + "\", yPosition: \"" + e.Y + "\", buttonPressed: \"" + e.Button + "\", buttonPressCount: \"" + e.Clicks + "\", mouseWheelOffset: \"" + e.Delta + "\" }");
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
