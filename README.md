@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.1.5-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.1.6-green" alt="WinWidgets version" />
   </a>
 </p>
 
