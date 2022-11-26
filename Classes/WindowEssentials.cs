@@ -6,7 +6,6 @@ namespace Widgets
 {
     internal class WindowEssentials
     {
-        public const int SW_HIDE = 0;
         public const int GWL_EXSTYLE = -20;
         public const int WS_EX_LAYERED = 0x80000;
         public const int LWA_ALPHA = 0x2;
@@ -23,13 +22,6 @@ namespace Widgets
                 return new Point(point.X, point.Y);
             }
         }
-
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr GetConsoleWindow();
 
         [DllImport("Gdi32.dll", EntryPoint = "CreateRoundRectRgn")]
         public static extern IntPtr CreateRoundRectRgn

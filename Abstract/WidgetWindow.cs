@@ -66,7 +66,7 @@ namespace Widgets
             {
                 var doc = new HtmlAgilityPack.HtmlDocument();
                 doc.Load(widgetPath);
-                return doc.DocumentNode.SelectSingleNode("//meta[@name='" + name + "']").GetAttributeValue("content", null);
+                return doc.DocumentNode.SelectSingleNode("//meta[@name='" + name + "']")?.GetAttributeValue("content", null);
             }
             catch { return null; }
         }
