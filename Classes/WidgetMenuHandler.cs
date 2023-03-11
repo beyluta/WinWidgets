@@ -1,4 +1,5 @@
 ﻿using CefSharp;
+using System;
 using System.Windows.Forms;
 using Widgets.Manager;
 
@@ -37,7 +38,7 @@ namespace Widgets
                     return true;
 
                 case (CefMenuCommand)2:
-                    widget.window.Invoke(new MethodInvoker(delegate ()
+                    widget.window.BeginInvoke(new Action(() =>
                     {
                         widget.window.Close();
                         WidgetAssets.widgets.RemoveWidget(widget);
