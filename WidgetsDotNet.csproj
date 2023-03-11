@@ -46,16 +46,16 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>97D03B0CFD9E4F840E5D6F87BF2984402511013A</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>23D1128B44E5589E77D6DF9D709E9CC5BEED8767</ManifestCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>WidgetsDotNet_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>WidgetsDotNet_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
   <PropertyGroup>
-    <AssemblyOriginatorKeyFile>WidgetsDotNet_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
+    <AssemblyOriginatorKeyFile>WidgetsDotNet_1_TemporaryKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -119,7 +119,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="packages.config" />
-    <None Include="WidgetsDotNet_TemporaryKey.pfx" />
+    <None Include="WidgetsDotNet_1_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\favicon.ico">

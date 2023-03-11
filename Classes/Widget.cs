@@ -2,6 +2,7 @@
 using CefSharp.WinForms;
 using System;
 using System.Drawing;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace Widgets
@@ -50,40 +51,43 @@ namespace Widgets
 
         public override void CreateWindow(int width, int height, string title, FormStartPosition startPosition)
         {
-            POINT mousePos;
-            GetCursorPos(out mousePos);
+            new Thread(() =>
+            {
+                POINT mousePos;
+                GetCursorPos(out mousePos);
 
-            /*
-            @@  Extracting the <meta> tags from the html document.
-            */
-            string sizeString = GetMetaTagValue("windowSize", widgetPath);
-            string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
-            string locationString = GetMetaTagValue("windowLocation", widgetPath);
-            string topMostString = GetMetaTagValue("topMost", widgetPath);
-            string opacityString = GetMetaTagValue("windowOpacity", widgetPath);
-            int roundess = radiusString != null ? int.Parse(radiusString) : 0;
-            this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
-            this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
-            int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
-            int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
-            byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
-            bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
+                /*
+                @@  Extracting the <meta> tags from the html document.
+                */
+                string sizeString = GetMetaTagValue("windowSize", widgetPath);
+                string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
+                string locationString = GetMetaTagValue("windowLocation", widgetPath);
+                string topMostString = GetMetaTagValue("topMost", widgetPath);
+                string opacityString = GetMetaTagValue("windowOpacity", widgetPath);
+                int roundess = radiusString != null ? int.Parse(radiusString) : 0;
+                this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
+                this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
+                int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
+                int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
+                byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
+                bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
-            window = new Form();
-            window.Size = new Size(this.width, this.height);
-            window.StartPosition = startPosition;
-            window.Location = new Point(locationX, locationY);
-            window.Text = title;
-            window.TopMost = topMost;
-            window.FormBorderStyle = FormBorderStyle.None;
-            window.ShowInTaskbar = false;
-            window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
-            window.Activated += OnFormActivated;
-            window.BackColor = Color.Black;
+                window = new Form();
+                window.Size = new Size(this.width, this.height);
+                window.StartPosition = startPosition;
+                window.Location = new Point(locationX, locationY);
+                window.Text = title;
+                window.TopMost = topMost;
+                window.FormBorderStyle = FormBorderStyle.None;
+                window.ShowInTaskbar = false;
+                window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
+                window.Activated += OnFormActivated;
+                window.BackColor = Color.Black;
 
-            SetWindowTransparency(window.Handle, opacity);
-            AppendWidget(window, widgetPath);
-            window.ShowDialog();
+                SetWindowTransparency(window.Handle, opacity);
+                AppendWidget(window, widgetPath);
+                window.ShowDialog();
+            }).Start();
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)
