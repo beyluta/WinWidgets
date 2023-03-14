@@ -55,6 +55,15 @@ namespace Widgets
         }
 
         /// <summary>
+        /// Hides the window from the program switcher (alt + tab shortcut)
+        /// </summary>
+        /// <param name="handle">Handle of the window</param>
+        public void HideWindowFromProgramSwitcher(IntPtr handle)
+        {
+            SetWindowLong(handle, GWL_EXSTYLE, GetWindowLong(handle, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
+        }
+
+        /// <summary>
         /// Searches for the value of a meta tag by name
         /// </summary>
         /// <param name="name">Name of the tag</param>
