@@ -258,7 +258,7 @@ namespace Widgets.Manager
         {
             foreach (Widget widget in WidgetAssets.widgets.Widgets)
             {
-                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + data + ")");
+                widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
             }
         }
 
