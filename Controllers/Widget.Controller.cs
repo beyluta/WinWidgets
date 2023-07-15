@@ -87,6 +87,7 @@ namespace Controllers
                 window.BackColor = Color.Black;
 
                 SetWindowTransparency(window.Handle, opacity);
+                HideWindowFromProgramSwitcher(window.Handle);
                 AppendWidget(window, widgetPath);
                 window.ShowDialog();
             }).Start();

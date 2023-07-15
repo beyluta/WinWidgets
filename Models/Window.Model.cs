@@ -8,6 +8,7 @@ namespace Models
     {
         public const int GWL_EXSTYLE = -20;
         public const int WS_EX_LAYERED = 0x80000;
+        public const int WS_EX_TOOLWINDOW = 0x00000080;
         public const int LWA_ALPHA = 0x2;
         public const int HIDE_HOTKEY_ID = 0;
 

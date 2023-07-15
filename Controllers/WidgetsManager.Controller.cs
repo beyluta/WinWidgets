@@ -256,7 +256,7 @@ namespace Controllers
         {
             foreach (WidgetController widget in AssetService.widgets.Widgets)
             {
-                widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + data + ")");
+                widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
             }
         }
 
