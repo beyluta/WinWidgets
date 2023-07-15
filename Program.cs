@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Controllers;
+using Models;
+using Services;
+using System;
 using System.Linq;
-using Widgets;
-using Widgets.Manager;
 
-internal class Program : WindowEssentials
+internal class Program : WindowModel
 {
     [STAThread]
     private static void Main(string[] args)
@@ -15,7 +16,7 @@ internal class Program : WindowEssentials
 
         if (!processExists)
         {
-            new WidgetsManager();
+            new WidgetsManagerController(new WidgetService(), new ResourceService());
         }
     }
 }

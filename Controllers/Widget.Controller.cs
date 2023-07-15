@@ -1,13 +1,15 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Services;
 using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
+using Models;
 
-namespace Widgets
+namespace Controllers
 {
-    internal class Widget : WidgetWindow
+    internal class WidgetController : WidgetModel
     {
         public bool moveModeEnabled = false;
 
@@ -146,7 +148,7 @@ namespace Widgets
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-            browser.MenuHandler = new WidgetMenuHandler(this);
+            browser.MenuHandler = new MenuHandlerController(this, new MenuHandlerService(), new WidgetService());
         }
     }
 }

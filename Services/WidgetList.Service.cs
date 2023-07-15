@@ -1,13 +1,15 @@
-﻿using System.Collections;
+﻿using Controllers;
+using System;
+using System.Collections;
 
-namespace Widgets
+namespace Services
 {
-    class WidgetList
+    class WidgetListService
     {
         private ArrayList widgets = new ArrayList();
         public ArrayList Widgets { get => widgets; }
 
-        public void AddWidget(Widget widget)
+        public void AddWidget(WidgetController widget)
         {
             if (!widgets.Contains(widget))
             {
@@ -15,7 +17,7 @@ namespace Widgets
             }
         }
 
-        public void RemoveWidget(Widget widget)
+        public void RemoveWidget(WidgetController widget)
         {
             widgets.Remove(widget);
         }

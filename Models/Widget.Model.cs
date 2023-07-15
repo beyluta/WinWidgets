@@ -2,9 +2,9 @@
 using System;
 using System.Windows.Forms;
 
-namespace Widgets
+namespace Models
 {
-    abstract class WidgetWindow : WindowEssentials
+    abstract class WidgetModel : WindowModel
     {
         /// <summary>
         /// Reference to the main window

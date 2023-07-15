@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections;
 using System.IO;
 using System.Windows.Forms;
 
-namespace Widgets.Manager
+namespace Services
 {
-    static class WidgetAssets
+    static class AssetService
     {
-        static public WidgetList widgets = new WidgetList();
+        static public WidgetListService widgets = new WidgetListService();
         static public string assetsPath = Application.StartupPath + "/Assets";
         static public string widgetsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Widgets");
 

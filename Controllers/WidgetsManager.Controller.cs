@@ -1,9 +1,10 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
 using Microsoft.Win32;
+using Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Remote;
+using Services;
 using Snippets;
 using System;
 using System.Collections;
@@ -14,19 +15,21 @@ using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
-namespace Widgets.Manager
+namespace Controllers
 {
-    internal class WidgetsManager : WidgetWindow
+    internal class WidgetsManagerController : WidgetModel
     {
         private string widgetPath = String.Empty;
         private Form _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
-        private string managerUIPath = WidgetAssets.assetsPath + "/index.html";
+        private string managerUIPath = AssetService.assetsPath + "/index.html";
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
-        private Configuration appConfig;
+        private ConfigurationModel appConfig;
         private JObject versionObject;
+        private WidgetService widgetService;
+        private ResourceService resourceService;
 
         public override Form window
         {
@@ -46,11 +49,18 @@ namespace Widgets.Manager
             set { _handle = value; }
         }
 
-        public WidgetsManager()
+        public WidgetsManagerController(WidgetService widgetService, ResourceService resourceService)
+        {
+            this.widgetService = widgetService;
+            this.resourceService = resourceService;
+            this.OnInitialize();
+        }
+
+        private void OnInitialize()
         {
             /*
-            @@  CefSharp configurations.
-            */
+           @@  CefSharp configurations.
+           */
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
@@ -58,7 +68,7 @@ namespace Widgets.Manager
             /*
             @@   Creating the default folder C://USERS/MY_USER/Widgets
             */
-            WidgetAssets.CreateHTMLFilesDirectory();
+            AssetService.CreateHTMLFilesDirectory();
 
             /*
             @@  Fetching online resources such as standard widgets and software version
@@ -68,8 +78,8 @@ namespace Widgets.Manager
             /*
             @@  Loading the configurations of this software into the appConfig class instance.
             */
-            string json = File.ReadAllText(WidgetAssets.assetsPath + "/config.json");
-            appConfig = JsonConvert.DeserializeObject<Configuration>(json);
+            string json = File.ReadAllText(AssetService.assetsPath + "/config.json");
+            appConfig = JsonConvert.DeserializeObject<ConfigurationModel>(json);
 
             /*
             @@  Notify Icon at the bottom right.
@@ -92,27 +102,15 @@ namespace Widgets.Manager
             @@  Finally, creating the widget manager window.
             */
             Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
-            int width  = screenResolution.Width / 2;
+            int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
             CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
         public async void PrepareRemoteResources()
         {
-            using (HttpClient client = new HttpClient())
-            {
-                versionObject = JObject.Parse("{\"version\":\"" + appConfig.version + "\",\"downloadUrl\":\"https://github.com/beyluta/WinWidgets\"}");
-
-                try
-                {
-                    string response = await client.GetStringAsync("https://7xdeveloper.com/api/AccessEndpoint.php?endpoint=getappconfigs&id=version");
-                    versionObject = JObject.Parse(response);
-                }
-                catch { }
-            }
-
-            RemoteResources remoteResources = new RemoteResources();
-            remoteResources.DownloadRemoteResources();
+            versionObject = await this.resourceService.GetRemoteVersion();
+            this.resourceService.DownloadRemoteResources();
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
@@ -156,7 +154,7 @@ namespace Widgets.Manager
                 + "if (setting == 'startup') {"
                 + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
                 + "}}";
-            string[] files = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath);
+            string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -181,9 +179,9 @@ namespace Widgets.Manager
 
         public override void OpenWidget(int id)
         {
-            Widget widget = new Widget();
-            WidgetAssets.widgets.AddWidget(widget);
-            widget.widgetPath = WidgetAssets.GetPathToHTMLFiles(WidgetAssets.widgetsPath)[id];
+            WidgetController widget = new WidgetController();
+            AssetService.widgets.AddWidget(widget);
+            widget.widgetPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
             widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
         }
 
@@ -191,18 +189,18 @@ namespace Widgets.Manager
         {
             ArrayList deleteWidgets = new ArrayList();
 
-            for (int i = 0; i < WidgetAssets.widgets.Widgets.Count; i++)
+            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
             {
-                ((Widget)WidgetAssets.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
+                ((WidgetController)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
                 {
-                    ((Widget)WidgetAssets.widgets.Widgets[i]).window.Close();
-                    deleteWidgets.Add(((Widget)WidgetAssets.widgets.Widgets[i]));
+                    ((WidgetController)AssetService.widgets.Widgets[i]).window.Close();
+                    deleteWidgets.Add(((WidgetController)AssetService.widgets.Widgets[i]));
                 }));
             }
 
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
-                WidgetAssets.widgets.RemoveWidget((Widget)deleteWidgets[i]);
+                //AssetService.widgets.RemoveWidget((WidgetController)deleteWidgets[i]);
             }
         }
 
@@ -228,7 +226,7 @@ namespace Widgets.Manager
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            FileSystemWatcher fileWatcher = new FileSystemWatcher(WidgetAssets.widgetsPath);
+            FileSystemWatcher fileWatcher = new FileSystemWatcher(AssetService.widgetsPath);
             fileWatcher.NotifyFilter = NotifyFilters.Attributes
                                  | NotifyFilters.CreationTime
                                  | NotifyFilters.DirectoryName
@@ -256,7 +254,7 @@ namespace Widgets.Manager
 
         private void SendNativeKeyEvents(string data)
         {
-            foreach (Widget widget in WidgetAssets.widgets.Widgets)
+            foreach (WidgetController widget in AssetService.widgets.Widgets)
             {
                 widget.browser.ExecuteScriptAsync("onNativeKeyEvents(" + data + ")");
             }
@@ -287,7 +285,7 @@ namespace Widgets.Manager
             switch (e.Message)
             {
                 case "widgetsFolder":
-                    Process.Start(WidgetAssets.widgetsPath);
+                    Process.Start(AssetService.widgetsPath);
                     break;
 
                 case "startup":

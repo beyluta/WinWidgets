@@ -91,24 +91,27 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Classes\RemoteResources.cs" />
-    <Compile Include="Classes\UserActivityHook.cs" />
-    <Compile Include="Classes\WidgetAssets.cs" />
-    <Compile Include="Classes\WidgetManagerMenuHandler.cs" />
-    <Compile Include="Classes\WidgetMenuHandler.cs" />
-    <Compile Include="Classes\WindowEssentials.cs" />
-    <Compile Include="Classes\Widget.cs" />
-    <Compile Include="Classes\WidgetList.cs" />
+    <Compile Include="Services\MenuHandler.Service.cs" />
+    <Compile Include="Services\Resource.Service.cs" />
+    <Compile Include="Hooks\User-Activity.Hook.cs" />
+    <Compile Include="Services\Asset.Service.cs" />
+    <Compile Include="Models\MenuHandler.Model.cs" />
+    <Compile Include="Controllers\MenuHandler.Controller.cs" />
+    <Compile Include="Models\Window.Model.cs" />
+    <Compile Include="Controllers\Widget.Controller.cs" />
+    <Compile Include="Services\WidgetList.Service.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Classes\WidgetsManager.cs" />
-    <Compile Include="Abstract\WidgetWindow.cs" />
+    <Compile Include="Controllers\WidgetsManager.Controller.cs" />
+    <Compile Include="Models\Widget.Model.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Struct\Configuration.cs" />
+    <Compile Include="Models\Configuration.Model.cs" />
+    <Compile Include="Services\Widget.Service.cs" />
+    <Compile Include="Services\WidgetsManager.Service.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -146,6 +149,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
