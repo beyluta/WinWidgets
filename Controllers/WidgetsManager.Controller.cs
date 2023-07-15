@@ -11,7 +11,6 @@ using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Net.Http;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
@@ -107,9 +106,8 @@ namespace Controllers
             CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
         }
 
-        public async void PrepareRemoteResources()
+        public void PrepareRemoteResources()
         {
-            versionObject = await this.resourceService.GetRemoteVersion();
             this.resourceService.DownloadRemoteResources();
         }
 
@@ -136,8 +134,10 @@ namespace Controllers
             f.Controls.Add(browser);
         }
 
-        private void ReloadWidgets()
+        private async void ReloadWidgets()
         {
+            versionObject = await this.resourceService.GetRemoteVersion();
+
             string template = 
                 $"var container = document.getElementById('widgets');"
                 + $"container.innerHTML = '';"
@@ -200,7 +200,7 @@ namespace Controllers
 
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
-                //AssetService.widgets.RemoveWidget((WidgetController)deleteWidgets[i]);
+                AssetService.RemoveWidget((WidgetController)deleteWidgets[i]);
             }
         }
 

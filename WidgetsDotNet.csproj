@@ -111,7 +111,6 @@
     </Compile>
     <Compile Include="Models\Configuration.Model.cs" />
     <Compile Include="Services\Widget.Service.cs" />
-    <Compile Include="Services\WidgetsManager.Service.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

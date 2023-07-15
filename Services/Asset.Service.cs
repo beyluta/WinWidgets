@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Controllers;
+using System;
 using System.IO;
 using System.Windows.Forms;
 
@@ -29,6 +30,11 @@ namespace Services
                     streamWriter.WriteLine(content);
                 }
             }
+        }
+
+        static public void RemoveWidget(WidgetController widget)
+        {
+           widgets.RemoveWidget(widget);
         }
     }
 }
