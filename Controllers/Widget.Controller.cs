@@ -1,11 +1,11 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Models;
 using Services;
 using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
-using Models;
 
 namespace Controllers
 {

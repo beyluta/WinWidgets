@@ -29,6 +29,7 @@ namespace Controllers
         private JObject versionObject;
         private WidgetService widgetService;
         private ResourceService resourceService;
+        private FormService formService;
 
         public override Form window
         {
@@ -48,10 +49,11 @@ namespace Controllers
             set { _handle = value; }
         }
 
-        public WidgetsManagerController(WidgetService widgetService, ResourceService resourceService)
+        public WidgetsManagerController(WidgetService widgetService, ResourceService resourceService, FormService formService)
         {
             this.widgetService = widgetService;
             this.resourceService = resourceService;
+            this.formService = formService;
             this.OnInitialize();
         }
 
@@ -206,22 +208,20 @@ namespace Controllers
 
         private void OnFormResized(object sender, EventArgs e)
         {
-            if (window.WindowState == FormWindowState.Minimized)
+            if (this.formService.FormStateAssert(window, FormWindowState.Minimized))
             {
-                window.Opacity = 0;
+                this.formService.SetWindowOpacity(this.window, 0);
             }
         }
 
         private void OnOpenApplication(object sender, EventArgs e)
         {
-            window.Opacity = 100;
-            window.WindowState = FormWindowState.Normal;
+            this.formService.WakeWindow(this.window);
         }
 
         private void NotifyIconDoubleClick(object sender, MouseEventArgs e)
         {
-            window.Opacity = 100;
-            window.WindowState = FormWindowState.Normal;
+            this.formService.WakeWindow(this.window);
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)

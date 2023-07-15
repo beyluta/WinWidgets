@@ -16,7 +16,7 @@ internal class Program : WindowModel
 
         if (!processExists)
         {
-            new WidgetsManagerController(new WidgetService(), new ResourceService());
+            new WidgetsManagerController(new WidgetService(), new ResourceService(), new FormService());
         }
     }
 }

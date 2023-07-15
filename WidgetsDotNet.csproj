@@ -91,6 +91,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Services\Form.Service.cs" />
     <Compile Include="Services\MenuHandler.Service.cs" />
     <Compile Include="Services\Resource.Service.cs" />
     <Compile Include="Hooks\User-Activity.Hook.cs" />
