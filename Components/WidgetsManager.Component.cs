@@ -51,11 +51,6 @@ namespace Controllers
 
         public WidgetsManagerComponent()
         {
-            this.OnInitialize();
-        }
-
-        private void OnInitialize()
-        {
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
