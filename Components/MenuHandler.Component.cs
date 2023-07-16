@@ -1,25 +1,26 @@
 ﻿using CefSharp;
-using System;
-using System.Windows.Forms;
-using Widgets.Manager;
+using Models;
+using Services;
 
-namespace Widgets
+namespace Components
 {
-    internal class WidgetMenuHandler : WindowEssentials, IContextMenuHandler
+    internal class MenuHandlerComponent : WindowModel, IContextMenuHandler
     {
-        private Widget widget;
+        private WidgetComponent widgetComponent;
+        private MenuHandlerService menuHandlerService = new MenuHandlerService();
+        private WidgetService widgetService = new WidgetService();
 
-        public WidgetMenuHandler(Widget widget)
+        public MenuHandlerComponent(WidgetComponent widget)
         {
-            this.widget = widget;
+            this.widgetComponent = widget;
         }
 
         public void OnBeforeContextMenu(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, IMenuModel model)
         {
-            model.Clear();
-            model.AddItem(0, "Toggle Move");
-            model.AddItem((CefMenuCommand)1, "Toggle Always on Top");
-            model.AddItem((CefMenuCommand)2, "Close Widget");
+            this.menuHandlerService.ClearModel(model);
+            this.menuHandlerService.AddOption("Toggle Move", 0, model);
+            this.menuHandlerService.AddOption("Toggle Always on Top", 1, model);
+            this.menuHandlerService.AddOption("Close Widget", 2, model);
         }
 
         public bool OnContextMenuCommand(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, CefMenuCommand commandId, CefEventFlags eventFlags)
@@ -27,22 +28,15 @@ namespace Widgets
             switch (commandId)
             {
                 case 0:
-                    widget.moveModeEnabled = widget.moveModeEnabled ? false : true;
+                    this.widgetService.ToggleMove(widgetComponent);
                     return true;
 
                 case (CefMenuCommand)1:
-                    widget.window.Invoke(new MethodInvoker(delegate ()
-                    {
-                        widget.window.TopMost = widget.window.TopMost ? false : true;
-                    }));
+                    this.widgetService.ToggleTopMost(widgetComponent);
                     return true;
 
                 case (CefMenuCommand)2:
-                    widget.window.BeginInvoke(new Action(() =>
-                    {
-                        widget.window.Close();
-                        WidgetAssets.widgets.RemoveWidget(widget);
-                    }));
+                    this.widgetService.CloseWidget(widgetComponent);
                     return true;
             }
 

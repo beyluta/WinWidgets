@@ -1,6 +1,6 @@
 ﻿using CefSharp;
 
-namespace Widgets
+namespace Models
 {
     internal class WidgetManagerMenuHandler : IContextMenuHandler
     {

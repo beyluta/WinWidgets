@@ -1,9 +1,8 @@
-﻿using System;
+﻿using Components;
+using System;
 using System.Linq;
-using Widgets;
-using Widgets.Manager;
 
-internal class Program : WindowEssentials
+internal class Program
 {
     [STAThread]
     private static void Main(string[] args)
@@ -15,7 +14,7 @@ internal class Program : WindowEssentials
 
         if (!processExists)
         {
-            new WidgetsManager();
+            new WidgetsManagerComponent();
         }
     }
 }

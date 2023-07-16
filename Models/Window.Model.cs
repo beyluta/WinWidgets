@@ -2,9 +2,9 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 
-namespace Widgets
+namespace Models
 {
-    internal class WindowEssentials
+    internal class WindowModel
     {
         public const int GWL_EXSTYLE = -20;
         public const int WS_EX_LAYERED = 0x80000;
