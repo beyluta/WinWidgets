@@ -14,7 +14,7 @@ using System.IO;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
-namespace Controllers
+namespace Components
 {
     internal class WidgetsManagerComponent : WidgetModel
     {

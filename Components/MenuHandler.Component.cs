@@ -2,7 +2,7 @@
 using Models;
 using Services;
 
-namespace Controllers
+namespace Components
 {
     internal class MenuHandlerComponent : WindowModel, IContextMenuHandler
     {

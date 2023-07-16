@@ -7,7 +7,7 @@ using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace Controllers
+namespace Components
 {
     internal class WidgetComponent : WidgetModel
     {
