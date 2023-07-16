@@ -1,10 +1,8 @@
 ﻿using Components;
-using Models;
-using Services;
 using System;
 using System.Linq;
 
-internal class Program : WindowModel
+internal class Program
 {
     [STAThread]
     private static void Main(string[] args)

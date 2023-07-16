@@ -2,7 +2,7 @@
 using CefSharp.WinForms;
 using Microsoft.Win32;
 using Models;
-using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 using Services;
 using Snippets;
 using System;
@@ -24,7 +24,7 @@ namespace Components
         private string managerUIPath = AssetService.assetsPath + "/index.html";
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
-        private JObject versionObject;
+        private Configuration configuration;
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
 
@@ -53,6 +53,8 @@ namespace Components
             Cef.Initialize(options);
 
             AssetService.CreateHTMLFilesDirectory();
+
+            configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.assetsPath + "/config.json"));
 
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = Resources.favicon;
@@ -100,6 +102,7 @@ namespace Components
             string template = 
                 $"var container = document.getElementById('widgets');"
                 + $"container.innerHTML = '';"
+                + $"setVersion('{configuration.version}');"
                 + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');"
                 + "var switches = document.getElementsByClassName('switch');"
                 + "for (let s of switches) {"
@@ -243,10 +246,6 @@ namespace Components
                     {
                         registryKey.DeleteValue("WinWidgets");
                     }
-                    break;
-
-                case "update":
-                    Process.Start((string)versionObject["downloadUrl"]);
                     break;
 
                 default:

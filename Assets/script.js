@@ -1,3 +1,9 @@
+var version;
+
+function setVersion(version) {
+  document.querySelector("#version").innerHTML = `v${version}`;
+}
+
 function filter(s) {
   const children = document.getElementById("widgets").children;
   for (let element of children) {

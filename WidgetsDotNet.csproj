@@ -91,6 +91,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\Configuration.Model.cs" />
     <Compile Include="Services\Form.Service.cs" />
     <Compile Include="Services\HTMLDoc.Service.cs" />
     <Compile Include="Services\MenuHandler.Service.cs" />
