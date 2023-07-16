@@ -2,7 +2,6 @@
 using CefSharp.WinForms;
 using Microsoft.Win32;
 using Models;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Services;
 using Snippets;
@@ -25,9 +24,7 @@ namespace Components
         private string managerUIPath = AssetService.assetsPath + "/index.html";
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
-        private ConfigurationModel appConfig;
         private JObject versionObject;
-        private ResourceService resourceService = new ResourceService();
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
 
@@ -56,10 +53,6 @@ namespace Components
             Cef.Initialize(options);
 
             AssetService.CreateHTMLFilesDirectory();
-            PrepareRemoteResources();
-
-            string json = File.ReadAllText(AssetService.assetsPath + "/config.json");
-            appConfig = JsonConvert.DeserializeObject<ConfigurationModel>(json);
 
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = Resources.favicon;
@@ -77,11 +70,6 @@ namespace Components
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
             CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
-        }
-
-        public void PrepareRemoteResources()
-        {
-            this.resourceService.DownloadRemoteResources();
         }
 
         public override void CreateWindow(int w, int h, string t, FormStartPosition p)
@@ -107,19 +95,11 @@ namespace Components
             f.Controls.Add(browser);
         }
 
-        private async void ReloadWidgets()
+        private void ReloadWidgets()
         {
-            versionObject = await this.resourceService.GetRemoteVersion();
-
             string template = 
                 $"var container = document.getElementById('widgets');"
                 + $"container.innerHTML = '';"
-                + $"fetchedVersion = '{(string)versionObject["version"]}';"
-                + $"isUpToDate = {(appConfig.version == (string)versionObject["version"] ? "true" : "false")};"
-                + $"downloadUrl = '{(string)versionObject["downloadUrl"]}';"
-                + "var options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };"
-                + "var today = new Date();"
-                + "updateCheckTime = today.toLocaleDateString();"
                 + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');"
                 + "var switches = document.getElementsByClassName('switch');"
                 + "for (let s of switches) {"

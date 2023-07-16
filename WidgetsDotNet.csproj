@@ -94,7 +94,6 @@
     <Compile Include="Services\Form.Service.cs" />
     <Compile Include="Services\HTMLDoc.Service.cs" />
     <Compile Include="Services\MenuHandler.Service.cs" />
-    <Compile Include="Services\Resource.Service.cs" />
     <Compile Include="Hooks\User-Activity.Hook.cs" />
     <Compile Include="Services\Asset.Service.cs" />
     <Compile Include="Models\MenuHandler.Model.cs" />
@@ -111,7 +110,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Models\Configuration.Model.cs" />
     <Compile Include="Services\Widget.Service.cs" />
     <Compile Include="Services\Window.Service.cs" />
   </ItemGroup>

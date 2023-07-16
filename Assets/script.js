@@ -1,5 +1,3 @@
-let fetchedVersion, isUpToDate, updateCheckTime, downloadUrl;
-
 function filter(s) {
   const children = document.getElementById("widgets").children;
   for (let element of children) {
@@ -56,28 +54,6 @@ function changeTab(element) {
       document.getElementById("nextwindowtitle").style.display = "none";
       document.getElementById("windowtitle").innerHTML = "Settings";
       document.getElementById("development-container").style.display = "none";
-
-      if (isUpToDate) {
-        document.getElementById("outdated").style.display = "none";
-        document.getElementById("uptodate").style.display = "flex";
-        document.getElementById(
-          "uptodatelabel"
-        ).innerText = `Software is up-to-date (v${fetchedVersion})`;
-        document.getElementById(
-          "updatetime"
-        ).innerText = `Last checked on the ${updateCheckTime}`;
-      } else {
-        document.getElementById("outdated").style.display = "flex";
-        document.getElementById("uptodate").style.display = "none";
-        document.getElementById(
-          "newversion"
-        ).innerText = `Update to new version ${
-          fetchedVersion ? fetchedVersion : "click below or check the website"
-        }`;
-        updatebutton.onclick = () => {
-          CefSharp.PostMessage("update");
-        };
-      }
       break;
   }
 }
