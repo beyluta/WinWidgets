@@ -16,7 +16,7 @@ using WidgetsDotNet.Properties;
 
 namespace Controllers
 {
-    internal class WidgetsManagerController : WidgetModel
+    internal class WidgetsManagerComponent : WidgetModel
     {
         private string widgetPath = String.Empty;
         private Form _window;
@@ -27,9 +27,9 @@ namespace Controllers
         private NotifyIcon notifyIcon;
         private ConfigurationModel appConfig;
         private JObject versionObject;
-        private WidgetService widgetService;
-        private ResourceService resourceService;
-        private FormService formService;
+        private ResourceService resourceService = new ResourceService();
+        private FormService formService = new FormService();
+        private HTMLDocService HTMLDocService = new HTMLDocService();
 
         public override Form window
         {
@@ -49,44 +49,23 @@ namespace Controllers
             set { _handle = value; }
         }
 
-        public WidgetsManagerController(WidgetService widgetService, ResourceService resourceService, FormService formService)
+        public WidgetsManagerComponent()
         {
-            this.widgetService = widgetService;
-            this.resourceService = resourceService;
-            this.formService = formService;
             this.OnInitialize();
         }
 
         private void OnInitialize()
         {
-            /*
-           @@  CefSharp configurations.
-           */
             CefSettings options = new CefSettings();
             options.CefCommandLineArgs.Add("disable-web-security");
             Cef.Initialize(options);
 
-            /*
-            @@   Creating the default folder C://USERS/MY_USER/Widgets
-            */
             AssetService.CreateHTMLFilesDirectory();
-
-            /*
-            @@  Fetching online resources such as standard widgets and software version
-            */
             PrepareRemoteResources();
 
-            /*
-            @@  Loading the configurations of this software into the appConfig class instance.
-            */
             string json = File.ReadAllText(AssetService.assetsPath + "/config.json");
             appConfig = JsonConvert.DeserializeObject<ConfigurationModel>(json);
 
-            /*
-            @@  Notify Icon at the bottom right.
-            @@
-            @@  It has some useful settings that can be accessed quickly.
-            */
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = Resources.favicon;
             notifyIcon.Text = "WinWidgets";
@@ -99,9 +78,6 @@ namespace Controllers
             });
             notifyIcon.MouseDoubleClick += NotifyIconDoubleClick;
 
-            /*
-            @@  Finally, creating the widget manager window.
-            */
             Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
@@ -167,10 +143,10 @@ namespace Controllers
                     var e{i} = document.createElement('div');"
                     + $"e{i}.classList.add('widget');"
                     + $"e{i}.classList.add('flex-row');"
-                    + $"e{i}.style.width = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';"
-                    + $"e{i}.style.minHeight = '{(GetMetaTagValue("previewSize", widgetPath) != null ? GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';"
-                    + $"e{i}.setAttribute('name', '{GetMetaTagValue("applicationTitle", widgetPath)}');"
-                    + $"e{i}.innerHTML = `<p>{GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"e{i}.style.width = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';"
+                    + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';"
+                    + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}');"
+                    + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
                     + $"document.getElementById('widgets').appendChild(e{i});"
                     + $"e{i}.onclick = () => CefSharp.PostMessage('{i}');"
                  ;
@@ -181,7 +157,7 @@ namespace Controllers
 
         public override void OpenWidget(int id)
         {
-            WidgetController widget = new WidgetController();
+            WidgetComponent widget = new WidgetComponent();
             AssetService.widgets.AddWidget(widget);
             widget.widgetPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
             widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
@@ -193,16 +169,16 @@ namespace Controllers
 
             for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
             {
-                ((WidgetController)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
+                ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
                 {
-                    ((WidgetController)AssetService.widgets.Widgets[i]).window.Close();
-                    deleteWidgets.Add(((WidgetController)AssetService.widgets.Widgets[i]));
+                    ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Close();
+                    deleteWidgets.Add(((WidgetComponent)AssetService.widgets.Widgets[i]));
                 }));
             }
 
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
-                AssetService.RemoveWidget((WidgetController)deleteWidgets[i]);
+                AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
             }
         }
 
@@ -254,7 +230,7 @@ namespace Controllers
 
         private void SendNativeKeyEvents(string data)
         {
-            foreach (WidgetController widget in AssetService.widgets.Widgets)
+            foreach (WidgetComponent widget in AssetService.widgets.Widgets)
             {
                 widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
             }
@@ -277,11 +253,6 @@ namespace Controllers
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
         {
-            /*
-            @@  Receives messages from the JavaScript.
-            @@
-            @@  If the message is a number then it defaults to opening a widget by its id.
-            */
             switch (e.Message)
             {
                 case "widgetsFolder":

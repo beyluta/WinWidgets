@@ -6,12 +6,20 @@ namespace Services
 {
     internal class WidgetService
     {
-        public void ToggleMove(WidgetController widget)
+        /// <summary>
+        /// Toggles the move mode of a widget. Allows it to me dragged
+        /// </summary>
+        /// <param name="widget">The widget to be set to movable</param>
+        public void ToggleMove(WidgetComponent widget)
         {
             widget.moveModeEnabled = !widget.moveModeEnabled;
         }
 
-        public void ToggleTopMost(WidgetController widget)
+        /// <summary>
+        /// Pins the widget to the screen at all times
+        /// </summary>
+        /// <param name="widget">The widget to be set to topmost</param>
+        public void ToggleTopMost(WidgetComponent widget)
         {
             widget.window.Invoke(new MethodInvoker(delegate ()
             {
@@ -19,7 +27,11 @@ namespace Services
             }));
         }
 
-        public void CloseWidget(WidgetController widget)
+        /// <summary>
+        /// Closes a widget and removes it from the global widget list
+        /// </summary>
+        /// <param name="widget">The wiget to be closed</param>
+        public void CloseWidget(WidgetComponent widget)
         {
             widget.window.BeginInvoke(new Action(() =>
             {

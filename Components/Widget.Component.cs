@@ -9,7 +9,7 @@ using System.Windows.Forms;
 
 namespace Controllers
 {
-    internal class WidgetController : WidgetModel
+    internal class WidgetComponent : WidgetModel
     {
         public bool moveModeEnabled = false;
 
@@ -19,6 +19,8 @@ namespace Controllers
         private ChromiumWebBrowser _browser;
         private int width;
         private int height;
+        private HTMLDocService htmlDocService = new HTMLDocService();
+        private WindowService windowService = new WindowService();
 
         public override IntPtr handle
         {
@@ -58,14 +60,11 @@ namespace Controllers
                 POINT mousePos;
                 GetCursorPos(out mousePos);
 
-                /*
-                @@  Extracting the <meta> tags from the html document.
-                */
-                string sizeString = GetMetaTagValue("windowSize", widgetPath);
-                string radiusString = GetMetaTagValue("windowBorderRadius", widgetPath);
-                string locationString = GetMetaTagValue("windowLocation", widgetPath);
-                string topMostString = GetMetaTagValue("topMost", widgetPath);
-                string opacityString = GetMetaTagValue("windowOpacity", widgetPath);
+                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", widgetPath);
+                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", widgetPath);
+                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", widgetPath);
+                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", widgetPath);
+                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", widgetPath);
                 int roundess = radiusString != null ? int.Parse(radiusString) : 0;
                 this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
                 this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
@@ -86,8 +85,8 @@ namespace Controllers
                 window.Activated += OnFormActivated;
                 window.BackColor = Color.Black;
 
-                SetWindowTransparency(window.Handle, opacity);
-                HideWindowFromProgramSwitcher(window.Handle);
+                this.windowService.SetWindowTransparency(window.Handle, opacity);
+                this.windowService.HideWindowFromProgramSwitcher(window.Handle);
                 AppendWidget(window, widgetPath);
                 window.ShowDialog();
             }).Start();
@@ -149,7 +148,7 @@ namespace Controllers
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-            browser.MenuHandler = new MenuHandlerController(this, new MenuHandlerService(), new WidgetService());
+            browser.MenuHandler = new MenuHandlerComponent(this);
         }
     }
 }

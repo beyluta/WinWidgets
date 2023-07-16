@@ -8,6 +8,9 @@ namespace Services
 {
     public class ResourceService
     {
+        /// <summary>
+        /// Global configuration of the application's settings
+        /// </summary>
         private ConfigurationModel appConfig;
 
         public ResourceService()
@@ -16,6 +19,9 @@ namespace Services
             appConfig = JsonConvert.DeserializeObject<ConfigurationModel>(json);
         }
 
+        /// <summary>
+        /// Downloads and automatically installs remote resources to the correct application installation path
+        /// </summary>
         public async void DownloadRemoteResources()
         {
             using (HttpClient client = new HttpClient())
@@ -36,6 +42,10 @@ namespace Services
             }
         }
 
+        /// <summary>
+        /// Gets the version of the application through a remote resource
+        /// </summary>
+        /// <returns>A JSON object that contains the remote resource's response</returns>
         public async Task<JObject> GetRemoteVersion()
         {
             JObject jObject;

@@ -4,17 +4,15 @@ using Services;
 
 namespace Controllers
 {
-    internal class MenuHandlerController : WindowModel, IContextMenuHandler
+    internal class MenuHandlerComponent : WindowModel, IContextMenuHandler
     {
-        private WidgetController widget;
-        private MenuHandlerService menuHandlerService;
-        private WidgetService widgetService;
+        private WidgetComponent widgetComponent;
+        private MenuHandlerService menuHandlerService = new MenuHandlerService();
+        private WidgetService widgetService = new WidgetService();
 
-        public MenuHandlerController(WidgetController widget, MenuHandlerService menuHandlerService, WidgetService widgetService)
+        public MenuHandlerComponent(WidgetComponent widget)
         {
-            this.widget = widget;
-            this.menuHandlerService = menuHandlerService;
-            this.widgetService = widgetService;
+            this.widgetComponent = widget;
         }
 
         public void OnBeforeContextMenu(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, IMenuModel model)
@@ -30,15 +28,15 @@ namespace Controllers
             switch (commandId)
             {
                 case 0:
-                    this.widgetService.ToggleMove(widget);
+                    this.widgetService.ToggleMove(widgetComponent);
                     return true;
 
                 case (CefMenuCommand)1:
-                    this.widgetService.ToggleTopMost(widget);
+                    this.widgetService.ToggleTopMost(widgetComponent);
                     return true;
 
                 case (CefMenuCommand)2:
-                    this.widgetService.CloseWidget(widget);
+                    this.widgetService.CloseWidget(widgetComponent);
                     return true;
             }
 
