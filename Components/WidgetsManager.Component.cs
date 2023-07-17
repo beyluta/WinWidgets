@@ -3,6 +3,7 @@ using CefSharp.WinForms;
 using Microsoft.Win32;
 using Models;
 using Newtonsoft.Json;
+using Service;
 using Services;
 using Snippets;
 using System;
@@ -10,6 +11,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
@@ -27,6 +29,7 @@ namespace Components
         private Configuration configuration;
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
+        private TemplateService templateService = new TemplateService();
 
         public override Form window
         {
@@ -110,7 +113,7 @@ namespace Components
                 + "if (setting == 'startup') {"
                 + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
                 + "}}";
-            string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
+            string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath).Union(this.templateService.GetAllTemplates()).ToArray();
 
             for (int i = 0; i < files.Length; i++)
             {

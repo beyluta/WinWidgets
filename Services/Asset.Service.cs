@@ -17,6 +17,11 @@ namespace Services
         static public string assetsPath = Application.StartupPath + "/Assets";
 
         /// <summary>
+        /// Path to the Widget templates
+        /// </summary>
+        static public string templatePath = Path.Combine(assetsPath) + "/Templates";
+
+        /// <summary>
         /// Path to the html widgets
         /// </summary>
         static public string widgetsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Widgets");

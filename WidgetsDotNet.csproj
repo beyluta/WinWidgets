@@ -101,6 +101,7 @@
     <Compile Include="Components\MenuHandler.Component.cs" />
     <Compile Include="Models\Window.Model.cs" />
     <Compile Include="Components\Widget.Component.cs" />
+    <Compile Include="Services\Template.Service.cs" />
     <Compile Include="Services\WidgetList.Service.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -140,6 +141,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\style.css">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Templates\test.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="favicon.ico" />
