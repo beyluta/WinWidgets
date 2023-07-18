@@ -5,12 +5,11 @@ namespace Service
     internal class TemplateService
     {
         /// <summary>
-        /// Gets all templates from the template folder and loads them as widgets
+        /// Moves all templates in the templates path to the widgets folder
         /// </summary>
-        /// <returns>An array of absolute path to every template file</returns>
-        public string[] GetAllTemplates()
+        public void MoveTemplatesToWidgetsPath()
         {
-            return AssetService.GetPathToHTMLFiles(AssetService.templatePath);
+            AssetService.MoveFilesToPath(AssetService.templatePath, AssetService.widgetsPath);
         }
     }
 }

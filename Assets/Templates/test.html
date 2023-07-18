@@ -1,11 +1,77 @@
 <!DOCTYPE html>
-<html style="background: red">
+<html>
   <head>
-    <meta name="applicationTitle" content="Test" />
-    <meta name="windowSize" content="400 400" />
+    <meta name="applicationTitle" content="Battery" />
+    <meta name="windowSize" content="360 180" />
     <meta name="windowBorderRadius" content="10" />
-    <meta name="previewSize" content="450 350" />
+    <meta name="previewSize" content="360 180" />
     <meta name="windowOpacity" content="200" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
   </head>
-  <body style="background: red"></body>
+  <body>
+    <div class="wrapper">
+      <i class="fa-solid fa-battery-full"></i>
+      <span id="percent">100%</span>
+    </div>
+    <span class="status">Fully charged</span>
+  </body>
 </html>
+
+<script>
+  function onNativeBatteryLevelEvent(level) {
+    document.querySelector("#percent").innerText = `${level}%`;
+  }
+</script>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+  :root {
+    --black: #323232;
+    --lightgray: #f1f1f1;
+    --gray: #b9b9b9;
+    --darkgray: #b8b8b8;
+    --blue: #18a8fa;
+    --darkblue: #1393db;
+    --purple: rgb(211, 34, 211);
+    --orange: rgb(255, 102, 0);
+  }
+
+  html,
+  body {
+    background: var(--black);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  i {
+    color: white;
+    font-size: 80px;
+  }
+
+  span {
+    font-family: "Jaldi", sans-serif;
+    font-size: 50px;
+    color: white;
+  }
+
+  .wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 25px;
+  }
+
+  .status {
+    font-size: 24px;
+  }
+</style>

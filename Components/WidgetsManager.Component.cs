@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Hooks;
 using Microsoft.Win32;
 using Models;
 using Newtonsoft.Json;
@@ -56,6 +57,7 @@ namespace Components
             Cef.Initialize(options);
 
             AssetService.CreateHTMLFilesDirectory();
+            this.templateService.MoveTemplatesToWidgetsPath();
 
             configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.assetsPath + "/config.json"));
 
@@ -113,7 +115,7 @@ namespace Components
                 + "if (setting == 'startup') {"
                 + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
                 + "}}";
-            string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath).Union(this.templateService.GetAllTemplates()).ToArray();
+            string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
             {
@@ -206,30 +208,58 @@ namespace Components
             userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
             userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
             userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
+
+            HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
+            hardwareActivityHook.BatteryLevel += OnBatteryLevelChanged;
+            hardwareActivityHook.SpaceAvailableInDrive += OnSpaceAvailableChanged;
+
             ReloadWidgets();
         }
 
-        private void SendNativeKeyEvents(string data)
+        private void CallJavaScriptFunction(string data, HardwareEvents hardwareEvents)
         {
             foreach (WidgetComponent widget in AssetService.widgets.Widgets)
             {
-                widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
+                switch (hardwareEvents)
+                {
+                    case HardwareEvents.NativeKeys:
+                        widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
+                        break;
+
+                    case HardwareEvents.BatteryLevel:
+                        widget.browser.ExecuteScriptAsync("if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
+                        break;
+
+                    case HardwareEvents.SpaceAvailable:
+                        widget.browser.ExecuteScriptAsync("if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
+                        break;
+                }
             }
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyDown\", eventType: \"keyboardEvent\" }");
+            CallJavaScriptFunction(@"{ keyCode: " + e.KeyValue + ", state: \"keyDown\", eventType: \"keyboardEvent\" }", HardwareEvents.NativeKeys);
         }
 
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
-            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyUp\", eventType: \"keyboardEvent\" }");
+            CallJavaScriptFunction(@"{ keyCode: " + e.KeyValue + ", state: \"keyUp\", eventType: \"keyboardEvent\" }", HardwareEvents.NativeKeys);
         }
 
         private void OnMouseActivity(object sender, MouseEventArgs e)
         {
-            SendNativeKeyEvents("{ eventType: \"mouseEvent\", xPosition: \"" + e.X + "\", yPosition: \"" + e.Y + "\", buttonPressed: \"" + e.Button + "\", buttonPressCount: \"" + e.Clicks + "\", mouseWheelOffset: \"" + e.Delta + "\" }");
+            CallJavaScriptFunction("{ eventType: \"mouseEvent\", xPosition: \"" + e.X + "\", yPosition: \"" + e.Y + "\", buttonPressed: \"" + e.Button + "\", buttonPressCount: \"" + e.Clicks + "\", mouseWheelOffset: \"" + e.Delta + "\" }", HardwareEvents.NativeKeys);
+        }
+
+        private void OnBatteryLevelChanged(string level)
+        {
+            CallJavaScriptFunction(level, HardwareEvents.BatteryLevel);
+        }
+
+        private void OnSpaceAvailableChanged(long freeSpace)
+        {
+            CallJavaScriptFunction(freeSpace.ToString(), HardwareEvents.SpaceAvailable);
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)

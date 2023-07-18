@@ -59,5 +59,28 @@ namespace Services
                 }
             }
         }
+
+        /// <summary>
+        /// Moves all files from the source path to the destination path
+        /// </summary>
+        /// <param name="source">Source path where the files are</param>
+        /// <param name="destination">Destination path where the files must go</param>
+        static public void MoveFilesToPath(string source, string destination)
+        {
+            if (Directory.Exists(destination))
+            {
+                string[] files = GetPathToHTMLFiles(source);
+
+                foreach (string path in files)
+                {
+                    string destinationFile = Path.Combine(destination, Path.GetFileName(path));
+
+                    if (!File.Exists(destinationFile))
+                    {
+                        File.Move(path, destinationFile);
+                    }
+                }
+            }
+        }
     }
 }
