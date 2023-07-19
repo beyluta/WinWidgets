@@ -12,13 +12,12 @@ using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
 namespace Components
 {
-    internal class WidgetsManagerComponent : WidgetModel
+    internal class WidgetsManagerComponent : WidgetManagerModel
     {
         private string widgetPath = String.Empty;
         private Form _window;

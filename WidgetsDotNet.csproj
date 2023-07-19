@@ -98,6 +98,7 @@
     <Compile Include="Hooks\HardwareActivity.Hook.cs" />
     <Compile Include="Models\Configuration.Model.cs" />
     <Compile Include="Models\Hardware.Model.cs" />
+    <Compile Include="Models\Widget.Model.cs" />
     <Compile Include="Services\Form.Service.cs" />
     <Compile Include="Services\Hardware.Service.cs" />
     <Compile Include="Services\HTMLDoc.Service.cs" />
@@ -113,7 +114,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Components\WidgetsManager.Component.cs" />
-    <Compile Include="Models\Widget.Model.cs" />
+    <Compile Include="Models\WidgetManager.Model.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -150,7 +151,13 @@
     <Content Include="Assets\style.css">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\Templates\test.html">
+    <Content Include="Assets\Templates\availableSpace.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Templates\battery.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Templates\digital-clock.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="favicon.ico" />

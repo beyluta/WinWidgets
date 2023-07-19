@@ -1,11 +1,11 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
-using Models;
 using Services;
 using System;
 using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
+using WidgetsDotNet.Models;
 
 namespace Components
 {
@@ -120,11 +120,6 @@ namespace Components
             ");
 
             browser.JavascriptMessageReceived += OnBrowserMessageReceived;
-        }
-
-        public override void OpenWidget(int id)
-        {
-            throw new System.NotImplementedException();
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)

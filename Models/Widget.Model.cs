@@ -1,10 +1,11 @@
 ﻿using CefSharp.WinForms;
+using Models;
 using System;
 using System.Windows.Forms;
 
-namespace Models
+namespace WidgetsDotNet.Models
 {
-    abstract class WidgetModel : WindowModel
+    abstract internal class WidgetModel : WindowModel
     {
         /// <summary>
         /// Reference to the main window
@@ -36,11 +37,5 @@ namespace Models
         /// <param name="window">Reference to the parent window</param>
         /// <param name="path"></param>
         abstract public void AppendWidget(Form window, string path);
-
-        /// <summary>
-        /// Opens the widget or its options
-        /// </summary>
-        /// <param name="id">id of the widget to open</param>
-        abstract public void OpenWidget(int id);
     }
 }
