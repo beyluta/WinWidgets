@@ -1,5 +1,8 @@
 ﻿using Services;
+using System;
+using System.Diagnostics;
 using System.Timers;
+using System.Windows;
 
 namespace Hooks
 {
@@ -7,8 +10,8 @@ namespace Hooks
     {
         public delegate void BatteryLevelHandler(string level);
         public delegate void SpaceAvailableInDriveHandler(long freeSpace);
-        public event BatteryLevelHandler BatteryLevel;
-        public event SpaceAvailableInDriveHandler SpaceAvailableInDrive;
+        public event BatteryLevelHandler OnBatteryLevel;
+        public event SpaceAvailableInDriveHandler OnSpaceAvailable;
 
         private HardwareService hardwareService = new HardwareService();
 
@@ -29,13 +32,13 @@ namespace Hooks
         private void OnBatteryLevelEvent(object sender, ElapsedEventArgs e)
         {
             string level = this.hardwareService.GetBatteryLevelPercentage();
-            BatteryLevel.Invoke(level);
+            OnBatteryLevel.Invoke(level);
         }
 
         private void OnSpaceAvailableInDrivesEvent(object sender, ElapsedEventArgs e)
         {
             long freeSpace = this.hardwareService.GetFreeSpaceAvailableInDrive("C");
-            SpaceAvailableInDrive.Invoke(freeSpace);
+            OnSpaceAvailable.Invoke(freeSpace);
         }
     }
 }

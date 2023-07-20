@@ -209,8 +209,8 @@ namespace Components
             userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
 
             HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
-            hardwareActivityHook.BatteryLevel += OnBatteryLevelChanged;
-            hardwareActivityHook.SpaceAvailableInDrive += OnSpaceAvailableChanged;
+            hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
+            hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
 
             ReloadWidgets();
         }
