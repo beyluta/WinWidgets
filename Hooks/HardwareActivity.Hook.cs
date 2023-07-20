@@ -1,8 +1,5 @@
 ﻿using Services;
-using System;
-using System.Diagnostics;
 using System.Timers;
-using System.Windows;
 
 namespace Hooks
 {
