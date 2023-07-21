@@ -1,5 +1,7 @@
 ﻿using Components;
+using Models;
 using System;
+using System.Drawing;
 using System.Windows.Forms;
 
 namespace Services
@@ -36,8 +38,61 @@ namespace Services
             widget.window.BeginInvoke(new Action(() =>
             {
                 widget.window.Close();
+                RemoveFromSession(widget.htmlPath);
                 AssetService.widgets.RemoveWidget(widget);
             }));
+        }
+
+        /// <summary>
+        /// Adds or updates the session of current open widgets
+        /// </summary>
+        /// <param name="path">Path of the widget</param>
+        /// <param name="position">Position of the widget</param>
+        public void AddOrUpdateSession(string path, Point position)
+        {
+            Configuration configuration = AssetService.GetConfigurationFile();
+
+            for (int i = 0; i < configuration.lastSessionWidgets.Count; i++)
+            {
+                if (configuration.lastSessionWidgets[i].path == path)
+                {
+                    configuration.lastSessionWidgets[i] = new WidgetConfiguration()
+                    {
+                        path = path,
+                        position = position
+                    };
+
+                    AssetService.OverwriteConfigurationFile(configuration);
+                    return;
+                }
+            }
+
+            configuration.lastSessionWidgets.Add(new WidgetConfiguration
+            {
+                path = path,
+                position = position
+            });
+
+            AssetService.OverwriteConfigurationFile(configuration);
+        }
+
+        /// <summary>
+        /// Removes a widget from the current session
+        /// </summary>
+        /// <param name="path">path of the widget to remove</param>
+        public void RemoveFromSession(string path)
+        {
+            Configuration configuration = AssetService.GetConfigurationFile();
+
+            for (int i = 0; i < configuration.lastSessionWidgets.Count; i++)
+            {
+                if (configuration.lastSessionWidgets[i].path == path)
+                {
+                    configuration.lastSessionWidgets.RemoveAt(i);
+                    AssetService.OverwriteConfigurationFile(configuration);
+                    return;
+                }
+            }
         }
     }
 }

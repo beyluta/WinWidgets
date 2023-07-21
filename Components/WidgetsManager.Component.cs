@@ -3,7 +3,6 @@ using CefSharp.WinForms;
 using Hooks;
 using Microsoft.Win32;
 using Models;
-using Newtonsoft.Json;
 using Service;
 using Services;
 using Snippets;
@@ -19,7 +18,7 @@ namespace Components
 {
     internal class WidgetsManagerComponent : WidgetManagerModel
     {
-        private string widgetPath = String.Empty;
+        private string _htmlPath = String.Empty;
         private Form _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
@@ -30,6 +29,13 @@ namespace Components
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
         private TemplateService templateService = new TemplateService();
+        private WidgetService widgetService = new WidgetService();
+
+        public override string htmlPath 
+        { 
+            get { return _htmlPath; }
+            set { _htmlPath = value; }
+        }
 
         public override Form window
         {
@@ -56,9 +62,9 @@ namespace Components
             Cef.Initialize(options);
 
             AssetService.CreateHTMLFilesDirectory();
-            this.templateService.MoveTemplatesToWidgetsPath();
 
-            configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.assetsPath + "/config.json"));
+            this.templateService.MoveTemplatesToWidgetsPath();
+            this.configuration = AssetService.GetConfigurationFile();
 
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = Resources.favicon;
@@ -75,15 +81,17 @@ namespace Components
             Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
-            CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
+ 
+            AutoStartWidgets();
+            CreateWindow(width, height, "WinWidgets", false);
         }
 
-        public override void CreateWindow(int w, int h, string t, FormStartPosition p)
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
         {
             window = new Form();
-            window.Size = new Size(w, h);
-            window.StartPosition = p;
-            window.Text = t;
+            window.Size = new Size(width, height);
+            window.StartPosition = FormStartPosition.CenterScreen;
+            window.Text = title;
             window.Activated += delegate { handle = window.Handle; };
             window.Icon = Resources.favicon;
             window.Resize += OnFormResized;
@@ -118,17 +126,17 @@ namespace Components
 
             for (int i = 0; i < files.Length; i++)
             {
-                widgetPath = files[i];
-                string localWidgetPath = widgetPath.Replace('\\', '/');
+                _htmlPath = files[i];
+                string localWidgetPath = _htmlPath.Replace('\\', '/');
 
                 template += $@"
                     var e{i} = document.createElement('div');"
                     + $"e{i}.classList.add('widget');"
                     + $"e{i}.classList.add('flex-row');"
-                    + $"e{i}.style.width = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';"
-                    + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';"
-                    + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}');"
-                    + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"e{i}.style.width = '{(this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath).Split(' ')[0] : null)}px';"
+                    + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath).Split(' ')[1] : null)}px';"
+                    + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}');"
+                    + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
                     + $"document.getElementById('widgets').appendChild(e{i});"
                     + $"e{i}.onclick = () => CefSharp.PostMessage('{i}');"
                  ;
@@ -137,12 +145,33 @@ namespace Components
             browser.ExecuteScriptAsyncWhenPageLoaded(template);
         }
 
+        public override void AutoStartWidgets()
+        {
+            foreach (WidgetConfiguration widgetConfiguration in this.configuration.lastSessionWidgets)
+            {
+                OpenWidget(widgetConfiguration.path, new Point(
+                    widgetConfiguration.position.X, 
+                    widgetConfiguration.position.Y
+                ));
+            }
+        }
+
         public override void OpenWidget(int id)
         {
             WidgetComponent widget = new WidgetComponent();
             AssetService.widgets.AddWidget(widget);
-            widget.widgetPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
-            widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
+
+            widget.htmlPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
+            widget.CreateWindow(300, 300, $"Widget{id}", true);
+        }
+
+        public override void OpenWidget(string path, Point position)
+        {
+            WidgetComponent widget = new WidgetComponent();
+            AssetService.widgets.AddWidget(widget);
+
+            widget.htmlPath = path;
+            widget.CreateWindow(300, 300, $"Widget{path}", false, position);
         }
 
         private void OnStopAllWidgets(object sender, EventArgs e)
@@ -161,6 +190,7 @@ namespace Components
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
                 AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
+                this.widgetService.RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
             }
         }
 

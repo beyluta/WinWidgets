@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Models;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 
@@ -25,6 +28,11 @@ namespace Services
         /// Path to the html widgets
         /// </summary>
         static public string widgetsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Widgets");
+
+        /// <summary>
+        /// Path to the config path
+        /// </summary>
+        static public string configPath = Path.Combine(widgetsPath) + "/config.json";
 
         /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored
@@ -81,6 +89,35 @@ namespace Services
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Overwrites the configuration file with new content
+        /// </summary>
+        /// <param name="content">Configuration object to be overwritten</param>
+        static public void OverwriteConfigurationFile(Configuration configuration)
+        {
+            File.WriteAllText(configPath, JsonConvert.SerializeObject(configuration));
+        }
+
+        /// <summary>
+        /// Get all configuration from the configuration file
+        /// </summary>
+        /// <returns>Configuration struct with all configurations</returns>
+        static public Configuration GetConfigurationFile()
+        {
+            if (!File.Exists(AssetService.configPath))
+            {
+                OverwriteConfigurationFile(new Configuration() { 
+                    isWidgetAutostartEnabled = false, 
+                    lastSessionWidgets = new List<WidgetConfiguration>(), 
+                    version = "1.3.0" 
+                });
+
+                return GetConfigurationFile();
+            }
+
+            return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.configPath));
         }
     }
 }

@@ -125,9 +125,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
-    <None Include="Assets\config.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="Assets\icon.psd">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -21,6 +21,7 @@ namespace Components
         private int height;
         private HTMLDocService htmlDocService = new HTMLDocService();
         private WindowService windowService = new WindowService();
+        private WidgetService widgetService = new WidgetService();
 
         public override IntPtr handle
         {
@@ -28,7 +29,7 @@ namespace Components
             set { _handle = value; }
         }
 
-        public string widgetPath
+        public override string htmlPath
         {
             get { return _widgetPath; }
             set { _widgetPath = value; }
@@ -53,18 +54,18 @@ namespace Components
             window.Controls.Add(browser);
         }
 
-        public override void CreateWindow(int width, int height, string title, FormStartPosition startPosition)
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
         {
             new Thread(() =>
             {
                 POINT mousePos;
                 GetCursorPos(out mousePos);
 
-                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", widgetPath);
-                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", widgetPath);
-                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", widgetPath);
-                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", widgetPath);
-                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", widgetPath);
+                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", htmlPath);
+                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", htmlPath);
+                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", htmlPath);
+                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", htmlPath);
+                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", htmlPath);
                 int roundess = radiusString != null ? int.Parse(radiusString) : 0;
                 this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
                 this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
@@ -75,8 +76,8 @@ namespace Components
 
                 window = new Form();
                 window.Size = new Size(this.width, this.height);
-                window.StartPosition = startPosition;
-                window.Location = new Point(locationX, locationY);
+                window.StartPosition = FormStartPosition.Manual;
+                window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
                 window.Text = title;
                 window.TopMost = topMost;
                 window.FormBorderStyle = FormBorderStyle.None;
@@ -87,7 +88,14 @@ namespace Components
 
                 this.windowService.SetWindowTransparency(window.Handle, opacity);
                 this.windowService.HideWindowFromProgramSwitcher(window.Handle);
-                AppendWidget(window, widgetPath);
+
+                if (save)
+                {
+                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY));
+                    AssetService.OverwriteConfigurationFile(AssetService.GetConfigurationFile());
+                }
+
+                AppendWidget(window, htmlPath);
                 window.ShowDialog();
             }).Start();
         }
@@ -131,9 +139,11 @@ namespace Components
                     {
                         POINT pos;
                         GetCursorPos(out pos);
+
                         window.Invoke(new MethodInvoker(delegate ()
                         {
                             window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
+                            this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
                         }));
                     }
                     break;
