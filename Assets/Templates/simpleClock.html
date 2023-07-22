@@ -30,18 +30,24 @@
 <style>
   @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
 
-  *,
-  html {
+  * {
     margin: 0;
     padding: 0;
   }
 
-  .wrapper {
+  body,
+  html {
     background-color: #323232;
     display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .wrapper {
     width: 585px;
     height: 305px;
-    justify-content: center;
   }
 
   #time {
