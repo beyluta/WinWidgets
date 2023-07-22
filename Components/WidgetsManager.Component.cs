@@ -82,7 +82,11 @@ namespace Components
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
  
-            AutoStartWidgets();
+            if (this.configuration.isWidgetAutostartEnabled)
+            {
+                AutoStartWidgets();
+            }
+
             CreateWindow(width, height, "WinWidgets", false);
         }
 
@@ -121,6 +125,9 @@ namespace Components
                 + "const setting = s.getAttribute('setting');"
                 + "if (setting == 'startup') {"
                 + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
+                + "}"
+                + "else if (setting == 'widgetStartup') {"
+                + $"{(AssetService.GetConfigurationFile().isWidgetAutostartEnabled ? "s.classList.add('switchon');" : "")}"
                 + "}}";
             string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
@@ -308,6 +315,12 @@ namespace Components
                     {
                         registryKey.DeleteValue("WinWidgets");
                     }
+                    break;
+
+                case "widgetStartup":
+                    Configuration configuration = AssetService.GetConfigurationFile();
+                    configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
+                    AssetService.OverwriteConfigurationFile(configuration);
                     break;
 
                 default:

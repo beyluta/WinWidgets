@@ -77,6 +77,11 @@ function changeStartup(element) {
   CefSharp.PostMessage(element.getAttribute("setting"));
 }
 
+function changeStartupWidgets(element) {
+  setSwitchState(element);
+  CefSharp.PostMessage(element.getAttribute("setting")); 
+}
+
 window.onload = () => {
   const searchWidget = document.getElementById("searchwidget");
 

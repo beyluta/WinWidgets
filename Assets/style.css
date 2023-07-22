@@ -250,6 +250,28 @@ svg {
   justify-content: space-between;
 }
 
+.setting > p {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.setting > .runWidgetsOnStartup:hover::after {
+  content: "Widgets that weren't closed in the previous session will be opened on startup.";
+  color: white;
+  padding: 8px 10px;
+  width: max-content;
+  max-width: 400px;
+  border-radius: 4px;
+  transform: translateY(70px);
+  background: var(--black);
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
 .switch {
   width: 39px;
   height: 23px;

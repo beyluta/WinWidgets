@@ -35,6 +35,11 @@ namespace Services
         static public string configPath = Path.Combine(widgetsPath) + "/config.json";
 
         /// <summary>
+        /// Semantic version of the application
+        /// </summary>
+        static private string version = "1.3.0";
+
+        /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored
         /// </summary>
         /// <param name="path">Path to the root folder</param>
@@ -97,6 +102,11 @@ namespace Services
         /// <param name="content">Configuration object to be overwritten</param>
         static public void OverwriteConfigurationFile(Configuration configuration)
         {
+            if (configuration.version != version)
+            {
+                configuration.version = version;
+            }
+
             File.WriteAllText(configPath, JsonConvert.SerializeObject(configuration));
         }
 
