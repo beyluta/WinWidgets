@@ -4,7 +4,14 @@
     {
         NativeKeys = 0,
         BatteryLevel = 1,
-        SpaceAvailable = 2
+        SpaceAvailable = 2,
+        DeviceTemperature = 3
+    }
+
+    internal enum HardwareMetrics
+    {
+        Fahrenheit = 0,
+        Celcius = 1
     }
 
     internal struct PeripheralAction

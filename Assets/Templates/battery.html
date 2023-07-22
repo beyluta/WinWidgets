@@ -16,15 +16,39 @@
   </head>
   <body>
     <div class="wrapper">
-      <i class="fa-solid fa-battery-full"></i>
+      <div class="battery" id="battery-icon">
+        <i class="fa-solid fa-battery-full"></i>
+      </div>
       <span id="percent">100%</span>
     </div>
-    <span class="status">Fully charged</span>
+    <span class="status" id="status">Fully charged</span>
   </body>
 </html>
 
 <script>
   function onNativeBatteryLevelEvent(level) {
+    if (Number(level) >= 100) {
+      document.querySelector("#status").innerText = "Fully charged";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-full"></i>';
+    } else if (Number(level) >= 80) {
+      document.querySelector("#status").innerText = "High";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-three-quarters"></i>';
+    } else if (Number(level) >= 50) {
+      document.querySelector("#status").innerText = "Medium";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-half"></i>';
+    } else if (Number(level) >= 20) {
+      document.querySelector("#status").innerText = "Low";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-quarter"></i>';
+    } else {
+      document.querySelector("#status").innerText = "Very low";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-empty"></i>';
+    }
+
     document.querySelector("#percent").innerText = `${level}%`;
   }
 </script>
