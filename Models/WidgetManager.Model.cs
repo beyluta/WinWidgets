@@ -1,5 +1,4 @@
 ﻿using System.Drawing;
-using WidgetsDotNet.Models;
 
 namespace Models
 {

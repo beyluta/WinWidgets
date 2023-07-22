@@ -1,10 +1,11 @@
 ﻿using CefSharp.WinForms;
 using Models;
+using Modules;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace WidgetsDotNet.Models
+namespace Models
 {
     abstract internal class WidgetModel : WindowModel
     {
@@ -16,7 +17,7 @@ namespace WidgetsDotNet.Models
         /// <summary>
         /// Reference to the main window
         /// </summary>
-        abstract public Form window { get; set; }
+        abstract public WidgetForm window { get; set; }
 
         /// <summary>
         /// Reference to the browser control

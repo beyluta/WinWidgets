@@ -3,6 +3,7 @@ using CefSharp.WinForms;
 using Hooks;
 using Microsoft.Win32;
 using Models;
+using Modules;
 using Newtonsoft.Json;
 using Service;
 using Services;
@@ -15,12 +16,13 @@ using System.IO;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
+
 namespace Components
 {
     internal class WidgetsManagerComponent : WidgetManagerModel
     {
         private string _htmlPath = String.Empty;
-        private Form _window;
+        private WidgetForm _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
         private string managerUIPath = AssetService.assetsPath + "/index.html";
@@ -38,7 +40,7 @@ namespace Components
             set { _htmlPath = value; }
         }
 
-        public override Form window
+        public override WidgetForm window
         {
             get { return _window; }
             set { _window = value; }
@@ -93,7 +95,7 @@ namespace Components
 
         public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
         {
-            window = new Form();
+            window = new WidgetForm(false);
             window.Size = new Size(width, height);
             window.StartPosition = FormStartPosition.CenterScreen;
             window.Text = title;
@@ -184,22 +186,7 @@ namespace Components
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            ArrayList deleteWidgets = new ArrayList();
-
-            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
-            {
-                ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
-                {
-                    ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Close();
-                    deleteWidgets.Add(((WidgetComponent)AssetService.widgets.Widgets[i]));
-                }));
-            }
-
-            for (int i = 0; i < deleteWidgets.Count; i++)
-            {
-                AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
-                this.widgetService.RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
-            }
+            this.widgetService.CloseAllWidgets();
         }
 
         private void OnFormResized(object sender, EventArgs e)

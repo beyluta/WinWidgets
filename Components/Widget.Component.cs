@@ -1,13 +1,12 @@
-﻿using CefSharp;
-using CefSharp.WinForms;
+﻿using CefSharp.WinForms;
 using Services;
-using Snippets;
 using System;
 using System.Drawing;
 using System.Threading;
 using System.Timers;
 using System.Windows.Forms;
-using WidgetsDotNet.Models;
+using Modules;
+using Models;
 
 namespace Components
 {
@@ -17,7 +16,7 @@ namespace Components
 
         private IntPtr _handle;
         private string _widgetPath;
-        private Form _window;
+        private WidgetForm _window;
         private ChromiumWebBrowser _browser;
         private int width;
         private int height;
@@ -38,7 +37,7 @@ namespace Components
             set { _widgetPath = value; }
         }
 
-        public override Form window
+        public override WidgetForm window
         {
             get { return _window; }
             set { _window = value; }
@@ -77,7 +76,7 @@ namespace Components
                 byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
                 bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
-                window = new Form();
+                window = new WidgetForm();
                 window.Size = new Size(this.width, this.height);
                 window.StartPosition = FormStartPosition.Manual;
                 window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);

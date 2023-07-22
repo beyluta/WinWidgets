@@ -1,6 +1,7 @@
 ﻿using Components;
 using Models;
 using System;
+using System.Collections;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -41,6 +42,29 @@ namespace Services
                 RemoveFromSession(widget.htmlPath);
                 AssetService.widgets.RemoveWidget(widget);
             }));
+        }
+
+        /// <summary>
+        /// Closes all opened widgets
+        /// </summary>
+        public void CloseAllWidgets()
+        {
+            ArrayList deleteWidgets = new ArrayList();
+
+            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
+            {
+                ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
+                {
+                    ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Close();
+                    deleteWidgets.Add(((WidgetComponent)AssetService.widgets.Widgets[i]));
+                }));
+            }
+
+            for (int i = 0; i < deleteWidgets.Count; i++)
+            {
+                AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
+                RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
+            }
         }
 
         /// <summary>
