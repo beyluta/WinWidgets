@@ -3,6 +3,7 @@ using CefSharp.WinForms;
 using Hooks;
 using Microsoft.Win32;
 using Models;
+using Newtonsoft.Json;
 using Service;
 using Services;
 using Snippets;
@@ -252,21 +253,26 @@ namespace Components
             ReloadWidgets();
         }
 
-        private void CallJavaScriptFunction(string data, HardwareEvents hardwareEvents)
+        private void CallJavaScriptFunction(string data, HardwareEvent hardwareEvent)
         {
             foreach (WidgetComponent widget in AssetService.widgets.Widgets)
             {
-                switch (hardwareEvents)
+                switch (hardwareEvent)
                 {
-                    case HardwareEvents.NativeKeys:
+                    case HardwareEvent.NativeKeys:
+                        if (JsonConvert.DeserializeObject<PeripheralAction>(data).buttonPressed == "Left")
+                        {
+                            widget.moveModeEnabled = false;
+                        }
+
                         widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
                         break;
 
-                    case HardwareEvents.BatteryLevel:
+                    case HardwareEvent.BatteryLevel:
                         widget.browser.ExecuteScriptAsync("if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
                         break;
 
-                    case HardwareEvents.SpaceAvailable:
+                    case HardwareEvent.SpaceAvailable:
                         widget.browser.ExecuteScriptAsync("if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
                         break;
                 }
@@ -275,27 +281,51 @@ namespace Components
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            CallJavaScriptFunction(@"{ keyCode: " + e.KeyValue + ", state: \"keyDown\", eventType: \"keyboardEvent\" }", HardwareEvents.NativeKeys);
+            PeripheralAction action = new PeripheralAction()
+            {
+                keycode = e.KeyValue.ToString(),
+                state = "keyDown",
+                eventType = "keyboardEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
-            CallJavaScriptFunction(@"{ keyCode: " + e.KeyValue + ", state: \"keyUp\", eventType: \"keyboardEvent\" }", HardwareEvents.NativeKeys);
+            PeripheralAction action = new PeripheralAction()
+            {
+                keycode = e.KeyValue.ToString(),
+                state = "keyUp",
+                eventType = "keyboardEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
         private void OnMouseActivity(object sender, MouseEventArgs e)
         {
-            CallJavaScriptFunction("{ eventType: \"mouseEvent\", xPosition: \"" + e.X + "\", yPosition: \"" + e.Y + "\", buttonPressed: \"" + e.Button + "\", buttonPressCount: \"" + e.Clicks + "\", mouseWheelOffset: \"" + e.Delta + "\" }", HardwareEvents.NativeKeys);
+            PeripheralAction action = new PeripheralAction()
+            {
+                xPosition = e.X.ToString(),
+                yPosition = e.Y.ToString(),
+                buttonPressed = e.Button.ToString(),
+                buttonPressCount = e.Clicks.ToString(),
+                mouseWheelOffset = e.Delta.ToString(),
+                eventType = "mouseEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
         private void OnBatteryLevelChanged(string level)
         {
-            CallJavaScriptFunction(level, HardwareEvents.BatteryLevel);
+            CallJavaScriptFunction(level, HardwareEvent.BatteryLevel);
         }
 
         private void OnSpaceAvailableChanged(long freeSpace)
         {
-            CallJavaScriptFunction(freeSpace.ToString(), HardwareEvents.SpaceAvailable);
+            CallJavaScriptFunction(freeSpace.ToString(), HardwareEvent.SpaceAvailable);
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)

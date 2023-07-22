@@ -1,9 +1,11 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
 using Services;
+using Snippets;
 using System;
 using System.Drawing;
 using System.Threading;
+using System.Timers;
 using System.Windows.Forms;
 using WidgetsDotNet.Models;
 
@@ -22,6 +24,7 @@ namespace Components
         private HTMLDocService htmlDocService = new HTMLDocService();
         private WindowService windowService = new WindowService();
         private WidgetService widgetService = new WidgetService();
+        private TimerService timerService = new TimerService();
 
         public override IntPtr handle
         {
@@ -102,51 +105,21 @@ namespace Components
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            /*
-            @@  Injecting JavaScript code to tell when the window is being dragged.
-            */
-            browser.ExecuteScriptAsync(@"
-                window.onload = () => {
-                    let isDrag = false;
-
-                    document.body.onmousedown = (e) => {
-                        if (e.buttons === 1) {
-                            isDrag = true;
-                        }
-                    }
-
-                    document.body.onmouseup = () => {
-                         isDrag = false;
-                    }
-
-                    document.body.onmousemove = () => {
-                        if (isDrag) {
-                            CefSharp.PostMessage('mouseDrag');
-                        }
-                    }
-                }
-            ");
-
-            browser.JavascriptMessageReceived += OnBrowserMessageReceived;
+            this.timerService.CreateTimer(1, OnBrowserUpdateTick, true, true);
         }
 
-        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
+        private void OnBrowserUpdateTick(object sender, ElapsedEventArgs e)
         {
-            switch (e.Message)
+            if (this.moveModeEnabled)
             {
-                case "mouseDrag":
-                    if (moveModeEnabled)
-                    {
-                        POINT pos;
-                        GetCursorPos(out pos);
+                POINT pos;
+                GetCursorPos(out pos);
 
-                        window.Invoke(new MethodInvoker(delegate ()
-                        {
-                            window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
-                            this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
-                        }));
-                    }
-                    break;
+                window.Invoke(new MethodInvoker(delegate ()
+                {
+                    window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
+                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
+                }));
             }
         }
 

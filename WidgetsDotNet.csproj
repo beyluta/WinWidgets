@@ -110,6 +110,7 @@
     <Compile Include="Models\Window.Model.cs" />
     <Compile Include="Components\Widget.Component.cs" />
     <Compile Include="Services\Template.Service.cs" />
+    <Compile Include="Services\Timer.Service.cs" />
     <Compile Include="Services\WidgetList.Service.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

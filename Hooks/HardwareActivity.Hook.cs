@@ -10,20 +10,13 @@ namespace Hooks
         public event BatteryLevelHandler OnBatteryLevel;
         public event SpaceAvailableInDriveHandler OnSpaceAvailable;
 
+        private TimerService timerService = new TimerService();
         private HardwareService hardwareService = new HardwareService();
 
         public HardwareActivityHook() 
         {
-            CreateTimer(1000, OnBatteryLevelEvent, true, true);
-            CreateTimer(1000, OnSpaceAvailableInDrivesEvent, true, true);
-        }
-
-        private void CreateTimer(int miliseconds, ElapsedEventHandler elapsedEventHandler, bool autoReset, bool enabled)
-        {
-            Timer timer = new Timer(miliseconds);
-            timer.Elapsed += elapsedEventHandler;
-            timer.AutoReset = autoReset;
-            timer.Enabled = enabled;
+            this.timerService.CreateTimer(1000, OnBatteryLevelEvent, true, true);
+            this.timerService.CreateTimer(1000, OnSpaceAvailableInDrivesEvent, true, true);
         }
 
         private void OnBatteryLevelEvent(object sender, ElapsedEventArgs e)
