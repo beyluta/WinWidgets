@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Timers;
 using System.Windows.Forms;
 
 namespace Modules
@@ -25,6 +26,11 @@ namespace Modules
                 e.Cancel = true;
                 this.WindowState = FormWindowState.Minimized;
             }
+        }
+
+        internal ElapsedEventHandler Invoke(Action value, bool v1, bool v2)
+        {
+            throw new NotImplementedException();
         }
     }
 }

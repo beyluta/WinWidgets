@@ -13,6 +13,7 @@ using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Timers;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
@@ -33,6 +34,7 @@ namespace Components
         private HTMLDocService HTMLDocService = new HTMLDocService();
         private TemplateService templateService = new TemplateService();
         private WidgetService widgetService = new WidgetService();
+        TimerService timerService = new TimerService();
 
         public override string htmlPath 
         { 
@@ -84,11 +86,6 @@ namespace Components
             Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
- 
-            if (this.configuration.isWidgetAutostartEnabled)
-            {
-                AutoStartWidgets();
-            }
 
             CreateWindow(width, height, "WinWidgets", false);
         }
@@ -228,17 +225,33 @@ namespace Components
             fileWatcher.IncludeSubdirectories = true;
             fileWatcher.EnableRaisingEvents = true;
 
-            UserActivityHook userActivityHook = new UserActivityHook();
-            userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
-            userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
-            userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
+            this.timerService.CreateTimer(1000, OnInitializeHooks, false, true);
 
-            HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
-            hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
-            hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
-            hardwareActivityHook.OnDeviceTemperature += OnDeviceTemperatureChanged;
+            this.browser.BeginInvoke(new Action(delegate
+            {
+                if (this.configuration.isWidgetAutostartEnabled)
+                {
+                    AutoStartWidgets();
+                }
+            }));
 
             ReloadWidgets();
+        }
+
+        private void OnInitializeHooks(object sender, ElapsedEventArgs e)
+        {
+            browser.BeginInvoke(new Action(delegate
+            {
+                UserActivityHook userActivityHook = new UserActivityHook();
+                userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
+                userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
+                userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
+
+                HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
+                hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
+                hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
+                hardwareActivityHook.OnDeviceTemperature += OnDeviceTemperatureChanged;
+            }));
         }
 
         private void CallJavaScriptFunction(string data, HardwareEvent hardwareEvent)
