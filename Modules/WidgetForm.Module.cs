@@ -27,10 +27,5 @@ namespace Modules
                 this.WindowState = FormWindowState.Minimized;
             }
         }
-
-        internal ElapsedEventHandler Invoke(Action value, bool v1, bool v2)
-        {
-            throw new NotImplementedException();
-        }
     }
 }
