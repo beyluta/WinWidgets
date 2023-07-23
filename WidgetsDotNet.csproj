@@ -146,9 +146,6 @@
     <Content Include="Assets\Templates\simpleClock.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Assets\Templates\temperature.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="favicon.ico" />
     <None Include="Resources\favicon.ico" />
   </ItemGroup>

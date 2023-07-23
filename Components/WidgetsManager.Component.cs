@@ -250,7 +250,6 @@ namespace Components
                 HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
                 hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
                 hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
-                hardwareActivityHook.OnDeviceTemperature += OnDeviceTemperatureChanged;
             }));
         }
 
@@ -277,10 +276,6 @@ namespace Components
 
                     case HardwareEvent.SpaceAvailable:
                         this.widgetService.InjectJavascript(widget, "if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
-                        break;
-
-                    case HardwareEvent.DeviceTemperature:
-                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeDeviceTemperatureEvent === 'function') { onNativeDeviceTemperatureEvent(" + data + "); }");
                         break;
                 }
             }
@@ -333,11 +328,6 @@ namespace Components
         private void OnSpaceAvailableChanged(long freeSpace)
         {
             CallJavaScriptFunction(freeSpace.ToString(), HardwareEvent.SpaceAvailable);
-        }
-
-        private void OnDeviceTemperatureChanged(double temperature)
-        {
-            CallJavaScriptFunction(temperature.ToString(), HardwareEvent.DeviceTemperature);
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
