@@ -257,7 +257,6 @@ namespace Components
         private void CallJavaScriptFunction(string data, HardwareEvent hardwareEvent)
         {
             for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
-            //foreach (WidgetComponent widget in AssetService.widgets.Widgets)
             {
                 WidgetComponent widget = (WidgetComponent)AssetService.widgets.Widgets[i];
 
