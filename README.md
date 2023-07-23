@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.2.1-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.3.0-green" alt="WinWidgets version" />
   </a>
 </p>
 
@@ -38,6 +38,11 @@ This is what makes this project interesting:
 - 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
 - ⌨️ Have better control over your widget's window with built-in front-end tags
 
+## Download
+You can find the latest version of WinWidgets on the [release page](https://github.com/beyluta/WinWidgets/releases) of the official GitHub repository.
+
+<i>Versions of WinWidgets < v1.3.0 requires Visual Studio and some .NET packages to be preinstalled. Newer versions of the Software (>= 1.3.0) do not have this dependency.</i>
+
 ## Screenshots and usage
 
 #### Drag & Drop your widgets to install
@@ -49,33 +54,17 @@ This is what makes this project interesting:
 #### Develop your own widgets easily. Find out more by navigating to the development panel
    <br><img src="Assets/Images/dev-widget.gif">
 
-### Built With
-
-These are the technologies powering WinWidgets
-
-- [Dotnet](https://dotnet.microsoft.com/en-us/)
-- [Chromium](https://www.chromium.org/)
-- [CefSharp](https://cefsharp.github.io/)
-
 <!-- GETTING STARTED -->
 
-## Getting Started
+## Development
 
 ### Prerequisites
 
-List of software required. Make sure all of these are installed
+List of software required. Make sure all of these are installed.
 
 - Visual Studio 2022
 - .NET Framework 4.7.2
 - Microsoft Visual C++ 2015-2019
-
-### Installation
-
-1. Make sure the .NET Framework tools are installed in your version of Visual Studio (<b><i>NOT</i></b> .NET Core)
-2. Clone the repo
-   ```sh
-   git clone https://github.com/beyluta/WinWidgets.git
-   ```
 
 <!-- CONTRIBUTING -->
 
