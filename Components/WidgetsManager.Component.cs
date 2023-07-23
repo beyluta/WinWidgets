@@ -256,8 +256,11 @@ namespace Components
 
         private void CallJavaScriptFunction(string data, HardwareEvent hardwareEvent)
         {
-            foreach (WidgetComponent widget in AssetService.widgets.Widgets)
+            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
+            //foreach (WidgetComponent widget in AssetService.widgets.Widgets)
             {
+                WidgetComponent widget = (WidgetComponent)AssetService.widgets.Widgets[i];
+
                 switch (hardwareEvent)
                 {
                     case HardwareEvent.NativeKeys:
@@ -266,19 +269,19 @@ namespace Components
                             widget.moveModeEnabled = false;
                         }
 
-                        widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
                         break;
 
                     case HardwareEvent.BatteryLevel:
-                        widget.browser.ExecuteScriptAsync("if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
                         break;
 
                     case HardwareEvent.SpaceAvailable:
-                        widget.browser.ExecuteScriptAsync("if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
                         break;
 
                     case HardwareEvent.DeviceTemperature:
-                        widget.browser.ExecuteScriptAsync("if (typeof onNativeDeviceTemperatureEvent === 'function') { onNativeDeviceTemperatureEvent(" + data + "); }");
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeDeviceTemperatureEvent === 'function') { onNativeDeviceTemperatureEvent(" + data + "); }");
                         break;
                 }
             }

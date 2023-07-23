@@ -1,4 +1,6 @@
-﻿using Components;
+﻿using CefSharp;
+using CefSharp.WinForms;
+using Components;
 using Models;
 using System;
 using System.Collections;
@@ -117,6 +119,15 @@ namespace Services
                     return;
                 }
             }
+        }
+
+        public void InjectJavascript(WidgetComponent widget, string javascript)
+        {
+            try
+            {
+                widget.browser.ExecuteScriptAsync(javascript);
+            }
+            catch { }
         }
     }
 }
