@@ -1,5 +1,4 @@
 ﻿using CefSharp.WinForms;
-using Models;
 using Modules;
 using System;
 using System.Drawing;
@@ -28,6 +27,11 @@ namespace Models
         /// Reference to the handle of the window
         /// </summary>
         abstract public IntPtr handle { get; set; }
+
+        /// <summary>
+        /// Configuration of the widget
+        /// </summary>
+        abstract public Configuration configuration { get; set; }
 
         /// <summary>
         /// Creates a window

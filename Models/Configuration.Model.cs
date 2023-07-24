@@ -32,5 +32,10 @@ namespace Models
         /// Widgets that weren't closed by the user since the last session ended
         /// </summary>
         public List<WidgetConfiguration> lastSessionWidgets { get; set; }
+
+        /// <summary>
+        /// Additional widget configurations
+        /// </summary>
+        public string settings { get; set; }
     }
 }

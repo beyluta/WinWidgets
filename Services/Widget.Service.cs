@@ -1,10 +1,10 @@
 ﻿using CefSharp;
-using CefSharp.WinForms;
 using Components;
 using Models;
 using System;
 using System.Collections;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Services
@@ -121,11 +121,69 @@ namespace Services
             }
         }
 
-        public void InjectJavascript(WidgetComponent widget, string javascript)
+        /// <summary>
+        /// Injects Javascript into the browser of the widget
+        /// </summary>
+        /// <param name="widget">Widget component to inject the javascript into</param>
+        /// <param name="javascript">The code snippet to be injected</param>
+        public void InjectJavascript(WidgetComponent widget, string javascript, bool executeOnlyWhenPageLoads = false)
         {
             try
             {
-                widget.browser.ExecuteScriptAsync(javascript);
+                if (!executeOnlyWhenPageLoads)
+                {
+                    widget.browser.ExecuteScriptAsync(javascript);
+                } else
+                {
+                    widget.browser.ExecuteScriptAsyncWhenPageLoaded(javascript);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Gets the configuration of a widget if the file exists
+        /// </summary>
+        /// <param name="widget">Widget to retrieve the configuration from</param>
+        /// <returns>Then configuration of the widget</returns>
+        public Configuration GetConfiguration(WidgetComponent widget)
+        {
+            try
+            {
+                string path = Path.Combine(Path.GetDirectoryName(widget.htmlPath), "config.json");
+
+
+                if (File.Exists(path))
+                {
+                    string data = File.ReadAllText(path);
+                    return new Configuration() { settings = data };
+                }
+
+                return new Configuration();
+            } catch
+            {
+                return new Configuration();
+            }
+        }
+
+        /// <summary>
+        /// Sets or creates the configuration file for a specific wiget.
+        /// </summary>
+        /// <param name="widget">Widget that owns the configuration file</param>
+        /// <param name="data">Data to set the config file</param>
+        public void SetConfiguration(WidgetComponent widget, string data)
+        {
+            try
+            {
+                string path = Path.Combine(Path.GetDirectoryName(widget.htmlPath), "config.json");
+
+                if (File.Exists(path))
+                {
+                    File.WriteAllText(path, data);
+                    return;
+                }
+
+                File.WriteAllText(path, data);
             }
             catch { }
         }

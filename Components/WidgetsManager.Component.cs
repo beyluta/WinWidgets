@@ -9,7 +9,6 @@ using Service;
 using Services;
 using Snippets;
 using System;
-using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -26,15 +25,15 @@ namespace Components
         private WidgetForm _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
+        private Configuration _configuration;
         private string managerUIPath = AssetService.assetsPath + "/index.html";
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
-        private Configuration configuration;
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
         private TemplateService templateService = new TemplateService();
         private WidgetService widgetService = new WidgetService();
-        TimerService timerService = new TimerService();
+        private TimerService timerService = new TimerService();
 
         public override string htmlPath 
         { 
@@ -58,6 +57,12 @@ namespace Components
         {
             get { return _handle; }
             set { _handle = value; }
+        }
+
+        public override Configuration configuration
+        {
+            get { return _configuration; }
+            set { _configuration = value; }
         }
 
         public WidgetsManagerComponent()
@@ -118,7 +123,7 @@ namespace Components
             string template = 
                 $"var container = document.getElementById('widgets');"
                 + $"container.innerHTML = '';"
-                + $"setVersion('{configuration.version}');"
+                + $"setVersion('{this.configuration.version}');"
                 + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');"
                 + "var switches = document.getElementsByClassName('switch');"
                 + "for (let s of switches) {"

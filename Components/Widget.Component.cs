@@ -1,12 +1,14 @@
-﻿using CefSharp.WinForms;
+﻿using CefSharp;
+using CefSharp.WinForms;
+using Models;
+using Modules;
+using Newtonsoft.Json;
 using Services;
 using System;
 using System.Drawing;
 using System.Threading;
 using System.Timers;
 using System.Windows.Forms;
-using Modules;
-using Models;
 
 namespace Components
 {
@@ -18,6 +20,7 @@ namespace Components
         private string _widgetPath;
         private WidgetForm _window;
         private ChromiumWebBrowser _browser;
+        private Configuration _configuration;
         private int width;
         private int height;
         private HTMLDocService htmlDocService = new HTMLDocService();
@@ -47,6 +50,12 @@ namespace Components
         {
             get { return _browser; }
             set { _browser = value; }
+        }
+
+        public override Configuration configuration
+        {
+            get { return _configuration; }
+            set { _configuration = value; }
         }
 
         public override void AppendWidget(Form window, string path)
@@ -90,6 +99,7 @@ namespace Components
 
                 this.windowService.SetWindowTransparency(window.Handle, opacity);
                 this.windowService.HideWindowFromProgramSwitcher(window.Handle);
+                this.configuration = this.widgetService.GetConfiguration(this);
 
                 if (save)
                 {
@@ -105,6 +115,12 @@ namespace Components
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
             this.timerService.CreateTimer(1, OnBrowserUpdateTick, true, true);
+            this.widgetService.InjectJavascript(
+                this, 
+                $"if (typeof onGetConfiguration === 'function') onGetConfiguration({JsonConvert.SerializeObject(configuration.settings)});",
+                true
+            );
+            this.browser.JavascriptMessageReceived += OnBrowserMessageReceived;
         }
 
         private void OnBrowserUpdateTick(object sender, ElapsedEventArgs e)
@@ -126,6 +142,11 @@ namespace Components
         {
             handle = window.Handle;
             browser.MenuHandler = new MenuHandlerComponent(this);
+        }
+
+        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
+        {
+            this.widgetService.SetConfiguration(this, e.Message.ToString());
         }
     }
 }

@@ -145,12 +145,12 @@
           </div>
           
           <div class="instruction">
-            <h3>1- Locate your "Widgets-Folder"</h3>
+            <h3>&#8226; Locate your "Widgets-Folder"</h3>
             <p>This folder should be under C://Users/MY_USER/Documents/Widgets</p>
           </div>
 
           <div class="instruction">
-            <h3>2- Create your HTML widget</h3>
+            <h3>&#8226; Create your HTML widget</h3>
             <p>
               Create a HTML file and code your widget however you want (HTML,
               CSS, and JS are all valid). Use your preferred browser to develop
@@ -159,7 +159,7 @@
           </div>
 
           <div class="flex-column instruction">
-            <h3>3- Append the meta tags for the widget window</h3>
+            <h3>&#8226; Append the meta tags for the widget window</h3>
             <p>
               At the top of your HTML document add the following tags (only the
               first 2 are required):
@@ -195,7 +195,7 @@
               </div>
 
             <div class="instruction">
-              <h3>4- Open WinWidgets and choose your widget</h3>
+              <h3>&#8226; Open WinWidgets and choose your widget</h3>
               <p>
                 Your widget can be found in the list of widgets. Use the search
                 bar to find it.
@@ -203,7 +203,31 @@
             </div>
 
             <div class="instruction">
-              <h2 class="settings-title">Keycapture Events</h2>
+              <h2 class="settings-title">Saving widget data</h2>
+              <p>
+                First, put your widget in a folder (This is a <b>MUST</b>). Then create a configuration file called <span style="padding: 0 10px;border-radius: 4px;border: solid 1px rgba(1,1,1,0.08);">
+                  <span style="color: var(--purple)">config.json</span></span><br/><br/>
+
+                  C:\Documents\<br/>
+                  └── Widgets<br/>
+                      <span style="margin-left: 40px;">└── Weather</span><br/>
+                      <span style="margin-left: 80px;">├── widget.txt</span><br/>
+                      <span style="margin-left: 80px;">└── config.json</span><br/><br/>
+
+                Use the following two function to get the configuration data from the config.json file. Please note that this function will only fire once as soon as the widget finishes loading. Save your data to an object and modify that object as your widget continues running.
+                <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
+                    <span style="color: var(--orange)">function</span> <span style="color: var(--purple)">onGetConfiguration</span>(<span style="color: var(--blue)">data</span>)
+                </div><br/>
+
+                Call the PostMessage function from the CefSharp object to save your data. Data must be passed as a JSON object.
+                <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
+                  <span style="color: var(--purple)">CefSharp.PostMessage</span>(<span style="color: var(--blue)">JSON.stringify({ language: 'en-US' })</span>)
+                </div>
+              </p>
+            </div>
+
+            <div class="instruction">
+              <h2 class="settings-title">Keycapture events</h2>
               <p>
                 Define the function <span style="padding: 0 10px;border-radius: 4px;border: solid 1px rgba(1,1,1,0.08);">
                 <span style="color: var(--purple)">onNativeKeyEvents </span><span style="color: var(--blue)">(</span><span style="color: var(--orange)">key</span><span style="color: var(--blue)">)</span></span> in your front-end JavaScript code and receive global keypresses 
@@ -231,7 +255,7 @@
             </div>
 
             <div class="instruction">
-              <h2 class="settings-title">Hardware Events</h2>
+              <h2 class="settings-title">Hardware events</h2>
               <p>
                 Here are some examples of the events that can be received from the hardware of your computer.
 

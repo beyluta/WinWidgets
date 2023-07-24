@@ -127,7 +127,14 @@ namespace Services
                 return GetConfigurationFile();
             }
 
-            return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.configPath));
+            try
+            {
+                return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.configPath));
+            } catch
+            {
+                File.Delete(AssetService.configPath);
+                return GetConfigurationFile();
+            }
         }
     }
 }
