@@ -22,6 +22,8 @@
     <a href="https://github.com/beyluta/WinWidgets/issues">Report Bug</a>
     ·
     <a href="https://github.com/beyluta/WinWidgets/issues">Request Feature</a>
+    ·
+    <a href="https://github.com/beyluta/WinWidgets/discussions/40">Submit Widget</a>
   </p>
 </div>
 
