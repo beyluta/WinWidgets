@@ -112,6 +112,7 @@ svg {
 
 .widgets {
   gap: 30px;
+  row-gap: 50px;
   flex-wrap: wrap;
   max-height: calc(100vh - 300px);
   height: auto;
@@ -132,6 +133,16 @@ svg {
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   border: solid 1px rgba(1, 1, 1, 0.08);
+}
+
+.widget > .label {
+  position: absolute;
+  top: -30px;
+  left: 0;
+  color: var(--black);
+  border-bottom: 1px solid rgba(1, 1, 1, 0.08);
+  font-weight: bold;
+  font-size: 18px;
 }
 
 .widget:hover {

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
+  <!-- The head is just copied from the digital clock.html to preserve style -->
   <head>
-    <meta name="applicationTitle" content="Storage Status" />
-    <meta name="windowSize" content="360 180" />
+    <meta name="applicationTitle" content="Last Key Pressed" />
+    <meta name="windowSize" content="180 180" />
     <meta name="windowBorderRadius" content="10" />
-    <meta name="previewSize" content="360 180" />
+    <meta name="previewSize" content="180 180" />
     <meta name="windowOpacity" content="200" />
     <link
       rel="stylesheet"
@@ -15,22 +16,24 @@
     />
   </head>
   <body>
-    <span class="drive-wrapper"><i class="fa-solid fa-hard-drive"></i>C:\</span>
     <div class="wrapper">
-      <span id="gigabytes">250GB</span>
+      <span id="key">W</span>
     </div>
   </body>
 </html>
 
 <script>
-  function onNativeSpaceAvailableEvent(bytes) {
-    const gigabytes = Math.ceil(bytes / 1000000000).toFixed(0);
-    const terabytes = Math.ceil(bytes / 1000000000000).toFixed(2);
-
-    if (gigabytes > 1000) {
-      document.querySelector("#gigabytes").innerText = `${terabytes}TB`;
-    } else {
-      document.querySelector("#gigabytes").innerText = `${gigabytes}GB`;
+  function onNativeKeyEvents(key) {
+    if (key.eventType == "keyboardEvent") {
+      //Getting the key code
+      var code = parseInt(key.keycode);
+      //Just input validation
+      if (code >= 65 && code <= 90) {
+        //Converting keycode to letter
+        document.querySelector("#key").innerText = String.fromCharCode(
+          parseInt(key.keycode)
+        );
+      }
     }
   }
 </script>
@@ -59,44 +62,20 @@
     height: 100vh;
   }
 
-  i {
-    color: white;
-    font-size: 40px;
-  }
-
   span {
     font-family: "Jaldi", sans-serif;
-    font-size: 50px;
+    font-size: 35px;
     color: white;
-  }
-
-  .drive-wrapper {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    font-size: 40px;
-    margin-bottom: -25px;
   }
 
   .wrapper {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    text-align: center;
   }
 
-  .wrapper > span:nth-child(1)::after {
-    content: "Of Available Space";
-    display: block;
-    text-align: center;
-    margin-top: -20px;
+  #day {
+    font-size: 20px;
     color: var(--gray);
-    font-size: 20px;
-  }
-
-  .wrapper > span:nth-child(2) {
-    font-size: 20px;
-    color: var(--lightgray);
+    margin-top: -20px;
   }
 </style>

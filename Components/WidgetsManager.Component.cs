@@ -149,6 +149,10 @@ namespace Components
                     + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath).Split(' ')[1] : null)}px';"
                     + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}');"
                     + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"var l{i} = document.createElement('span');"
+                    + $"e{i}.appendChild(l{i});"
+                    + $"l{i}.classList.add('label');"
+                    + $"l{i}.innerText = '{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}';"
                     + $"document.getElementById('widgets').appendChild(e{i});"
                     + $"e{i}.onclick = () => CefSharp.PostMessage('{i}');"
                  ;
