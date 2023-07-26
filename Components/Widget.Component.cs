@@ -1,10 +1,13 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
 using Models;
+using Modules;
+using Newtonsoft.Json;
 using Services;
 using System;
 using System.Drawing;
 using System.Threading;
+using System.Timers;
 using System.Windows.Forms;
 
 namespace Components
@@ -15,12 +18,15 @@ namespace Components
 
         private IntPtr _handle;
         private string _widgetPath;
-        private Form _window;
+        private WidgetForm _window;
         private ChromiumWebBrowser _browser;
+        private Configuration _configuration;
         private int width;
         private int height;
         private HTMLDocService htmlDocService = new HTMLDocService();
         private WindowService windowService = new WindowService();
+        private WidgetService widgetService = new WidgetService();
+        private TimerService timerService = new TimerService();
 
         public override IntPtr handle
         {
@@ -28,13 +34,13 @@ namespace Components
             set { _handle = value; }
         }
 
-        public string widgetPath
+        public override string htmlPath
         {
             get { return _widgetPath; }
             set { _widgetPath = value; }
         }
 
-        public override Form window
+        public override WidgetForm window
         {
             get { return _window; }
             set { _window = value; }
@@ -46,6 +52,12 @@ namespace Components
             set { _browser = value; }
         }
 
+        public override Configuration configuration
+        {
+            get { return _configuration; }
+            set { _configuration = value; }
+        }
+
         public override void AppendWidget(Form window, string path)
         {
             browser = new ChromiumWebBrowser(path);
@@ -53,18 +65,18 @@ namespace Components
             window.Controls.Add(browser);
         }
 
-        public override void CreateWindow(int width, int height, string title, FormStartPosition startPosition)
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
         {
             new Thread(() =>
             {
                 POINT mousePos;
                 GetCursorPos(out mousePos);
 
-                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", widgetPath);
-                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", widgetPath);
-                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", widgetPath);
-                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", widgetPath);
-                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", widgetPath);
+                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", htmlPath);
+                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", htmlPath);
+                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", htmlPath);
+                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", htmlPath);
+                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", htmlPath);
                 int roundess = radiusString != null ? int.Parse(radiusString) : 0;
                 this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
                 this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
@@ -73,10 +85,10 @@ namespace Components
                 byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
                 bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
 
-                window = new Form();
+                window = new WidgetForm();
                 window.Size = new Size(this.width, this.height);
-                window.StartPosition = startPosition;
-                window.Location = new Point(locationX, locationY);
+                window.StartPosition = FormStartPosition.Manual;
+                window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
                 window.Text = title;
                 window.TopMost = topMost;
                 window.FormBorderStyle = FormBorderStyle.None;
@@ -87,61 +99,42 @@ namespace Components
 
                 this.windowService.SetWindowTransparency(window.Handle, opacity);
                 this.windowService.HideWindowFromProgramSwitcher(window.Handle);
-                AppendWidget(window, widgetPath);
+                this.configuration = this.widgetService.GetConfiguration(this);
+
+                if (save)
+                {
+                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY));
+                    AssetService.OverwriteConfigurationFile(AssetService.GetConfigurationFile());
+                }
+
+                AppendWidget(window, htmlPath);
                 window.ShowDialog();
             }).Start();
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)
         {
-            /*
-            @@  Injecting JavaScript code to tell when the window is being dragged.
-            */
-            browser.ExecuteScriptAsync(@"
-                window.onload = () => {
-                    let isDrag = false;
-
-                    document.body.onmousedown = (e) => {
-                        if (e.buttons === 1) {
-                            isDrag = true;
-                        }
-                    }
-
-                    document.body.onmouseup = () => {
-                         isDrag = false;
-                    }
-
-                    document.body.onmousemove = () => {
-                        if (isDrag) {
-                            CefSharp.PostMessage('mouseDrag');
-                        }
-                    }
-                }
-            ");
-
-            browser.JavascriptMessageReceived += OnBrowserMessageReceived;
+            this.timerService.CreateTimer(1, OnBrowserUpdateTick, true, true);
+            this.widgetService.InjectJavascript(
+                this, 
+                $"if (typeof onGetConfiguration === 'function') onGetConfiguration({JsonConvert.SerializeObject(configuration.settings)});",
+                true
+            );
+            this.browser.JavascriptMessageReceived += OnBrowserMessageReceived;
         }
 
-        public override void OpenWidget(int id)
+        private void OnBrowserUpdateTick(object sender, ElapsedEventArgs e)
         {
-            throw new System.NotImplementedException();
-        }
-
-        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
-        {
-            switch (e.Message)
+            if (this.moveModeEnabled)
             {
-                case "mouseDrag":
-                    if (moveModeEnabled)
-                    {
-                        POINT pos;
-                        GetCursorPos(out pos);
-                        window.Invoke(new MethodInvoker(delegate ()
-                        {
-                            window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
-                        }));
-                    }
-                    break;
+                POINT pos;
+                GetCursorPos(out pos);
+
+                window.Invoke(new MethodInvoker(delegate ()
+                {
+                    window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
+                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
+                }));
             }
         }
 
@@ -149,6 +142,11 @@ namespace Components
         {
             handle = window.Handle;
             browser.MenuHandler = new MenuHandlerComponent(this);
+        }
+
+        private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
+        {
+            this.widgetService.SetConfiguration(this, e.Message.ToString());
         }
     }
 }

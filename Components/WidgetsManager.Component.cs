@@ -1,34 +1,47 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Hooks;
 using Microsoft.Win32;
 using Models;
+using Modules;
 using Newtonsoft.Json;
+using Service;
 using Services;
 using Snippets;
 using System;
-using System.Collections;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Timers;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
 
+
 namespace Components
 {
-    internal class WidgetsManagerComponent : WidgetModel
+    internal class WidgetsManagerComponent : WidgetManagerModel
     {
-        private string widgetPath = String.Empty;
-        private Form _window;
+        private string _htmlPath = String.Empty;
+        private WidgetForm _window;
         private ChromiumWebBrowser _browser;
         private IntPtr _handle;
+        private Configuration _configuration;
         private string managerUIPath = AssetService.assetsPath + "/index.html";
         private RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
         private NotifyIcon notifyIcon;
-        private Configuration configuration;
         private FormService formService = new FormService();
         private HTMLDocService HTMLDocService = new HTMLDocService();
+        private TemplateService templateService = new TemplateService();
+        private WidgetService widgetService = new WidgetService();
+        private TimerService timerService = new TimerService();
 
-        public override Form window
+        public override string htmlPath 
+        { 
+            get { return _htmlPath; }
+            set { _htmlPath = value; }
+        }
+
+        public override WidgetForm window
         {
             get { return _window; }
             set { _window = value; }
@@ -46,6 +59,12 @@ namespace Components
             set { _handle = value; }
         }
 
+        public override Configuration configuration
+        {
+            get { return _configuration; }
+            set { _configuration = value; }
+        }
+
         public WidgetsManagerComponent()
         {
             CefSettings options = new CefSettings();
@@ -54,7 +73,8 @@ namespace Components
 
             AssetService.CreateHTMLFilesDirectory();
 
-            configuration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.assetsPath + "/config.json"));
+            this.templateService.MoveTemplatesToWidgetsPath();
+            this.configuration = AssetService.GetConfigurationFile();
 
             notifyIcon = new NotifyIcon();
             notifyIcon.Icon = Resources.favicon;
@@ -71,15 +91,16 @@ namespace Components
             Rectangle screenResolution = Screen.PrimaryScreen.Bounds;
             int width = screenResolution.Width / 2;
             int height = screenResolution.Height - 200;
-            CreateWindow(width, height, "WinWidgets", FormStartPosition.CenterScreen);
+
+            CreateWindow(width, height, "WinWidgets", false);
         }
 
-        public override void CreateWindow(int w, int h, string t, FormStartPosition p)
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
         {
-            window = new Form();
-            window.Size = new Size(w, h);
-            window.StartPosition = p;
-            window.Text = t;
+            window = new WidgetForm(false);
+            window.Size = new Size(width, height);
+            window.StartPosition = FormStartPosition.CenterScreen;
+            window.Text = title;
             window.Activated += delegate { handle = window.Handle; };
             window.Icon = Resources.favicon;
             window.Resize += OnFormResized;
@@ -102,29 +123,36 @@ namespace Components
             string template = 
                 $"var container = document.getElementById('widgets');"
                 + $"container.innerHTML = '';"
-                + $"setVersion('{configuration.version}');"
+                + $"setVersion('{this.configuration.version}');"
                 + "document.getElementById('folder').onclick = () => CefSharp.PostMessage('widgetsFolder');"
                 + "var switches = document.getElementsByClassName('switch');"
                 + "for (let s of switches) {"
                 + "const setting = s.getAttribute('setting');"
                 + "if (setting == 'startup') {"
                 + $"{(registryKey.GetValue("WinWidgets") != null ? "s.classList.add('switchon');" : "")}"
+                + "}"
+                + "else if (setting == 'widgetStartup') {"
+                + $"{(AssetService.GetConfigurationFile().isWidgetAutostartEnabled ? "s.classList.add('switchon');" : "")}"
                 + "}}";
             string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
             for (int i = 0; i < files.Length; i++)
             {
-                widgetPath = files[i];
-                string localWidgetPath = widgetPath.Replace('\\', '/');
+                _htmlPath = files[i];
+                string localWidgetPath = _htmlPath.Replace('\\', '/');
 
                 template += $@"
                     var e{i} = document.createElement('div');"
                     + $"e{i}.classList.add('widget');"
                     + $"e{i}.classList.add('flex-row');"
-                    + $"e{i}.style.width = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[0] : null)}px';"
-                    + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", widgetPath).Split(' ')[1] : null)}px';"
-                    + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}');"
-                    + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", widgetPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"e{i}.style.width = '{(this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath).Split(' ')[0] : null)}px';"
+                    + $"e{i}.style.minHeight = '{(this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath) != null ? this.HTMLDocService.GetMetaTagValue("previewSize", _htmlPath).Split(' ')[1] : null)}px';"
+                    + $"e{i}.setAttribute('name', '{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}');"
+                    + $"e{i}.innerHTML = `<p>{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}</p> <iframe src='file:///{localWidgetPath}'></iframe>`;"
+                    + $"var l{i} = document.createElement('span');"
+                    + $"e{i}.appendChild(l{i});"
+                    + $"l{i}.classList.add('label');"
+                    + $"l{i}.innerText = '{this.HTMLDocService.GetMetaTagValue("applicationTitle", _htmlPath)}';"
                     + $"document.getElementById('widgets').appendChild(e{i});"
                     + $"e{i}.onclick = () => CefSharp.PostMessage('{i}');"
                  ;
@@ -133,31 +161,38 @@ namespace Components
             browser.ExecuteScriptAsyncWhenPageLoaded(template);
         }
 
+        public override void AutoStartWidgets()
+        {
+            foreach (WidgetConfiguration widgetConfiguration in this.configuration.lastSessionWidgets)
+            {
+                OpenWidget(widgetConfiguration.path, new Point(
+                    widgetConfiguration.position.X, 
+                    widgetConfiguration.position.Y
+                ));
+            }
+        }
+
         public override void OpenWidget(int id)
         {
             WidgetComponent widget = new WidgetComponent();
             AssetService.widgets.AddWidget(widget);
-            widget.widgetPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
-            widget.CreateWindow(300, 300, $"Widget{id}", FormStartPosition.Manual);
+
+            widget.htmlPath = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath)[id];
+            widget.CreateWindow(300, 300, $"Widget{id}", true);
+        }
+
+        public override void OpenWidget(string path, Point position)
+        {
+            WidgetComponent widget = new WidgetComponent();
+            AssetService.widgets.AddWidget(widget);
+
+            widget.htmlPath = path;
+            widget.CreateWindow(300, 300, $"Widget{path}", false, position);
         }
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            ArrayList deleteWidgets = new ArrayList();
-
-            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
-            {
-                ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Invoke(new MethodInvoker(delegate ()
-                {
-                    ((WidgetComponent)AssetService.widgets.Widgets[i]).window.Close();
-                    deleteWidgets.Add(((WidgetComponent)AssetService.widgets.Widgets[i]));
-                }));
-            }
-
-            for (int i = 0; i < deleteWidgets.Count; i++)
-            {
-                AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
-            }
+            this.widgetService.CloseAllWidgets();
         }
 
         private void OnFormResized(object sender, EventArgs e)
@@ -199,34 +234,109 @@ namespace Components
             fileWatcher.IncludeSubdirectories = true;
             fileWatcher.EnableRaisingEvents = true;
 
-            UserActivityHook userActivityHook = new UserActivityHook();
-            userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
-            userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
-            userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
+            this.timerService.CreateTimer(1000, OnInitializeHooks, false, true);
+
+            this.browser.BeginInvoke(new Action(delegate
+            {
+                if (this.configuration.isWidgetAutostartEnabled)
+                {
+                    AutoStartWidgets();
+                }
+            }));
+
             ReloadWidgets();
         }
 
-        private void SendNativeKeyEvents(string data)
+        private void OnInitializeHooks(object sender, ElapsedEventArgs e)
         {
-            foreach (WidgetComponent widget in AssetService.widgets.Widgets)
+            browser.BeginInvoke(new Action(delegate
             {
-                widget.browser.ExecuteScriptAsync("if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
+                UserActivityHook userActivityHook = new UserActivityHook();
+                userActivityHook.KeyDown += new KeyEventHandler(OnKeyDown);
+                userActivityHook.KeyUp += new KeyEventHandler(OnKeyUp);
+                userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
+
+                HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
+                hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
+                hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
+            }));
+        }
+
+        private void CallJavaScriptFunction(string data, HardwareEvent hardwareEvent)
+        {
+            for (int i = 0; i < AssetService.widgets.Widgets.Count; i++)
+            {
+                WidgetComponent widget = (WidgetComponent)AssetService.widgets.Widgets[i];
+
+                switch (hardwareEvent)
+                {
+                    case HardwareEvent.NativeKeys:
+                        if (JsonConvert.DeserializeObject<PeripheralAction>(data).buttonPressed == "Left")
+                        {
+                            widget.moveModeEnabled = false;
+                        }
+
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
+                        break;
+
+                    case HardwareEvent.BatteryLevel:
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
+                        break;
+
+                    case HardwareEvent.SpaceAvailable:
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeSpaceAvailableEvent === 'function') { onNativeSpaceAvailableEvent(" + data + "); }");
+                        break;
+                }
             }
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
-            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyDown\", eventType: \"keyboardEvent\" }");
+            PeripheralAction action = new PeripheralAction()
+            {
+                keycode = e.KeyValue.ToString(),
+                state = "keyDown",
+                eventType = "keyboardEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
         private void OnKeyUp(object sender, KeyEventArgs e)
         {
-            SendNativeKeyEvents(@"{ keyCode: " + e.KeyValue + ", state: \"keyUp\", eventType: \"keyboardEvent\" }");
+            PeripheralAction action = new PeripheralAction()
+            {
+                keycode = e.KeyValue.ToString(),
+                state = "keyUp",
+                eventType = "keyboardEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
         private void OnMouseActivity(object sender, MouseEventArgs e)
         {
-            SendNativeKeyEvents("{ eventType: \"mouseEvent\", xPosition: \"" + e.X + "\", yPosition: \"" + e.Y + "\", buttonPressed: \"" + e.Button + "\", buttonPressCount: \"" + e.Clicks + "\", mouseWheelOffset: \"" + e.Delta + "\" }");
+            PeripheralAction action = new PeripheralAction()
+            {
+                xPosition = e.X.ToString(),
+                yPosition = e.Y.ToString(),
+                buttonPressed = e.Button.ToString(),
+                buttonPressCount = e.Clicks.ToString(),
+                mouseWheelOffset = e.Delta.ToString(),
+                eventType = "mouseEvent",
+            };
+
+            CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
+        }
+
+        private void OnBatteryLevelChanged(string level)
+        {
+            CallJavaScriptFunction(level, HardwareEvent.BatteryLevel);
+        }
+
+        private void OnSpaceAvailableChanged(long freeSpace)
+        {
+            CallJavaScriptFunction(freeSpace.ToString(), HardwareEvent.SpaceAvailable);
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
@@ -246,6 +356,12 @@ namespace Components
                     {
                         registryKey.DeleteValue("WinWidgets");
                     }
+                    break;
+
+                case "widgetStartup":
+                    Configuration configuration = AssetService.GetConfigurationFile();
+                    configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
+                    AssetService.OverwriteConfigurationFile(configuration);
                     break;
 
                 default:

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="applicationTitle" content="Simple Clock" />
+    <meta name="windowSize" content="586 306" />
+    <meta name="windowBorderRadius" content="43" />
+    <meta name="previewSize" content="586 306" />
+    <meta name="windowOpacity" content="175" />
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment-with-locales.min.js"
+      integrity="sha512-42PE0rd+wZ2hNXftlM78BSehIGzezNeQuzihiBCvUEB3CVxHvsShF86wBWwQORNxNINlBPuq7rG4WWhNiTVHFg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+  </head>
+  <body>
+    <div class="wrapper">
+      <span id="time"></span>
+    </div>
+  </body>
+</html>
+
+<script>
+  setInterval(() => {
+    const time = moment().format("HH:mm");
+    document.querySelector("#time").innerText = `${time}`;
+  }, 1000);
+</script>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+  * {
+    margin: 0;
+    padding: 0;
+  }
+
+  body,
+  html {
+    background-color: #323232;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .wrapper {
+    width: 585px;
+    height: 305px;
+  }
+
+  #time {
+    font-family: "Jaldi", sans-serif;
+    font-size: 180px;
+    color: white;
+    margin: 0px 75px;
+  }
+</style>

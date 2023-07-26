@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="applicationTitle" content="Laptop Battery" />
+    <meta name="windowSize" content="360 180" />
+    <meta name="windowBorderRadius" content="10" />
+    <meta name="previewSize" content="360 180" />
+    <meta name="windowOpacity" content="200" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+  </head>
+  <body>
+    <div class="wrapper">
+      <div class="battery" id="battery-icon">
+        <i class="fa-solid fa-battery-full"></i>
+      </div>
+      <span id="percent">100%</span>
+    </div>
+    <span class="status" id="status">Fully charged</span>
+  </body>
+</html>
+
+<script>
+  function onNativeBatteryLevelEvent(level) {
+    if (Number(level) >= 100) {
+      document.querySelector("#status").innerText = "Fully charged";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-full"></i>';
+    } else if (Number(level) >= 80) {
+      document.querySelector("#status").innerText = "High";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-three-quarters"></i>';
+    } else if (Number(level) >= 50) {
+      document.querySelector("#status").innerText = "Medium";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-half"></i>';
+    } else if (Number(level) >= 20) {
+      document.querySelector("#status").innerText = "Low";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-quarter"></i>';
+    } else {
+      document.querySelector("#status").innerText = "Very low";
+      document.querySelector("#battery-icon").innerHTML =
+        '<i class="fa-solid fa-battery-empty"></i>';
+    }
+
+    document.querySelector("#percent").innerText = `${level}%`;
+  }
+</script>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+  :root {
+    --black: #323232;
+    --lightgray: #f1f1f1;
+    --gray: #b9b9b9;
+    --darkgray: #b8b8b8;
+    --blue: #18a8fa;
+    --darkblue: #1393db;
+    --purple: rgb(211, 34, 211);
+    --orange: rgb(255, 102, 0);
+  }
+
+  html,
+  body {
+    background: var(--black);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  i {
+    color: white;
+    font-size: 80px;
+  }
+
+  span {
+    font-family: "Jaldi", sans-serif;
+    font-size: 50px;
+    color: white;
+  }
+
+  .wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 25px;
+  }
+
+  .status {
+    font-size: 24px;
+  }
+</style>

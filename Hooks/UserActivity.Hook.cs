@@ -739,7 +739,6 @@ namespace Snippets
                     keyData |= ((GetKeyState(VK_SHIFT) & 0x80) == 0x80 ? Keys.Shift : Keys.None);
                     keyData |= ((GetKeyState(VK_CONTROL) & 0x80) == 0x80 ? Keys.Control : Keys.None);
                     keyData |= ((GetKeyState(VK_MENU) & 0x80) == 0x80 ? Keys.Menu : Keys.None);
-                    Console.WriteLine(keyData);
                     KeyEventArgs e = new KeyEventArgs(keyData);
                     KeyDown(this, e);
                     handled = handled || e.Handled;

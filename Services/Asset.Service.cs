@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Models;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows.Forms;
 
@@ -17,9 +20,24 @@ namespace Services
         static public string assetsPath = Application.StartupPath + "/Assets";
 
         /// <summary>
+        /// Path to the Widget templates
+        /// </summary>
+        static public string templatePath = Path.Combine(assetsPath) + "/Templates";
+
+        /// <summary>
         /// Path to the html widgets
         /// </summary>
         static public string widgetsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Widgets");
+
+        /// <summary>
+        /// Path to the config path
+        /// </summary>
+        static public string configPath = Path.Combine(widgetsPath) + "/config.json";
+
+        /// <summary>
+        /// Semantic version of the application
+        /// </summary>
+        static private string version = "1.3.0";
 
         /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored
@@ -52,6 +70,70 @@ namespace Services
                 {
                     streamWriter.WriteLine(content);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Moves all files from the source path to the destination path
+        /// </summary>
+        /// <param name="source">Source path where the files are</param>
+        /// <param name="destination">Destination path where the files must go</param>
+        static public void MoveFilesToPath(string source, string destination)
+        {
+            if (Directory.Exists(destination))
+            {
+                string[] files = GetPathToHTMLFiles(source);
+
+                foreach (string path in files)
+                {
+                    string destinationFile = Path.Combine(destination, Path.GetFileName(path));
+
+                    if (!File.Exists(destinationFile))
+                    {
+                        File.Move(path, destinationFile);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Overwrites the configuration file with new content
+        /// </summary>
+        /// <param name="content">Configuration object to be overwritten</param>
+        static public void OverwriteConfigurationFile(Configuration configuration)
+        {
+            if (configuration.version != version)
+            {
+                configuration.version = version;
+            }
+
+            File.WriteAllText(configPath, JsonConvert.SerializeObject(configuration));
+        }
+
+        /// <summary>
+        /// Get all configuration from the configuration file
+        /// </summary>
+        /// <returns>Configuration struct with all configurations</returns>
+        static public Configuration GetConfigurationFile()
+        {
+            if (!File.Exists(AssetService.configPath))
+            {
+                OverwriteConfigurationFile(new Configuration() { 
+                    isWidgetAutostartEnabled = false, 
+                    lastSessionWidgets = new List<WidgetConfiguration>(), 
+                    version = "1.3.0" 
+                });
+
+                return GetConfigurationFile();
+            }
+
+            try
+            {
+                return JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(AssetService.configPath));
+            } catch
+            {
+                File.Delete(AssetService.configPath);
+                return GetConfigurationFile();
             }
         }
     }
