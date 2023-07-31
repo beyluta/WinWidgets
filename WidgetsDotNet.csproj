@@ -200,6 +200,9 @@
     <Content Include="Assets\Templates\battery.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\Templates\calculator.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Assets\Templates\codeeditor.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
