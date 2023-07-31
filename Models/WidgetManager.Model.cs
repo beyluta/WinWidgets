@@ -19,6 +19,6 @@ namespace Models
         /// <summary>
         /// Automatically starts all widgets in the config.js list 
         /// </summary>
-        abstract public void AutoStartWidgets();
+        abstract public void OpenWidgets();
     }
 }

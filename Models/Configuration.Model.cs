@@ -29,6 +29,11 @@ namespace Models
         public bool isWidgetAutostartEnabled { get; set; }
 
         /// <summary>
+        /// Should all widgets be hidden when an application enters fullscreen
+        /// </summary>
+        public bool isWidgetFullscreenHideEnabled { get; set; }
+
+        /// <summary>
         /// Widgets that weren't closed by the user since the last session ended
         /// </summary>
         public List<WidgetConfiguration> lastSessionWidgets { get; set; }

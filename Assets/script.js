@@ -79,7 +79,12 @@ function changeStartup(element) {
 
 function changeStartupWidgets(element) {
   setSwitchState(element);
-  CefSharp.PostMessage(element.getAttribute("setting")); 
+  CefSharp.PostMessage(element.getAttribute("setting"));
+}
+
+function hideWidgetsOnFullscreenApplication(element) {
+  setSwitchState(element);
+  CefSharp.PostMessage(element.getAttribute("setting"));
 }
 
 window.onload = () => {

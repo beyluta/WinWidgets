@@ -49,7 +49,7 @@ namespace Services
         /// <summary>
         /// Closes all opened widgets
         /// </summary>
-        public void CloseAllWidgets()
+        public void CloseAllWidgets(bool removeFromCurrentSession)
         {
             ArrayList deleteWidgets = new ArrayList();
 
@@ -65,7 +65,11 @@ namespace Services
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
                 AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
-                RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
+
+                if (removeFromCurrentSession)
+                {
+                    RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
+                }
             }
         }
 

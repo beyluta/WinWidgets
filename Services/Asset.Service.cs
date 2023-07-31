@@ -37,7 +37,7 @@ namespace Services
         /// <summary>
         /// Semantic version of the application
         /// </summary>
-        static private string version = "1.3.0";
+        static private string version = "1.3.1";
 
         /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored
@@ -120,8 +120,9 @@ namespace Services
             {
                 OverwriteConfigurationFile(new Configuration() { 
                     isWidgetAutostartEnabled = false, 
-                    lastSessionWidgets = new List<WidgetConfiguration>(), 
-                    version = "1.3.0" 
+                    lastSessionWidgets = new List<WidgetConfiguration>(),
+                    isWidgetFullscreenHideEnabled = false,
+                    version = version
                 });
 
                 return GetConfigurationFile();

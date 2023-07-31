@@ -281,6 +281,23 @@ svg {
   position: absolute;
   bottom: 0;
   left: 0;
+  z-index: 999;
+}
+
+.setting > .hideWidgetsOnFullscreenApplication:hover::after {
+  content: "Widgets will be closed to save computer resources. They will be reopened when the fullscreen application is closed.";
+  color: white;
+  padding: 8px 10px;
+  width: max-content;
+  max-width: 400px;
+  border-radius: 4px;
+  transform: translateY(90px);
+  background: var(--black);
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 999;
 }
 
 .switch {

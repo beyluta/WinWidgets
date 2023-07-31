@@ -133,6 +133,9 @@ namespace Components
                 + "}"
                 + "else if (setting == 'widgetStartup') {"
                 + $"{(AssetService.GetConfigurationFile().isWidgetAutostartEnabled ? "s.classList.add('switchon');" : "")}"
+                + "}" 
+                + "else if (setting == 'widgetHideOnFullscreenApplication') {"
+                + $"{(AssetService.GetConfigurationFile().isWidgetFullscreenHideEnabled ? "s.classList.add('switchon');" : "")}"
                 + "}}";
             string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
@@ -161,7 +164,7 @@ namespace Components
             browser.ExecuteScriptAsyncWhenPageLoaded(template);
         }
 
-        public override void AutoStartWidgets()
+        public override void OpenWidgets()
         {
             foreach (WidgetConfiguration widgetConfiguration in this.configuration.lastSessionWidgets)
             {
@@ -192,7 +195,7 @@ namespace Components
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            this.widgetService.CloseAllWidgets();
+            this.widgetService.CloseAllWidgets(true);
         }
 
         private void OnFormResized(object sender, EventArgs e)
@@ -240,7 +243,7 @@ namespace Components
             {
                 if (this.configuration.isWidgetAutostartEnabled)
                 {
-                    AutoStartWidgets();
+                    OpenWidgets();
                 }
             }));
 
@@ -259,6 +262,7 @@ namespace Components
                 HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
                 hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
                 hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
+                hardwareActivityHook.OnAnyApplicationFullscrenStatusChanged += OnAnyApplicationFullscrenStatusChanged;
             }));
         }
 
@@ -339,6 +343,23 @@ namespace Components
             CallJavaScriptFunction(freeSpace.ToString(), HardwareEvent.SpaceAvailable);
         }
 
+        private void OnAnyApplicationFullscrenStatusChanged(bool fullscreen)
+        {
+            this.configuration = AssetService.GetConfigurationFile();
+
+            if (this.configuration.isWidgetFullscreenHideEnabled)
+            {
+                if (fullscreen)
+                {
+                    this.widgetService.CloseAllWidgets(false);
+                }
+                else
+                {
+                    this.OpenWidgets();
+                }
+            }
+        }
+
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
         {
             switch (e.Message)
@@ -359,9 +380,19 @@ namespace Components
                     break;
 
                 case "widgetStartup":
-                    Configuration configuration = AssetService.GetConfigurationFile();
-                    configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
-                    AssetService.OverwriteConfigurationFile(configuration);
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
+                    break;
+
+                case "widgetHideOnFullscreenApplication":
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.isWidgetFullscreenHideEnabled = !configuration.isWidgetFullscreenHideEnabled;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
                     break;
 
                 default:
