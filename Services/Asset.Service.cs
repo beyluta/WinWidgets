@@ -37,7 +37,7 @@ namespace Services
         /// <summary>
         /// Semantic version of the application
         /// </summary>
-        static private string version = "1.3.1";
+        static private string version = "1.3.2";
 
         /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored
@@ -122,6 +122,7 @@ namespace Services
                     isWidgetAutostartEnabled = false, 
                     lastSessionWidgets = new List<WidgetConfiguration>(),
                     isWidgetFullscreenHideEnabled = false,
+                    hideWidgetManagerOnStartup = false,
                     version = version
                 });
 

@@ -300,6 +300,22 @@ svg {
   z-index: 999;
 }
 
+.setting > .hideWidgetManagerOnStart:hover::after {
+  content: "The main Widget-Manager window will be hidden by default when the application starts.";
+  color: white;
+  padding: 8px 10px;
+  width: max-content;
+  max-width: 400px;
+  border-radius: 4px;
+  transform: translateY(70px);
+  background: var(--black);
+  display: block;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 999;
+}
+
 .switch {
   width: 39px;
   height: 23px;

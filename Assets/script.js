@@ -72,17 +72,7 @@ function setSwitchState(element) {
   }
 }
 
-function changeStartup(element) {
-  setSwitchState(element);
-  CefSharp.PostMessage(element.getAttribute("setting"));
-}
-
-function changeStartupWidgets(element) {
-  setSwitchState(element);
-  CefSharp.PostMessage(element.getAttribute("setting"));
-}
-
-function hideWidgetsOnFullscreenApplication(element) {
+function setOptionState(element) {
   setSwitchState(element);
   CefSharp.PostMessage(element.getAttribute("setting"));
 }

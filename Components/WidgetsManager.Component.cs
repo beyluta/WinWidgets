@@ -15,7 +15,7 @@ using System.IO;
 using System.Timers;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
-
+using WidgetsDotNet.Services;
 
 namespace Components
 {
@@ -34,6 +34,7 @@ namespace Components
         private TemplateService templateService = new TemplateService();
         private WidgetService widgetService = new WidgetService();
         private TimerService timerService = new TimerService();
+        private WidgetManager widgetManager = new WidgetManager();
 
         public override string htmlPath 
         { 
@@ -136,6 +137,9 @@ namespace Components
                 + "}" 
                 + "else if (setting == 'widgetHideOnFullscreenApplication') {"
                 + $"{(AssetService.GetConfigurationFile().isWidgetFullscreenHideEnabled ? "s.classList.add('switchon');" : "")}"
+                + "}"
+                + "else if (setting == 'managerHideOnStart') {"
+                + $"{(AssetService.GetConfigurationFile().hideWidgetManagerOnStartup ? "s.classList.add('switchon');" : "")}"
                 + "}}";
             string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
@@ -244,6 +248,11 @@ namespace Components
                 if (this.configuration.isWidgetAutostartEnabled)
                 {
                     OpenWidgets();
+                }
+
+                if (this.configuration.hideWidgetManagerOnStartup)
+                {
+                    this.widgetManager.MinimizeWidgetManager(window);
                 }
             }));
 
@@ -391,6 +400,14 @@ namespace Components
                     {
                         Configuration configuration = AssetService.GetConfigurationFile();
                         configuration.isWidgetFullscreenHideEnabled = !configuration.isWidgetFullscreenHideEnabled;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
+                    break;
+
+                case "managerHideOnStart":
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.hideWidgetManagerOnStartup = !configuration.hideWidgetManagerOnStartup;
                         AssetService.OverwriteConfigurationFile(configuration);
                     }
                     break;
