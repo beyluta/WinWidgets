@@ -167,6 +167,7 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="Services\Widget.Service.cs" />
+    <Compile Include="Services\WidgetManager.Service.cs" />
     <Compile Include="Services\Window.Service.cs" />
   </ItemGroup>
   <ItemGroup>

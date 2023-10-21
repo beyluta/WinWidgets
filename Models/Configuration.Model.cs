@@ -29,6 +29,11 @@ namespace Models
         public bool isWidgetAutostartEnabled { get; set; }
 
         /// <summary>
+        /// Should the widget manager be hidden when the software starts
+        /// </summary>
+        public bool hideWidgetManagerOnStartup { get; set; }
+
+        /// <summary>
         /// Should all widgets be hidden when an application enters fullscreen
         /// </summary>
         public bool isWidgetFullscreenHideEnabled { get; set; }
