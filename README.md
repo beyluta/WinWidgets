@@ -58,15 +58,12 @@ You can find the latest version of WinWidgets on the [release page](https://gith
 
 <!-- GETTING STARTED -->
 
-## Development
-
-### Prerequisites
+## Prerequisites
 
 List of software required. Make sure all of these are installed.
 
-- Visual Studio 2022
 - .NET Framework 4.7.2
-- Microsoft Visual C++ 2015-2019
+- [Microsoft Visual C++ 2015-2019](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022)
 
 <!-- CONTRIBUTING -->
 
