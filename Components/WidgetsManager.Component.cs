@@ -96,7 +96,7 @@ namespace Components
             CreateWindow(width, height, "WinWidgets", false);
         }
 
-        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point), bool? alwaysOnTop = null)
         {
             window = new WidgetForm(false);
             window.Size = new Size(width, height);
@@ -175,7 +175,8 @@ namespace Components
                 OpenWidget(widgetConfiguration.path, new Point(
                     widgetConfiguration.position.X, 
                     widgetConfiguration.position.Y
-                ));
+                ),
+                widgetConfiguration.alwaysOnTop);
             }
         }
 
@@ -188,13 +189,13 @@ namespace Components
             widget.CreateWindow(300, 300, $"Widget{id}", true);
         }
 
-        public override void OpenWidget(string path, Point position)
+        public override void OpenWidget(string path, Point position, bool? alwaysOnTop)
         {
             WidgetComponent widget = new WidgetComponent();
             AssetService.widgets.AddWidget(widget);
 
             widget.htmlPath = path;
-            widget.CreateWindow(300, 300, $"Widget{path}", false, position);
+            widget.CreateWindow(300, 300, $"Widget{path}", false, position, alwaysOnTop);
         }
 
         private void OnStopAllWidgets(object sender, EventArgs e)

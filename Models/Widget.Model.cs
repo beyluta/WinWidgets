@@ -41,7 +41,7 @@ namespace Models
         /// <param name="title">Title of the window</param>
         /// <param name="save">Should the widget be saved immediately upon creation to the config.js file</param>
         /// <param name="position">Position of the window</param>
-        abstract public void CreateWindow(int width, int height, string title, bool save, Point position = default(Point));
+        abstract public void CreateWindow(int width, int height, string title, bool save, Point position = default(Point), bool? alwaysOnTop = null);
 
         /// <summary>
         /// Appends the widget control to the window
