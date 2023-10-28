@@ -18,9 +18,9 @@ namespace Components
         public void OnBeforeContextMenu(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, IMenuModel model)
         {
             this.menuHandlerService.ClearModel(model);
-            this.menuHandlerService.AddOption("Toggle Move", 0, model);
-            this.menuHandlerService.AddOption("Toggle Always on Top", 1, model);
-            this.menuHandlerService.AddOption("Close Widget", 2, model);
+            this.menuHandlerService.AddOption("Move", 0, false, model);
+            this.menuHandlerService.AddOption("Always on Top", 1, widgetComponent.window.TopMost, model);
+            this.menuHandlerService.AddOption("Close Widget", 2, false, model);
         }
 
         public bool OnContextMenuCommand(IWebBrowser chromiumWebBrowser, IBrowser browser, IFrame frame, IContextMenuParams parameters, CefMenuCommand commandId, CefEventFlags eventFlags)

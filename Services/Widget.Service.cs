@@ -29,6 +29,7 @@ namespace Services
             widget.window.Invoke(new MethodInvoker(delegate ()
             {
                 widget.window.TopMost = !widget.window.TopMost;
+                AddOrUpdateSession(widget.htmlPath, widget.window.Location, widget.window.TopMost);
             }));
         }
 
@@ -49,7 +50,7 @@ namespace Services
         /// <summary>
         /// Closes all opened widgets
         /// </summary>
-        public void CloseAllWidgets()
+        public void CloseAllWidgets(bool removeFromCurrentSession)
         {
             ArrayList deleteWidgets = new ArrayList();
 
@@ -65,7 +66,11 @@ namespace Services
             for (int i = 0; i < deleteWidgets.Count; i++)
             {
                 AssetService.widgets.RemoveWidget((WidgetComponent)deleteWidgets[i]);
-                RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
+
+                if (removeFromCurrentSession)
+                {
+                    RemoveFromSession(((WidgetComponent)deleteWidgets[i]).htmlPath);
+                }
             }
         }
 
@@ -74,7 +79,8 @@ namespace Services
         /// </summary>
         /// <param name="path">Path of the widget</param>
         /// <param name="position">Position of the widget</param>
-        public void AddOrUpdateSession(string path, Point position)
+        /// <param name="alwaysOnTop">Whether the widget is "Always on top"</param>
+        public void AddOrUpdateSession(string path, Point position, bool alwaysOnTop)
         {
             Configuration configuration = AssetService.GetConfigurationFile();
 
@@ -85,7 +91,8 @@ namespace Services
                     configuration.lastSessionWidgets[i] = new WidgetConfiguration()
                     {
                         path = path,
-                        position = position
+                        position = position,
+                        alwaysOnTop = alwaysOnTop
                     };
 
                     AssetService.OverwriteConfigurationFile(configuration);

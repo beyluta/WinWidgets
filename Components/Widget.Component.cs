@@ -65,7 +65,7 @@ namespace Components
             window.Controls.Add(browser);
         }
 
-        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point), bool? alwaysOnTop = null)
         {
             new Thread(() =>
             {
@@ -84,13 +84,14 @@ namespace Components
                 int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
                 byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
                 bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
+                topMost = alwaysOnTop.HasValue ? (bool)alwaysOnTop : topMost;
 
                 window = new WidgetForm();
                 window.Size = new Size(this.width, this.height);
                 window.StartPosition = FormStartPosition.Manual;
                 window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
                 window.Text = title;
-                window.TopMost = topMost;
+                // window.TopMost = topMost; delayed, because it causes a FormActivate event to be dispatched prematurely
                 window.FormBorderStyle = FormBorderStyle.None;
                 window.ShowInTaskbar = false;
                 window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
@@ -103,11 +104,12 @@ namespace Components
 
                 if (save)
                 {
-                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY));
+                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY), topMost);
                     AssetService.OverwriteConfigurationFile(AssetService.GetConfigurationFile());
                 }
 
                 AppendWidget(window, htmlPath);
+                window.TopMost = topMost;
                 window.ShowDialog();
             }).Start();
         }
@@ -133,7 +135,7 @@ namespace Components
                 window.Invoke(new MethodInvoker(delegate ()
                 {
                     window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
-                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
+                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location, window.TopMost);
                 }));
             }
         }
@@ -141,7 +143,10 @@ namespace Components
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-            browser.MenuHandler = new MenuHandlerComponent(this);
+            if (browser != null)
+            {
+                browser.MenuHandler = new MenuHandlerComponent(this);
+            }
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)

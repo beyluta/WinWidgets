@@ -19,9 +19,10 @@ namespace Services
         /// <param name="option">Name of the option to add</param>
         /// <param name="index">ID of the position of the option</param>
         /// <param name="model">Model of the menu to add the option to</param>
-        public void AddOption(string option, int index, IMenuModel model)
+        public void AddOption(string option, int index, bool checkd, IMenuModel model)
         {
-            model.AddItem((CefMenuCommand)index, option);
+            model.AddCheckItem((CefMenuCommand)index, option);
+            model.SetChecked((CefMenuCommand)index, checkd);
         }
     }
 }

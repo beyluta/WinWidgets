@@ -72,14 +72,9 @@ function setSwitchState(element) {
   }
 }
 
-function changeStartup(element) {
+function setOptionState(element) {
   setSwitchState(element);
   CefSharp.PostMessage(element.getAttribute("setting"));
-}
-
-function changeStartupWidgets(element) {
-  setSwitchState(element);
-  CefSharp.PostMessage(element.getAttribute("setting")); 
 }
 
 window.onload = () => {

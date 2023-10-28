@@ -1,8 +1,6 @@
 ﻿using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
-using System.Management;
-using System;
-using Models;
 
 namespace Services
 {
@@ -27,5 +25,12 @@ namespace Services
         {
             return (new DriveInfo(driveLetter)).AvailableFreeSpace;
         }
+
+        /// <summary>
+        /// Calls the WidgetsDotNetCore DLL and checks if any application using DirectX is fullscreen
+        /// </summary>
+        /// <returns>Whether any DirectX application is fullscreen</returns>
+        [DllImport(@"WidgetsDotNetCore.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern bool isAnyApplicationFullscreen();
     }
 }

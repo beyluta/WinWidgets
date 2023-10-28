@@ -15,7 +15,7 @@ using System.IO;
 using System.Timers;
 using System.Windows.Forms;
 using WidgetsDotNet.Properties;
-
+using WidgetsDotNet.Services;
 
 namespace Components
 {
@@ -34,6 +34,7 @@ namespace Components
         private TemplateService templateService = new TemplateService();
         private WidgetService widgetService = new WidgetService();
         private TimerService timerService = new TimerService();
+        private WidgetManager widgetManager = new WidgetManager();
 
         public override string htmlPath 
         { 
@@ -95,7 +96,7 @@ namespace Components
             CreateWindow(width, height, "WinWidgets", false);
         }
 
-        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point), bool? alwaysOnTop = null)
         {
             window = new WidgetForm(false);
             window.Size = new Size(width, height);
@@ -133,6 +134,12 @@ namespace Components
                 + "}"
                 + "else if (setting == 'widgetStartup') {"
                 + $"{(AssetService.GetConfigurationFile().isWidgetAutostartEnabled ? "s.classList.add('switchon');" : "")}"
+                + "}" 
+                + "else if (setting == 'widgetHideOnFullscreenApplication') {"
+                + $"{(AssetService.GetConfigurationFile().isWidgetFullscreenHideEnabled ? "s.classList.add('switchon');" : "")}"
+                + "}"
+                + "else if (setting == 'managerHideOnStart') {"
+                + $"{(AssetService.GetConfigurationFile().hideWidgetManagerOnStartup ? "s.classList.add('switchon');" : "")}"
                 + "}}";
             string[] files = AssetService.GetPathToHTMLFiles(AssetService.widgetsPath);
 
@@ -161,14 +168,15 @@ namespace Components
             browser.ExecuteScriptAsyncWhenPageLoaded(template);
         }
 
-        public override void AutoStartWidgets()
+        public override void OpenWidgets()
         {
             foreach (WidgetConfiguration widgetConfiguration in this.configuration.lastSessionWidgets)
             {
                 OpenWidget(widgetConfiguration.path, new Point(
                     widgetConfiguration.position.X, 
                     widgetConfiguration.position.Y
-                ));
+                ),
+                widgetConfiguration.alwaysOnTop);
             }
         }
 
@@ -181,18 +189,18 @@ namespace Components
             widget.CreateWindow(300, 300, $"Widget{id}", true);
         }
 
-        public override void OpenWidget(string path, Point position)
+        public override void OpenWidget(string path, Point position, bool? alwaysOnTop)
         {
             WidgetComponent widget = new WidgetComponent();
             AssetService.widgets.AddWidget(widget);
 
             widget.htmlPath = path;
-            widget.CreateWindow(300, 300, $"Widget{path}", false, position);
+            widget.CreateWindow(300, 300, $"Widget{path}", false, position, alwaysOnTop);
         }
 
         private void OnStopAllWidgets(object sender, EventArgs e)
         {
-            this.widgetService.CloseAllWidgets();
+            this.widgetService.CloseAllWidgets(true);
         }
 
         private void OnFormResized(object sender, EventArgs e)
@@ -240,7 +248,12 @@ namespace Components
             {
                 if (this.configuration.isWidgetAutostartEnabled)
                 {
-                    AutoStartWidgets();
+                    OpenWidgets();
+                }
+
+                if (this.configuration.hideWidgetManagerOnStartup)
+                {
+                    this.widgetManager.MinimizeWidgetManager(window);
                 }
             }));
 
@@ -259,6 +272,7 @@ namespace Components
                 HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
                 hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
                 hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
+                hardwareActivityHook.OnAnyApplicationFullscrenStatusChanged += OnAnyApplicationFullscrenStatusChanged;
             }));
         }
 
@@ -339,6 +353,23 @@ namespace Components
             CallJavaScriptFunction(freeSpace.ToString(), HardwareEvent.SpaceAvailable);
         }
 
+        private void OnAnyApplicationFullscrenStatusChanged(bool fullscreen)
+        {
+            this.configuration = AssetService.GetConfigurationFile();
+
+            if (this.configuration.isWidgetFullscreenHideEnabled)
+            {
+                if (fullscreen)
+                {
+                    this.widgetService.CloseAllWidgets(false);
+                }
+                else
+                {
+                    this.OpenWidgets();
+                }
+            }
+        }
+
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
         {
             switch (e.Message)
@@ -359,9 +390,27 @@ namespace Components
                     break;
 
                 case "widgetStartup":
-                    Configuration configuration = AssetService.GetConfigurationFile();
-                    configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
-                    AssetService.OverwriteConfigurationFile(configuration);
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.isWidgetAutostartEnabled = !configuration.isWidgetAutostartEnabled;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
+                    break;
+
+                case "widgetHideOnFullscreenApplication":
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.isWidgetFullscreenHideEnabled = !configuration.isWidgetFullscreenHideEnabled;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
+                    break;
+
+                case "managerHideOnStart":
+                    {
+                        Configuration configuration = AssetService.GetConfigurationFile();
+                        configuration.hideWidgetManagerOnStartup = !configuration.hideWidgetManagerOnStartup;
+                        AssetService.OverwriteConfigurationFile(configuration);
+                    }
                     break;
 
                 default:
