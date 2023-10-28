@@ -14,6 +14,8 @@ namespace Models
         /// Position on the screen where the widget was last seen
         /// </summary>
         public Point position { get; set; }
+
+        public bool alwaysOnTop { get; set; }
     }
 
     internal struct Configuration

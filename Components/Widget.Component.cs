@@ -65,7 +65,7 @@ namespace Components
             window.Controls.Add(browser);
         }
 
-        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point))
+        public override void CreateWindow(int width, int height, string title, bool save, Point position = default(Point), bool? alwaysOnTop = null)
         {
             new Thread(() =>
             {
@@ -84,6 +84,7 @@ namespace Components
                 int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
                 byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
                 bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
+                topMost = alwaysOnTop.HasValue ? (bool)alwaysOnTop : topMost;
 
                 window = new WidgetForm();
                 window.Size = new Size(this.width, this.height);
@@ -103,7 +104,7 @@ namespace Components
 
                 if (save)
                 {
-                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY));
+                    this.widgetService.AddOrUpdateSession(htmlPath, new Point(locationX, locationY), topMost);
                     AssetService.OverwriteConfigurationFile(AssetService.GetConfigurationFile());
                 }
 
@@ -134,7 +135,7 @@ namespace Components
                 window.Invoke(new MethodInvoker(delegate ()
                 {
                     window.Location = new Point(pos.X - width / 2, pos.Y - height / 2);
-                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location);
+                    this.widgetService.AddOrUpdateSession(this.htmlPath, window.Location, window.TopMost);
                 }));
             }
         }
