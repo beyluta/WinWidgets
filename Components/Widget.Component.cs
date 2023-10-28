@@ -90,7 +90,7 @@ namespace Components
                 window.StartPosition = FormStartPosition.Manual;
                 window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
                 window.Text = title;
-                window.TopMost = topMost;
+                // window.TopMost = topMost; delayed, because it causes a FormActivate event to be dispatched prematurely
                 window.FormBorderStyle = FormBorderStyle.None;
                 window.ShowInTaskbar = false;
                 window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
@@ -108,6 +108,7 @@ namespace Components
                 }
 
                 AppendWidget(window, htmlPath);
+                window.TopMost = topMost;
                 window.ShowDialog();
             }).Start();
         }
@@ -141,7 +142,10 @@ namespace Components
         private void OnFormActivated(object sender, EventArgs e)
         {
             handle = window.Handle;
-            browser.MenuHandler = new MenuHandlerComponent(this);
+            if (browser != null)
+            {
+                browser.MenuHandler = new MenuHandlerComponent(this);
+            }
         }
 
         private void OnBrowserMessageReceived(object sender, JavascriptMessageReceivedEventArgs e)
