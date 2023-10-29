@@ -1,25 +1,23 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="applicationTitle" content="Storage Status" />
-    <meta name="windowSize" content="360 180" />
-    <meta name="windowBorderRadius" content="10" />
-    <meta name="previewSize" content="360 180" />
-    <meta name="windowOpacity" content="200" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-  </head>
-  <body>
-    <span class="drive-wrapper"><i class="fa-solid fa-hard-drive"></i>C:\</span>
-    <div class="wrapper">
-      <span id="gigabytes">250GB</span>
-    </div>
-  </body>
+<head>
+  <meta name="applicationTitle" content="Storage Status" />
+  <meta name="windowSize" content="360 180" />
+  <meta name="windowBorderRadius" content="10" />
+  <meta name="previewSize" content="360 180" />
+  <meta name="windowOpacity" content="200" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+</head>
+<body>
+  <span class="drive-wrapper"><i class="fa-solid fa-hard-drive"></i>C:\</span>
+  <div class="wrapper">
+    <span id="gigabytes">250GB</span>
+  </div>
+</body>
 </html>
 
 <script>
@@ -86,17 +84,17 @@
     text-align: center;
   }
 
-  .wrapper > span:nth-child(1)::after {
-    content: "Of Available Space";
-    display: block;
-    text-align: center;
-    margin-top: -20px;
-    color: var(--gray);
-    font-size: 20px;
-  }
+    .wrapper > span:nth-child(1)::after {
+      content: "Of Available Space";
+      display: block;
+      text-align: center;
+      margin-top: -20px;
+      color: var(--gray);
+      font-size: 20px;
+    }
 
-  .wrapper > span:nth-child(2) {
-    font-size: 20px;
-    color: var(--lightgray);
-  }
+    .wrapper > span:nth-child(2) {
+      font-size: 20px;
+      color: var(--lightgray);
+    }
 </style>
