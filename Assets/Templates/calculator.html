@@ -1,159 +1,5 @@
-<!-- Sample HTML Template made for the Open-Source software WinWidgets -->
-<style>
-  @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
-
-  body,
-  html {
-    background: rgb(19, 19, 19);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: Jaldi, sans-serif, monospace;
-    overflow: hidden;
-    user-select: none;
-    -moz-user-select: none;
-  }
-
-  .calculator-body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    width: 360px;
-    z-index: 1;
-    font-weight: semibold;
-  }
-
-  .buttons {
-    display: flex;
-    flex-direction: row;
-    gap: 8px;
-  }
-
-  .button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: black;
-    opacity: 0.8;
-    color: white;
-    padding: 10px 0;
-    width: 0.5rem;
-    border-radius: 10px;
-    flex: 1 1 10px;
-    transition: background-color 0.1s ease-in-out, border 0.1s ease-in-out;
-    cursor: pointer;
-    border: 1px solid black;
-  }
-
-    .button:hover {
-      background-color: rgb(19, 19, 19);
-      border: 1px solid rgb(209, 67, 15);
-    }
-
-  .display {
-    background: black;
-    opacity: 0.8;
-    color: white;
-    width: 100%;
-    padding: 20px;
-    border-radius: 10px;
-    min-height: 20px;
-    display: flex;
-    align-items: center;
-  }
-
-  .equals {
-    background: rgb(209, 67, 15);
-  }
-
-  sup {
-    position: relative;
-    top: -0.3em;
-  }
-
-  sub {
-    position: relative;
-    top: 0.3em;
-  }
-</style>
-
-<script>
-  var isMouseOverDOM = false;
-
-  var keyPressTime = new Date();
-
-  var toExec = " ";
-
-  var expressionRegistry = {
-    "tan(":"Math.tan(",
-    "sin(":"Math.sin(",
-    "cos(":"Math.cos(",
-    "deg":"*Math.PI/180",
-    "ln(":"Math.log(",
-    "lg(":"Math.log10(",
-    "^":"**",
-    "°":"*Math.PI*180",
-    "rad":"*180/Math.PI",
-    "e":"Math.E",
-    "π":"Math.PI",
-    "abs(":"Math.abs(",
-    "^3":"**3",
-    "^-1":"**-1",
-    "√(":"Math.sqrt(",
-    "%":"/100"
-  };
-
-  document.addEventListener('mouseover', () => isMouseOverDOM = true);
-
-  document.addEventListener('mouseout', () => isMouseOverDOM = false);
-
-  function onClear() {
-    document.getElementById("calculation").innerText = "";
-    toExec = "";
-    document.getElementById("toExec").innerText = toExec;
-  }
-
-  function onEqualsClicked() {
-    const calc = document.getElementById("calculation");
-    calc.innerText = eval(toExec);
-    toExec = calc.innerText;
-  }
-
-  function onButtonClicked(e) {
-    document.getElementById("calculation").innerText += e;
-    toExec += e;
-    //document.getElementById("toExec").innerText = toExec;
-  }
-
-  function onSpecialClicked(e){
-    document.getElementById("calculation").innerText += e;
-    toExec += expressionRegistry[e];
-    //document.getElementById("toExec").innerText = toExec;
-  }
-
-  function onNativeKeyEvents(key) {
-    /*
-    ** 1- Checking if the input type is a keyboard event
-    ** 2- Checking if the time between the last key press and the current one is greater than 150ms
-    ** 3- Checking if the mouse is over the DOM
-    */
-    if (key.eventType == "keyboardEvent" && (new Date() - keyPressTime) > 150 && isMouseOverDOM) {
-      //Getting the key code
-      var code = parseInt(key.keycode);
-      // Just input validation
-      if ((code >= 40 && code <= 43)||(code >= 47 && code <= 57)) {
-        const char = String.fromCharCode(parseInt(key.keycode));
-        keyPressTime = new Date();
-        onButtonClicked(char);
-      }
-    }
-  }
-
-
-
-</script>
-
 <!DOCTYPE html>
+<!-- Sample HTML Template made for the Open-Source software WinWidgets -->
 <html>
 <head>
   <meta name="applicationTitle" content="Calculator" />
@@ -161,6 +7,158 @@
   <meta name="windowBorderRadius" content="10" />
   <meta name="previewSize" content="450 400" />
   <meta name="windowOpacity" content="240" />
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
+
+    body,
+    html {
+      background: rgb(19, 19, 19);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: Jaldi, sans-serif, monospace;
+      overflow: hidden;
+      user-select: none;
+      -moz-user-select: none;
+    }
+
+    .calculator-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 360px;
+      z-index: 1;
+      font-weight: semibold;
+    }
+
+    .buttons {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+    }
+
+    .button {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: black;
+      opacity: 0.8;
+      color: white;
+      padding: 10px 0;
+      width: 0.5rem;
+      border-radius: 10px;
+      flex: 1 1 10px;
+      transition: background-color 0.1s ease-in-out, border 0.1s ease-in-out;
+      cursor: pointer;
+      border: 1px solid black;
+    }
+
+      .button:hover {
+        background-color: rgb(19, 19, 19);
+        border: 1px solid rgb(209, 67, 15);
+      }
+
+    .display {
+      background: black;
+      opacity: 0.8;
+      color: white;
+      width: 100%;
+      padding: 20px;
+      border-radius: 10px;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+    }
+
+    .equals {
+      background: rgb(209, 67, 15);
+    }
+
+    sup {
+      position: relative;
+      top: -0.3em;
+    }
+
+    sub {
+      position: relative;
+      top: 0.3em;
+    }
+  </style>
+
+  <script>
+    var isMouseOverDOM = false;
+
+    var keyPressTime = new Date();
+
+    var toExec = " ";
+
+    var expressionRegistry = {
+      "tan(": "Math.tan(",
+      "sin(": "Math.sin(",
+      "cos(": "Math.cos(",
+      "deg": "*Math.PI/180",
+      "ln(": "Math.log(",
+      "lg(": "Math.log10(",
+      "^": "**",
+      "°": "*Math.PI*180",
+      "rad": "*180/Math.PI",
+      "e": "Math.E",
+      "π": "Math.PI",
+      "abs(": "Math.abs(",
+      "^3": "**3",
+      "^-1": "**-1",
+      "√(": "Math.sqrt(",
+      "%": "/100"
+    };
+
+    document.addEventListener('mouseover', () => isMouseOverDOM = true);
+
+    document.addEventListener('mouseout', () => isMouseOverDOM = false);
+
+    function onClear() {
+      document.getElementById("calculation").innerText = "";
+      toExec = "";
+      document.getElementById("toExec").innerText = toExec;
+    }
+
+    function onEqualsClicked() {
+      const calc = document.getElementById("calculation");
+      calc.innerText = eval(toExec);
+      toExec = calc.innerText;
+    }
+
+    function onButtonClicked(e) {
+      document.getElementById("calculation").innerText += e;
+      toExec += e;
+      //document.getElementById("toExec").innerText = toExec;
+    }
+
+    function onSpecialClicked(e) {
+      document.getElementById("calculation").innerText += e;
+      toExec += expressionRegistry[e];
+      //document.getElementById("toExec").innerText = toExec;
+    }
+
+    function onNativeKeyEvents(key) {
+      /*
+      ** 1- Checking if the input type is a keyboard event
+      ** 2- Checking if the time between the last key press and the current one is greater than 150ms
+      ** 3- Checking if the mouse is over the DOM
+      */
+      if (key.eventType == "keyboardEvent" && (new Date() - keyPressTime) > 150 && isMouseOverDOM) {
+        //Getting the key code
+        var code = parseInt(key.keycode);
+        // Just input validation
+        if ((code >= 40 && code <= 43) || (code >= 47 && code <= 57)) {
+          const char = String.fromCharCode(parseInt(key.keycode));
+          keyPressTime = new Date();
+          onButtonClicked(char);
+        }
+      }
+    }
+
+
+  </script>
 </head>
 <body>
   <div class="calculator-body">
