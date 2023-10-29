@@ -140,6 +140,9 @@
       // equivalent to say that any value below 1e-8 is zero
       result = '' + Number.parseFloat(result.toFixed(8));
 
+      // Handle scientific notation. If we don't do that, we won't be able to use computing results, as 1e-8 is replaced by 1Math.E-8
+      result = result.replace('e', '*10^');
+
       calc.innerText = result;
       toExec = calc.innerText;
     }
