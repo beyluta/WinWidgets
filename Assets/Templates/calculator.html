@@ -65,6 +65,16 @@
   .equals {
     background: rgb(209, 67, 15);
   }
+
+  sup {
+    position: relative;
+    top: -0.3em;
+  }
+
+  sub {
+    position: relative;
+    top: 0.3em;
+  }
 </style>
 
 <script>
@@ -157,11 +167,11 @@
     <div class="display" id="calculation"></div>
     <div class="buttons">
       <div class="button" onclick="onSpecialClicked('abs(')">abs</div>
-      <div class="button" onclick="onSpecialClicked('^3')">^3</div>
-      <div class="button" onclick="onSpecialClicked('^-1')">^-1</div>
+      <div class="button" onclick="onSpecialClicked('^3')">x<sup>3</sup></div>
+      <div class="button" onclick="onSpecialClicked('^-1')"><sup>1</sup>/<sub>x</sub></div>
       <div class="button" onclick="onSpecialClicked('√(')">√</div>
-      <div class="button" onclick="onSpecialClicked('^2')">x^2</div>
-      <div class="button" onclick="onSpecialClicked('^')">^x</sup></div>
+      <div class="button" onclick="onSpecialClicked('^2')">x<sup>2</sup></div>
+      <div class="button" onclick="onSpecialClicked('^')">x<sup>y</sup></div>
     </div>
     <div class="buttons">
       <div class="button" onclick="onSpecialClicked('lg(')">lg</div>
@@ -172,9 +182,9 @@
       <div class="button" onclick="onSpecialClicked('°')">°</div>
     </div>
     <div class="buttons">
-      <div class="button" onclick="onSpecialClicked('asin(')">asin</div>
-      <div class="button" onclick="onSpecialClicked('acos(')">acos</div>
-      <div class="button" onclick="onSpecialClicked('atan(')">atan</div>
+      <div class="button" onclick="onSpecialClicked('asin(')">sin<sup>-1</sup></div>
+      <div class="button" onclick="onSpecialClicked('acos(')">cos<sup>-1</sup></div>
+      <div class="button" onclick="onSpecialClicked('atan(')">tan<sup>-1</sup></div>
       <div class="button" onclick="onButtonClicked('(')">(</div>
       <div class="button" onclick="onButtonClicked(')')">)</div>
       <div class="button" onclick="onSpecialClicked('rad')">rad</div>
