@@ -134,7 +134,13 @@
 
     function onEqualsClicked() {
       const calc = document.getElementById("calculation");
-      calc.innerText = eval(toExec);
+
+      let result = eval(toExec);
+      // get rid of floating point evil (so that cos(pi/2) = 0, not 6.123233996e-17)
+      // equivalent to say that any value below 1e-8 is zero
+      result = '' + Number.parseFloat(result.toFixed(8));
+
+      calc.innerText = result;
       toExec = calc.innerText;
     }
 
