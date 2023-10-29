@@ -10,31 +10,44 @@
   <style>
     @import url("https://fonts.googleapis.com/css2?family=Jaldi&display=swap");
 
+    html {
+      padding: 10px;
+    }
+
     body,
     html {
       background: rgb(19, 19, 19);
-      display: flex;
-      justify-content: center;
-      align-items: center;
       font-family: Jaldi, sans-serif, monospace;
-      overflow: hidden;
       user-select: none;
       -moz-user-select: none;
+      margin: 0;
+      height: 100%;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      max-width: 300px;
+      max-height: 420px;
+      margin: auto;
     }
 
     .calculator-body {
       display: flex;
       flex-direction: column;
       gap: 8px;
-      width: 360px;
       z-index: 1;
-      font-weight: semibold;
+      font-weight: normal;
+      height: 100%;
     }
 
     .buttons {
       display: flex;
       flex-direction: row;
       gap: 8px;
+      flex-grow: 1;
     }
 
     .button {
@@ -44,8 +57,6 @@
       background: black;
       opacity: 0.8;
       color: white;
-      padding: 10px 0;
-      width: 0.5rem;
       border-radius: 10px;
       flex: 1 1 10px;
       transition: background-color 0.1s ease-in-out, border 0.1s ease-in-out;
@@ -53,10 +64,10 @@
       border: 1px solid black;
     }
 
-      .button:hover {
-        background-color: rgb(19, 19, 19);
-        border: 1px solid rgb(209, 67, 15);
-      }
+    .button:hover {
+      background-color: rgb(19, 19, 19);
+      border: 1px solid rgb(209, 67, 15);
+    }
 
     .display {
       background: black;
