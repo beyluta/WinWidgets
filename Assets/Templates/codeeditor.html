@@ -1,55 +1,47 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="applicationTitle" content="Simple JS Code Editor" />
-    <meta name="windowSize" content="360 350" />
-    <meta name="windowBorderRadius" content="10" />
-    <meta name="previewSize" content="360 180" />
-    <meta name="windowOpacity" content="200" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.32.0/codemirror.min.js"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.32.0/codemirror.min.css"
-    />
-    <script
-      src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"
-      integrity="sha512-I6CdJdruzGtvDyvdO4YsiAq+pkWf2efgd1ZUSK2FnM/u2VuRASPC7GowWQrWyjxCZn6CT89s3ddGI+be0Ak9Fg=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    ></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/material-darker.min.css"
-      integrity="sha512-2OhXH4Il3n2tHKwLLSDPhrkgnLBC+6lHGGQzSFi3chgVB6DJ/v6+nbx+XYO9CugQyHVF/8D/0k3Hx1eaUK2K9g=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
-      integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-  </head>
-  <body>
-    <div class="header">
-      <div class="btn" onclick="runCode()">
-        Run <i class="fa-solid fa-play"></i>
-      </div>
-      <div class="btn clear" onclick="clearTextarea()">
-        Clear <i class="fa-solid fa-delete-left"></i>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="applicationTitle" content="Simple JS Code Editor" />
+  <meta name="windowSize" content="360 350" />
+  <meta name="windowBorderRadius" content="10" />
+  <meta name="previewSize" content="360 180" />
+  <meta name="windowOpacity" content="200" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.32.0/codemirror.min.js"></script>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.32.0/codemirror.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/mode/javascript/javascript.min.js"
+          integrity="sha512-I6CdJdruzGtvDyvdO4YsiAq+pkWf2efgd1ZUSK2FnM/u2VuRASPC7GowWQrWyjxCZn6CT89s3ddGI+be0Ak9Fg=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/6.65.7/theme/material-darker.min.css"
+        integrity="sha512-2OhXH4Il3n2tHKwLLSDPhrkgnLBC+6lHGGQzSFi3chgVB6DJ/v6+nbx+XYO9CugQyHVF/8D/0k3Hx1eaUK2K9g=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
+        integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+</head>
+<body>
+  <div class="header">
+    <div class="btn" onclick="runCode()">
+      Run <i class="fa-solid fa-play"></i>
     </div>
-    <textarea></textarea>
-    <div class="terminal">
-      <div class="terminal-header">
-        <div class="items">Terminal</div>
-      </div>
-      <div class="logs"></div>
+    <div class="btn clear" onclick="clearTextarea()">
+      Clear <i class="fa-solid fa-delete-left"></i>
     </div>
-  </body>
+  </div>
+  <textarea></textarea>
+  <div class="terminal">
+    <div class="terminal-header">
+      <div class="items">Terminal</div>
+    </div>
+    <div class="logs"></div>
+  </div>
+</body>
 </html>
 
 <script>
@@ -100,21 +92,21 @@
     gap: 5px;
   }
 
-  .header > .btn {
-    background-color: rgb(61, 172, 61);
-    color: #fff;
-    padding: 8px 16px;
-    border-radius: 5px;
-    cursor: pointer;
-    display: inline-block;
-    font-size: 12px;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    text-transform: uppercase;
-  }
+    .header > .btn {
+      background-color: rgb(61, 172, 61);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 12px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+      text-transform: uppercase;
+    }
 
-  .header > .clear {
-    background-color: rgb(172, 61, 61);
-  }
+    .header > .clear {
+      background-color: rgb(172, 61, 61);
+    }
 
   .CodeMirror {
     height: calc(100vh - 152px);
@@ -130,28 +122,28 @@
     flex-direction: column;
   }
 
-  .terminal > .terminal-header {
-    background: #080808;
-    height: 30px;
-    width: 100%;
-    display: flex;
-  }
+    .terminal > .terminal-header {
+      background: #080808;
+      height: 30px;
+      width: 100%;
+      display: flex;
+    }
 
-  .terminal > .terminal-header > .items {
-    color: #fff;
-    background-color: #0e0e0e;
-    padding: 5px 10px;
-    font-size: 12px;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    display: inline-block;
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
-  }
+      .terminal > .terminal-header > .items {
+        color: #fff;
+        background-color: #0e0e0e;
+        padding: 5px 10px;
+        font-size: 12px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: inline-block;
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
+      }
 
-  .terminal > .logs {
-    padding: 2px 10px;
-    font-size: 12px;
-    overflow: auto;
-    color: white;
-  }
+    .terminal > .logs {
+      padding: 2px 10px;
+      font-size: 12px;
+      overflow: auto;
+      color: white;
+    }
 </style>
