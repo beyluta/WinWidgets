@@ -300,7 +300,17 @@
                 Here are some examples of the events that can be received from the hardware of your computer.
 
                 <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
-                    <span style="color: var(--orange)">function</span> <span style="color: var(--purple)">onNativeBatteryLevelEvent</span>(<span style="color: var(--blue)">batteryLevel</span>)
+                  <span style="color: var(--orange)">function</span> <span style="color: var(--purple)">onNativeBatteryEvent</span>(<span style="color: var(--blue)">batteryInfo</span>)
+                </div><br>
+                This function will receive a JSON response.
+                <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
+                  <span style="color: var(--orange);">{</span><br>
+                  <div style="margin: 0 0 0 10px;">batteryChargeStatus:  <span style="color: var(--blue); ">0</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">batteryFullLifetime:  <span style="color: var(--blue);">12100</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">batteryLifePercent:  <span style="color: var(--blue);">51</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">batteryLifeRemaining:  <span style="color: var(--blue);">6172</span>,<br></div>
+                  <div style="margin: 0 0 0 10px;">powerLineStatus:  <span style="color: var(--orange);">"Offline"</span><br></div>
+                  <span style="color: var(--orange);">}</span>
                 </div>
 
                 <div class="code" style="margin-top: 20px; font-family:'Courier New', Courier, monospace;">
