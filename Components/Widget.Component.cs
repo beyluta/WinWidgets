@@ -1,5 +1,6 @@
 ﻿using CefSharp;
 using CefSharp.WinForms;
+using Microsoft.Win32;
 using Models;
 using Modules;
 using Newtonsoft.Json;
@@ -72,14 +73,16 @@ namespace Components
                 POINT mousePos;
                 GetCursorPos(out mousePos);
 
+                double scale = Int32.Parse((string)Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ThemeManager", "LastLoadedDPI", "96")) / 96.0;
+
                 string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", htmlPath);
                 string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", htmlPath);
                 string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", htmlPath);
                 string topMostString = this.htmlDocService.GetMetaTagValue("topMost", htmlPath);
                 string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", htmlPath);
-                int roundess = radiusString != null ? int.Parse(radiusString) : 0;
-                this.width = sizeString != null ? int.Parse(sizeString.Split(' ')[0]) : width;
-                this.height = sizeString != null ? int.Parse(sizeString.Split(' ')[1]) : height;
+                int roundess = radiusString != null ? (int)(int.Parse(radiusString) * scale) : 0;
+                this.width = sizeString != null ? (int)(int.Parse(sizeString.Split(' ')[0]) * scale) : (int)(width * scale);
+                this.height = sizeString != null ? (int)(int.Parse(sizeString.Split(' ')[1]) * scale) : (int)(height * scale);
                 int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
                 int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
                 byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);

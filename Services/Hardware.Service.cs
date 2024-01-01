@@ -1,4 +1,6 @@
-﻿using System.IO;
+﻿using Models;
+using Newtonsoft.Json;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -7,13 +9,23 @@ namespace Services
     internal class HardwareService
     {
         /// <summary>
-        /// Get battery level in percentage
+        /// Get battery info
         /// </summary>
-        /// <returns>Battery level in percent</returns>
-        public string GetBatteryLevelPercentage()
+        /// <returns>Battery info</returns>
+        public string GetBatteryInfo()
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
-            return powerStatus.BatteryLifePercent.ToString();
+
+            BatteryInfo batteryInfo = new BatteryInfo()
+            { 
+                batteryChargeStatus = powerStatus.BatteryChargeStatus.ToString(),
+                batteryFullLifetime = powerStatus.BatteryFullLifetime.ToString(),
+                batteryLifePercent = (powerStatus.BatteryLifePercent * 100).ToString(),
+                batteryLifeRemaining = powerStatus.BatteryLifeRemaining.ToString(),
+                powerLineStatus = powerStatus.PowerLineStatus.ToString(),
+            };
+
+            return JsonConvert.SerializeObject(batteryInfo);
         }
 
         /// <summary>

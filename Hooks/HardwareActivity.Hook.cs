@@ -5,10 +5,10 @@ namespace Hooks
 {
     internal class HardwareActivityHook
     {
-        public delegate void BatteryLevelHandler(string level);
+        public delegate void BatteryHandler(string level);
         public delegate void SpaceAvailableInDriveHandler(long freeSpace);
         public delegate void AnyFullscreenApplicationHandler(bool fullscreen);
-        public event BatteryLevelHandler OnBatteryLevel;
+        public event BatteryHandler OnBattery;
         public event SpaceAvailableInDriveHandler OnSpaceAvailable;
         public event AnyFullscreenApplicationHandler OnAnyApplicationFullscrenStatusChanged;
 
@@ -19,15 +19,15 @@ namespace Hooks
 
         public HardwareActivityHook() 
         {
-            this.timerService.CreateTimer(1000, OnBatteryLevelEvent, true, true);
+            this.timerService.CreateTimer(1000, OnBatteryEvent, true, true);
             this.timerService.CreateTimer(1000, OnSpaceAvailableInDrivesEvent, true, true);
             this.timerService.CreateTimer(1000, OnAnyApplicationFullscreenStatusEvent, true, true);
         }
 
-        private void OnBatteryLevelEvent(object sender, ElapsedEventArgs e)
+        private void OnBatteryEvent(object sender, ElapsedEventArgs e)
         {
-            string level = this.hardwareService.GetBatteryLevelPercentage();
-            OnBatteryLevel.Invoke(level);
+            string batteryInfo = this.hardwareService.GetBatteryInfo();
+            OnBattery.Invoke(batteryInfo);
         }
 
         private void OnSpaceAvailableInDrivesEvent(object sender, ElapsedEventArgs e)

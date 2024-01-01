@@ -1,45 +1,44 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta name="applicationTitle" content="Laptop Battery" />
-    <meta name="windowSize" content="360 180" />
-    <meta name="windowBorderRadius" content="10" />
-    <meta name="previewSize" content="360 180" />
-    <meta name="windowOpacity" content="200" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
-      crossorigin="anonymous"
-      referrerpolicy="no-referrer"
-    />
-  </head>
-  <body>
-    <div class="wrapper">
-      <div class="battery" id="battery-icon">
-        <i class="fa-solid fa-battery-full"></i>
-      </div>
-      <span id="percent">100%</span>
+<head>
+  <meta name="applicationTitle" content="Laptop Battery" />
+  <meta name="windowSize" content="360 180" />
+  <meta name="windowBorderRadius" content="10" />
+  <meta name="previewSize" content="360 180" />
+  <meta name="windowOpacity" content="200" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+</head>
+<body>
+  <div class="wrapper">
+    <div class="battery" id="battery-icon">
+      <i class="fa-solid fa-battery-full"></i>
     </div>
-    <span class="status" id="status">Fully charged</span>
-  </body>
+    <span id="percent">100%</span>
+  </div>
+  <span class="info" id="status">Fully charged</span>
+  <span class="info" id="remaining">Charging</span>
+</body>
 </html>
 
 <script>
-  function onNativeBatteryLevelEvent(level) {
-    if (Number(level) >= 100) {
+  function onNativeBatteryEvent(batteryInfo) {
+    if (Number(batteryInfo.batteryLifePercent) >= 100) {
       document.querySelector("#status").innerText = "Fully charged";
       document.querySelector("#battery-icon").innerHTML =
         '<i class="fa-solid fa-battery-full"></i>';
-    } else if (Number(level) >= 80) {
+    } else if (Number(batteryInfo.batteryLifePercent) >= 80) {
       document.querySelector("#status").innerText = "High";
       document.querySelector("#battery-icon").innerHTML =
         '<i class="fa-solid fa-battery-three-quarters"></i>';
-    } else if (Number(level) >= 50) {
+    } else if (Number(batteryInfo.batteryLifePercent) >= 50) {
       document.querySelector("#status").innerText = "Medium";
       document.querySelector("#battery-icon").innerHTML =
         '<i class="fa-solid fa-battery-half"></i>';
-    } else if (Number(level) >= 20) {
+    } else if (Number(batteryInfo.batteryLifePercent) >= 20) {
       document.querySelector("#status").innerText = "Low";
       document.querySelector("#battery-icon").innerHTML =
         '<i class="fa-solid fa-battery-quarter"></i>';
@@ -49,7 +48,17 @@
         '<i class="fa-solid fa-battery-empty"></i>';
     }
 
-    document.querySelector("#percent").innerText = `${level}%`;
+    document.querySelector("#percent").innerText = `${batteryInfo.batteryLifePercent}%`;
+
+    if (batteryInfo.batteryLifeRemaining != -1) {
+      const hour = Math.floor(batteryInfo.batteryLifeRemaining / 3600) + "h";
+      const minute = Math.floor((batteryInfo.batteryLifeRemaining / 60) % 60) + "min";
+      document.querySelector("#remaining").innerText = (hour !== "0h" ? hour : "") + " " + (minute !== "0min" ? minute : "");
+    } else if (batteryInfo.powerLineStatus === "Online") {
+      document.querySelector("#remaining").innerText = "Charging";
+    } else {
+      document.querySelector("#remaining").innerText = "";
+    }
   }
 </script>
 
@@ -95,7 +104,7 @@
     gap: 25px;
   }
 
-  .status {
+  .info {
     font-size: 24px;
   }
 </style>

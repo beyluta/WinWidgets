@@ -270,7 +270,7 @@ namespace Components
                 userActivityHook.OnMouseActivity += new MouseEventHandler(OnMouseActivity);
 
                 HardwareActivityHook hardwareActivityHook = new HardwareActivityHook();
-                hardwareActivityHook.OnBatteryLevel += OnBatteryLevelChanged;
+                hardwareActivityHook.OnBattery += OnBatteryChanged;
                 hardwareActivityHook.OnSpaceAvailable += OnSpaceAvailableChanged;
                 hardwareActivityHook.OnAnyApplicationFullscrenStatusChanged += OnAnyApplicationFullscrenStatusChanged;
             }));
@@ -293,8 +293,8 @@ namespace Components
                         this.widgetService.InjectJavascript(widget, "if (typeof onNativeKeyEvents === 'function') { onNativeKeyEvents(" + data + "); }");
                         break;
 
-                    case HardwareEvent.BatteryLevel:
-                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeBatteryLevelEvent === 'function') { onNativeBatteryLevelEvent(" + data + "); }");
+                    case HardwareEvent.Battery:
+                        this.widgetService.InjectJavascript(widget, "if (typeof onNativeBatteryEvent === 'function') { onNativeBatteryEvent(" + data + "); }");
                         break;
 
                     case HardwareEvent.SpaceAvailable:
@@ -343,9 +343,9 @@ namespace Components
             CallJavaScriptFunction(JsonConvert.SerializeObject(action), HardwareEvent.NativeKeys);
         }
 
-        private void OnBatteryLevelChanged(string level)
+        private void OnBatteryChanged(string batteryInfo)
         {
-            CallJavaScriptFunction(level, HardwareEvent.BatteryLevel);
+            CallJavaScriptFunction(batteryInfo, HardwareEvent.Battery);
         }
 
         private void OnSpaceAvailableChanged(long freeSpace)
