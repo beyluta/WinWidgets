@@ -1,4 +1,5 @@
 ﻿using Services;
+using System;
 using System.Timers;
 
 namespace Hooks
@@ -36,9 +37,9 @@ namespace Hooks
             OnSpaceAvailable.Invoke(freeSpace);
         }
 
-        private void OnAnyApplicationFullscreenStatusEvent(object sender, ElapsedEventArgs e)
+        private async void OnAnyApplicationFullscreenStatusEvent(object sender, ElapsedEventArgs e)
         {
-            bool fullscreenStatus = HardwareService.isAnyApplicationFullscreen();
+            bool fullscreenStatus = await hardwareService.isAnyApplicationFullscreenAsync();
 
             if (fullscreenStatus != this.lastAnyApplicationFullscreenStatus)
             {

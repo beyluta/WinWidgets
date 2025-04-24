@@ -1,13 +1,19 @@
-﻿using Models;
+﻿using FullScreenDetection;
+using Models;
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace Services
 {
     internal class HardwareService
     {
+        private FullscreenDetecter detector = new FullscreenDetecter();
+
         /// <summary>
         /// Get battery info
         /// </summary>
@@ -39,10 +45,24 @@ namespace Services
         }
 
         /// <summary>
-        /// Calls the WidgetsDotNetCore DLL and checks if any application using DirectX is fullscreen
+        /// Checks if any application is fullscreen
         /// </summary>
-        /// <returns>Whether any DirectX application is fullscreen</returns>
-        [DllImport(@"WidgetsDotNetCore.dll", CallingConvention = CallingConvention.Cdecl)]
-        public static extern bool isAnyApplicationFullscreen();
+        /// <returns>Whether any application is fullscreen</returns>
+        public Task<bool> isAnyApplicationFullscreenAsync()
+        {
+            return Task.Run(() =>
+            {
+                try
+                {
+                    var list = detector.DetectFullscreenApplication();
+                    return list != null && list.Count > 1;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+
     }
 }
