@@ -18,6 +18,16 @@ namespace Models
         public bool alwaysOnTop { get; set; }
     }
 
+    internal struct WidgetHtmlTags
+    {
+        public string Size { get; set; }
+        public string Radius { get; set; }
+        public string Location { get; set; }
+        public string TopMost { get; set; }
+        public string Opacity { get; set; }
+        public string DropShadow { get; set; }
+    }
+
     internal struct Configuration
     {
         /// <summary>
