@@ -65,6 +65,17 @@ Download the latest version of WinWidgets through the [release page](https://git
 #### Develop your own widgets easily. Find out more by navigating to the development panel
    <br><img src="Assets/Images/dev-widget.gif">
 
+<!-- Development -->
+
+## Development
+
+Simply fork or clone the project then open the solution file. Go ahead and build then run the Software.
+If you want to make your own installers for distribution: There is a script called `SETUP.iss` to help package the Software as an installer.
+
+- Visual Studio Community 2022 (or equivalent)
+- InnoSetup (Optional - for generating the installer)
+
+*Note: I will not accept installer files. Make your PRs and I will personally compile it for distribution.*
 
 <!-- CONTRIBUTING -->
 
@@ -76,20 +87,6 @@ Download the latest version of WinWidgets through the [release page](https://git
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Add yourself to the CONTRIBUTORS.txt file
 6. Open a Pull Request
-
-<!-- LICENSE -->
-
-## License
-
-Distributed under the MIT License. See `LICENSE.txt` for more information.
-
-<!-- CONTACT -->
-
-## Contact
-
-📎 Pedro Ribeiro - <a href="https://pedroribeiro.site">Portfolio</a>
-<br>
-📫 Email: beyluta1@gmail.com
 
 <!-- ACKNOWLEDGMENTS -->
 
