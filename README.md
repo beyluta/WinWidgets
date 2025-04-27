@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-1.4.0-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/badge/Version-1.5.0-green" alt="WinWidgets version" />
   </a>
 </p>
 
@@ -31,7 +31,7 @@
 
 ## About The Project
 
-WinWidgets offers the possibility to create desktop widgets using HTML, CSS, and JavaScript for your Windows 10 or Windows 11 machine.
+**WinWidgets** makes web-based desktop widgets easy to develop. Using `HTML`, `CSS`, and `JavaScript` create your own Windows 11 widgets on the fly.
 
 This is what makes this project interesting:
 
@@ -40,10 +40,19 @@ This is what makes this project interesting:
 - 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
 - ⌨️ Have better control over your widget's window with built-in front-end tags
 
-## Download
-You can find the latest version of WinWidgets on the [release page](https://github.com/beyluta/WinWidgets/releases) of the official GitHub repository.
+<!-- GETTING STARTED -->
 
-<i>Versions of WinWidgets < v1.3.0 requires Visual Studio and some .NET packages to be preinstalled. Newer versions of the Software (>= 1.3.0) do not have this dependency.</i>
+## Prerequisites
+*As of `>= v1.5.0` all dependencies are automatically installed through the official installer.*
+
+List of dependencies required for `< v1.5.0`. Make sure all of these are installed:
+
+- .NET Framework 4.7.2
+- [Microsoft Visual C++ 2015-2019](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022)
+
+
+## Download
+Download the latest version of WinWidgets through the [release page](https://github.com/beyluta/WinWidgets/releases) of this repository.
 
 ## Screenshots and usage
 
@@ -56,14 +65,17 @@ You can find the latest version of WinWidgets on the [release page](https://gith
 #### Develop your own widgets easily. Find out more by navigating to the development panel
    <br><img src="Assets/Images/dev-widget.gif">
 
-<!-- GETTING STARTED -->
+<!-- Development -->
 
-## Prerequisites
+## Development
 
-List of software required. Make sure all of these are installed.
+Simply fork or clone the project then open the solution file. Go ahead and build then run the Software.
+If you want to make your own installers for distribution: There is a script called `SETUP.iss` to help package the Software as an installer.
 
-- .NET Framework 4.7.2
-- [Microsoft Visual C++ 2015-2019](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022)
+- Visual Studio Community 2022 (or equivalent)
+- InnoSetup (Optional - for generating the installer)
+
+*Note: I will not accept installer files. Make your PRs and I will personally compile it for distribution.*
 
 <!-- CONTRIBUTING -->
 
@@ -75,20 +87,6 @@ List of software required. Make sure all of these are installed.
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Add yourself to the CONTRIBUTORS.txt file
 6. Open a Pull Request
-
-<!-- LICENSE -->
-
-## License
-
-Distributed under the MIT License. See `LICENSE.txt` for more information.
-
-<!-- CONTACT -->
-
-## Contact
-
-📎 Pedro Ribeiro - <a href="https://pedroribeiro.site">Portfolio</a>
-<br>
-📫 Email: beyluta1@gmail.com
 
 <!-- ACKNOWLEDGMENTS -->
 
@@ -102,3 +100,4 @@ Many thanks to these projects for their super useful resources 😄
 - [Chromium](https://www.chromium.org/)
 - [CefSharp](https://cefsharp.github.io/)
 - [Json.NET](https://www.newtonsoft.com/json)
+- [Narod's FullscreenDetector](https://github.com/NarodGaming/gamedetector)

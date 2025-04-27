@@ -37,7 +37,7 @@ namespace Services
         /// <summary>
         /// Semantic version of the application
         /// </summary>
-        static private string version = "1.3.2";
+        static private string version = "1.5.0";
 
         /// <summary>
         /// Gets the path where the HTML files (widgets) of the project are stored

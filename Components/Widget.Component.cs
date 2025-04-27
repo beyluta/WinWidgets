@@ -75,26 +75,22 @@ namespace Components
 
                 double scale = Int32.Parse((string)Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ThemeManager", "LastLoadedDPI", "96")) / 96.0;
 
-                string sizeString = this.htmlDocService.GetMetaTagValue("windowSize", htmlPath);
-                string radiusString = this.htmlDocService.GetMetaTagValue("windowBorderRadius", htmlPath);
-                string locationString = this.htmlDocService.GetMetaTagValue("windowLocation", htmlPath);
-                string topMostString = this.htmlDocService.GetMetaTagValue("topMost", htmlPath);
-                string opacityString = this.htmlDocService.GetMetaTagValue("windowOpacity", htmlPath);
-                int roundess = radiusString != null ? (int)(int.Parse(radiusString) * scale) : 0;
-                this.width = sizeString != null ? (int)(int.Parse(sizeString.Split(' ')[0]) * scale) : (int)(width * scale);
-                this.height = sizeString != null ? (int)(int.Parse(sizeString.Split(' ')[1]) * scale) : (int)(height * scale);
-                int locationX = locationString != null ? int.Parse(locationString.Split(' ')[0]) : mousePos.X;
-                int locationY = locationString != null ? int.Parse(locationString.Split(' ')[1]) : mousePos.Y;
-                byte opacity = (byte)(opacityString != null ? byte.Parse(opacityString.Split(' ')[0]) : 255);
-                bool topMost = topMostString != null ? bool.Parse(topMostString.Split(' ')[0]) : false;
+                WidgetHtmlTags tags = GetWidgetHtmlTags(htmlPath);
+                int roundess = tags.Radius != null ? (int)(int.Parse(tags.Radius) * scale) : 0;
+                this.width = tags.Size != null ? (int)(int.Parse(tags.Size.Split(' ')[0]) * scale) : (int)(width * scale);
+                this.height = tags.Size != null ? (int)(int.Parse(tags.Size.Split(' ')[1]) * scale) : (int)(height * scale);
+                int locationX = tags.Location != null ? int.Parse(tags.Location.Split(' ')[0]) : mousePos.X;
+                int locationY = tags.Location != null ? int.Parse(tags.Location.Split(' ')[1]) : mousePos.Y;
+                byte opacity = (byte)(tags.Opacity != null ? byte.Parse(tags.Opacity.Split(' ')[0]) : 255);
+                bool dropShadow = tags.DropShadow != null ? bool.Parse(tags.DropShadow.Split(' ')[0]) : false;
+                bool topMost = tags.TopMost != null ? bool.Parse(tags.TopMost.Split(' ')[0]) : false;
                 topMost = alwaysOnTop.HasValue ? (bool)alwaysOnTop : topMost;
 
-                window = new WidgetForm();
+                window = new WidgetForm(dropShadow);
                 window.Size = new Size(this.width, this.height);
                 window.StartPosition = FormStartPosition.Manual;
-                window.Location = locationString == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
+                window.Location = tags.Location == null ? new Point(position.X, position.Y) : new Point(locationX, locationY);
                 window.Text = title;
-                // window.TopMost = topMost; delayed, because it causes a FormActivate event to be dispatched prematurely
                 window.FormBorderStyle = FormBorderStyle.None;
                 window.ShowInTaskbar = false;
                 window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
@@ -115,6 +111,19 @@ namespace Components
                 window.TopMost = topMost;
                 window.ShowDialog();
             }).Start();
+        }
+
+        private WidgetHtmlTags GetWidgetHtmlTags(string htmlPath)
+        {
+            return new WidgetHtmlTags
+            {
+                Size = this.htmlDocService.GetMetaTagValue("windowSize", htmlPath),
+                Radius = this.htmlDocService.GetMetaTagValue("windowBorderRadius", htmlPath),
+                Location = this.htmlDocService.GetMetaTagValue("windowLocation", htmlPath),
+                TopMost = this.htmlDocService.GetMetaTagValue("topMost", htmlPath),
+                Opacity = this.htmlDocService.GetMetaTagValue("windowOpacity", htmlPath),
+                DropShadow = this.htmlDocService.GetMetaTagValue("windowDropShadow", htmlPath)
+            };
         }
 
         private void OnBrowserInitialized(object sender, EventArgs e)
