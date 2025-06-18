@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+:root {
+  --border-color: rgba(1, 1, 1, 0.15);
+  --border-radius: 0.5rem;
+  --primary-text-color: #333333;
+  --secondary-text-color: #B8B8B8;
+  --accent-color: #6BBAEB;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: "Roboto", sans-serif;
+  font-optical-sizing: auto;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
+  background: transparent;
+}
+
+body {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+nav {
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  grid-row: 1/3;
+  border-right: 1px solid var(--border-color);
+}
+
+nav img {
+  width: 3rem;
+  height: 3rem;
+  margin: 2rem 0 0 1.5rem;
+}
+
+nav .icons img {
+  width: 2rem;
+  height: 2rem;
+  margin: 0 0 2rem 2rem;
+}
+
+.header {
+  border-bottom: 1px solid var(--border-color);
+  padding: 1.2rem 2rem;
+}
+
+.header h1 {
+  color: var(--primary-text-color)
+}
+
+main {
+  grid-column: 2;
+  padding: 1.5rem;
+}
+
+main:not(main.widgets) {
+  display: none;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: 1fr max-content;
+  grid-template-rows: repeat(3, max-content);
+  row-gap: 1rem;
+}
+
+.settings .toggle {
+  position: relative;
+  width: 4.5rem;
+  height: 1.8rem;
+  border-radius: 1rem;
+  background: red;
+  justify-self: end;
+  background-color: var(--secondary-text-color);
+  transition: 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.settings h3 {
+  grid-column: 1/3;
+  text-transform: uppercase;
+  color: var(--primary-text-color);
+}
+
+.settings span {
+  align-self: center;
+  font-size: 0.9rem;
+}
+
+.settings .toggle::before {
+  content: '';
+  position: absolute;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin: 0.30rem 0 0 0.5rem;
+  border-radius: 100%;
+  background-color: white;
+}
+
+.settings .enabled {
+  background-color: var(--accent-color);
+}
+
+.settings .enabled::before {
+  margin: 0.30rem 0.5rem 0 0;
+  right: 0;
+}
+
+.interact:is(img) {
+  transition: 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.interact:is(img):hover {
+  filter: opacity(0.8);
+}
+
+.widgets .search {
+  padding: 1.2rem 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+}
+
+.widgets .search img {
+  width: 1.2rem;
+  height: 1.2rem;
+  vertical-align: middle;
+}
+
+.widgets .search img:first-of-type {
+  margin-right: 1.2rem;
+}
+
+.widgets .search img:not(:first-of-type) {
+  margin-left: 1.2rem;
+}
+
+.widgets input {
+  width: calc(100% - 5.3rem);
+  border: none;
+}
+
+.widgets input:focus {
+  outline: none;
+}
+
+.widgets .list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  margin-top: 1.5rem;
+  max-height: calc(100vh - 13rem);
+  overflow-y: auto;
+  border-radius: var(--border-radius);
+}
+
+.widgets .list iframe {
+  width: 100%;
+  aspect-ratio: 16 / 16;
+  height: auto;
+  border: none;
+  border-radius: var(--border-radius);
+  pointer-events: none;
+}

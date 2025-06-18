@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>WinWidgets</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script.js"></script>
+</head>
+
+<body>
+  <nav>
+    <img class="interact" alt="WinWidgets Logo" src="imgs/icon.png" onclick="openScene('widgets', 'block')" />
+    <div class="icons interact">
+      <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" onclick="openScene('widgets', 'block')" />
+      <img class="interact" alt="Gear Image" src="svgs/gear.svg" onclick="openScene('settings', 'grid')" />
+    </div>
+  </nav>
+
+  <section class="header">
+    <h1>Installed Widgets</h1>
+  </section>
+
+  <main class="widgets">
+    <div class="search">
+      <img alt="Search Logo" src="svgs/search.svg" />
+      <input type="text" id="widgets" name="widgets" placeholder="Search for widget...">
+      <img class="interact" alt="Folder Logo" src="svgs/folder.svg" />
+    </div>
+    <article class="list">
+      <!-- <div onclick="alert('works')" class="wrapper"> -->
+      <!--   <iframe src="https://www.pedroribeiro.site"></iframe> -->
+      <!-- </div> -->
+      <!-- <iframe src="file:///home/beyluta/.local/share/WinWidgets/index.html"></iframe> -->
+    </article>
+  </main>
+
+  <main class="settings">
+    <h3>Application</h3>
+    <span>Run the Application on Startup</span>
+    <div class="toggle" onclick="toggleSetting(this)"></div>
+    <span>Hide Widgets when another Application is in Fullscreen</span>
+    <div class="toggle" onclick="toggleSetting(this)"></div>
+  </main>
+</body>
+
+</html>
