@@ -13,6 +13,13 @@
 #define CFG_SUFFIX ".cfg"
 #define CLICK_RIGHT 3
 
+/**
+ * @brief Sets the window to use an RGBA visual if available, enabling
+ * transparency and compositing effects. If the screen supports compositing and
+ * an RGBA visual is available, it sets the window's visual accordingly. Also
+ * marks the window as app-paintable to allow custom drawing with transparency.
+ * @param window GtkWidget pointer to the window to configure
+ */
 static void set_rgba_visuals(GtkWidget *window) {
   GdkScreen *screen = gtk_widget_get_screen(window);
   GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
@@ -22,10 +29,21 @@ static void set_rgba_visuals(GtkWidget *window) {
   gtk_widget_set_app_paintable(window, TRUE);
 }
 
+/**
+ * @brief Sets the opacity of the current Gtk window
+ * @param window Pointer to the GtkWidget
+ * @param opacity Opacity value of the window 0 - 1
+ */
 static void set_window_opacity(GtkWidget *window, const double opacity) {
   gtk_widget_set_opacity(window, opacity);
 }
 
+/**
+ * @brief Calls a JavaScript function
+ * @param func Name of the function to call
+ * @param arg arguments of the function
+ * @param user_data Pointer to the WebKitWebView
+ */
 static void call_js_function(const char *func, const char *arg,
                              const gpointer user_data) {
   // Building the javascript command to execute
@@ -40,6 +58,12 @@ static void call_js_function(const char *func, const char *arg,
                                       NULL, NULL);
 }
 
+/**
+ * @brief Sends the path of all files to the JavaScript as an array
+ * @param manager WebKit content manager
+ * @param result Javascript response
+ * @param user_data Pointer to the WebKitWebView
+ */
 static void on_get_widget_filenames(WebKitUserContentManager *manager,
                                     WebKitJavascriptResult *result,
                                     gpointer user_data) {
@@ -332,11 +356,22 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
   return BOOLEAN_TRUE;
 }
 
+/**
+ * Object that stores a pointer to the array of all widgets along with the index
+ * of which widget to destroy. This is only used when widgets need to be
+ * destroyed.
+ */
 typedef struct widget_destroy_obj {
   ww_widget_ctx **widgets;
   size_t index;
 } widget_destroy_obj;
 
+/**
+ * @brief Frees allocated memory for the widget that has been destroyed
+ * @param widget Pointer to the GtkWidget
+ * @param data Pointer to an object containing all widgets and an index of which
+ * widget to destroy
+ */
 static gboolean on_child_destroy(GtkWidget *widget, void *data) {
   const widget_destroy_obj *obj = (const widget_destroy_obj *)data;
 
@@ -352,12 +387,23 @@ static gboolean on_child_destroy(GtkWidget *widget, void *data) {
   return false;
 }
 
+/**
+ * @brief Stops the event loop when the main window closes
+ * @param widget Pointer to the GtkWidget
+ * @param data Pointer to the boolean containing the state of the event loop
+ */
 static gboolean on_main_destroy(GtkWidget *widget, void *data) {
   BOOLEAN *running = (BOOLEAN *)data;
   *running = BOOLEAN_FALSE;
   return false;
 }
 
+/**
+ * @brief Event that is called when the Widget window is drawn
+ * @param widget Pointer to the GtkWidget
+ * @param cr Cairo object with information about the rendering device
+ * @param context Window context with information about the widget to be drawn
+ */
 static void on_window_draw(GtkWidget *widget, cairo_t *cr,
                            const ww_window_ctx *context) {
   // Bounds of the gtk window
@@ -419,6 +465,11 @@ static void on_window_draw(GtkWidget *widget, cairo_t *cr,
   return;
 }
 
+/**
+ * @brief Sets various Gtk window properties passed by window context
+ * @param context Window context containing all properties
+ * @param window Pointer to the GtkWidget
+ */
 static BOOLEAN set_window_style(ww_window_ctx *context, GtkWidget *window) {
   gtk_window_set_title(GTK_WINDOW(window), context->title);
   gtk_window_set_default_size(GTK_WINDOW(window), context->width,
@@ -434,6 +485,13 @@ static BOOLEAN set_window_style(ww_window_ctx *context, GtkWidget *window) {
   return BOOLEAN_TRUE;
 }
 
+/**
+ * @brief Creates a menu item and adds it to the menu
+ * @param menu Pointer to the GtkWidget
+ * @param label Name of the item
+ * @param callback Which function to trigger once this menu item is clicked
+ * @param data Pointer to the widget context
+ */
 static void create_menu_item(GtkWidget *menu, const char *label, void *callback,
                              void *data) {
   GtkWidget *item = gtk_menu_item_new_with_label(label);
@@ -442,6 +500,11 @@ static void create_menu_item(GtkWidget *menu, const char *label, void *callback,
   gtk_widget_show(item);
 }
 
+/**
+ * @brief Sets the widget to the always on top
+ * @param item Menu item
+ * @param data Widget context struct
+ */
 static void on_top_most_clicked(GtkMenuItem *item, void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
@@ -451,12 +514,23 @@ static void on_top_most_clicked(GtkMenuItem *item, void *data) {
   gtk_window_set_keep_above(GTK_WINDOW(window), *top_most == BOOLEAN_TRUE);
 }
 
+/**
+ * @brief Closes the Window event
+ * @param item Menu item
+ * @param data Widget context struct
+ */
 static void on_close_clicked(GtkMenuItem *item, void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
   gtk_window_close(GTK_WINDOW(window));
 }
 
+/**
+ * @brief Creates the options when right clicking on Widgets
+ * @param window Pointer to the GtkWidget
+ * @param event Information about the event triggered
+ * @param data Pointer to the widget context
+ */
 static gboolean on_button_press(GtkWidget *window, GdkEventButton *event,
                                 void *data) {
   if (event->type == GDK_BUTTON_PRESS && event->button == CLICK_RIGHT) {
@@ -469,6 +543,11 @@ static gboolean on_button_press(GtkWidget *window, GdkEventButton *event,
   return FALSE;
 }
 
+/**
+ * @brief Creates a single widget based on the context object provided
+ * @param context Properties of the widget window
+ * @param widgets Pointer to an array of widgets
+ */
 static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx **widgets) {
   // Checking if we can create more widgets
   static size_t widget_index = 0;
@@ -531,6 +610,12 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx **widgets) {
   return BOOLEAN_TRUE;
 }
 
+/**
+ * @brief JavaScript calls this function to open a new widget
+ * @param manager Content manger from Webkit
+ * @param result JavaScript result of the operation
+ * @param user_data Pointer to an array of widgets
+ */
 static void on_open_widget_by_filename(WebKitUserContentManager *manager,
                                        WebKitJavascriptResult *result,
                                        gpointer user_data) {
@@ -542,10 +627,21 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
         "Failed to open widget by filename. Argument type was incorrect.\n");
     return;
   }
+
+  // JSC Values are managed by WebKit; allocate memory for our own string
   const char *jsc_value = jsc_value_to_string(value);
   const char *filename =
       (const char *)malloc(sizeof(const char) * strlen(jsc_value));
-  strncpy((void *)filename, jsc_value, strlen(jsc_value));
+  if (filename == NULL) {
+    fprintf(stderr, "Failed to allocate memory to filename\n");
+    return;
+  }
+
+  if (strncpy((void *)filename, jsc_value, strlen(jsc_value)) == 0) {
+    fprintf(stderr, "Failed to copy WebKitJS string to heap memory\n");
+    free((void *)filename);
+    return;
+  }
 
   // Getting the configuration into a struct
   ww_window_ctx window = {0};
