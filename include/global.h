@@ -6,6 +6,6 @@
 #define BOOLEAN_FALSE 1
 #define OOB -1
 #define BUFFSIZE 512
-#define MAX_WIDGETS 256
-
+#define EXTBUFFSIZE 4096
+#define MAX_WIDGETS 128
 #endif

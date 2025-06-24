@@ -9,17 +9,17 @@
  * Holds application-specific context data for widget windows.
  */
 typedef struct ww_window_ctx {
-  const size_t width;
-  const size_t height;
-  const size_t x;
-  const size_t y;
-  const BOOLEAN title_bar;
-  const BOOLEAN child;
-  const BOOLEAN top_most;
+  size_t width;
+  size_t height;
+  size_t x;
+  size_t y;
+  BOOLEAN title_bar;
+  BOOLEAN child;
+  BOOLEAN top_most;
   char *filename;
   char *title;
-  const double opacity;
-  const double radius;
+  double opacity;
+  double radius;
 } ww_window_ctx;
 
 /**
@@ -37,6 +37,6 @@ typedef struct ww_widget_ctx {
  * @param widgets A pointer to an array of widgets
  * @return Status of the function execution
  */
-BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx **widgets);
+BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets);
 
 #endif

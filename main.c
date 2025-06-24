@@ -34,10 +34,12 @@ int main(void) {
                           .radius = 0};
 
   // Default list of all Widgets
-  ww_widget_ctx **widgets =
-      (ww_widget_ctx **)malloc(sizeof(ww_widget_ctx *) * MAX_WIDGETS);
+  ww_widget_ctx widgets[MAX_WIDGETS];
   for (size_t i = 0; i < MAX_WIDGETS; i++) {
-    widgets[i] = NULL;
+    widgets[i].window_context = (ww_window_ctx *)malloc(sizeof(ww_window_ctx));
+    widgets[i].window_context->title = (char *)malloc(sizeof(char) * BUFFSIZE);
+    widgets[i].window_context->filename =
+        (char *)malloc(sizeof(char) * BUFFSIZE);
   }
 
   // Initializing the main window
@@ -47,15 +49,12 @@ int main(void) {
 
   // Freeing up resources that were still in use
   for (size_t i = 0; i < MAX_WIDGETS; i++) {
-    if (widgets[i] == NULL) {
-      continue;
-    }
-    free((void *)widgets[i]->window_context->title);
-    free((void *)widgets[i]->window_context->filename);
-    free((void *)widgets[i]->window_context);
-    free(widgets[i]);
+    ww_widget_ctx widget = widgets[i];
+    ww_window_ctx *window = widget.window_context;
+    free(window->filename);
+    free(window->title);
+    free(window);
   }
-  free(widgets);
 
   return BOOLEAN_TRUE;
 }

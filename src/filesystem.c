@@ -239,8 +239,9 @@ BOOLEAN ww_get_filename_from_absolute_path(const char *src, char *dest) {
   return BOOLEAN_TRUE;
 }
 
-BOOLEAN ww_write_to_file(const char *src, const char *content) {
-  FILE *file = fopen(src, "w");
+BOOLEAN ww_write_to_file(const char *src, const char *content,
+                         const size_t mode) {
+  FILE *file = fopen(src, mode == 0 ? "a" : "w");
   if (file == NULL) {
     fprintf(stderr, "Failed to open file %s\n", src);
     return BOOLEAN_FALSE;

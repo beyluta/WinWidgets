@@ -8,11 +8,138 @@
 #include <string.h>
 #include <webkit2/webkit2.h>
 
-#define TICK_DELAY 1
-#define MAX_HTML_LEN 4096
-#define CFG_SUFFIX ".cfg"
-#define CLICK_RIGHT 3
+#define TICK_DELAY 1       // Seconds between event loop updates
+#define CFG_SUFFIX ".cfg"  // Prefix for default children widgets
+#define CFG_MAIN "app.cfg" // Name of the default config file
+#define CLICK_RIGHT 3      // Code for right-clicking
 
+// Global variables
+static size_t widget_index = 1;                  // Number of opened widgets
+static size_t closed_widgets[MAX_WIDGETS] = {0}; // Number of closed widgets
+
+// Forward declaration of functions
+static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets);
+static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest);
+
+/**
+ * @brief Applies the main config of the application. Used for opening widgets
+ * that were not closed between sessions.
+ * @param widgets Pointer to an array of widgets
+ */
+static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
+  char default_dir[BUFFSIZE];
+  if (ww_default_widgets_dir(default_dir) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to get default widgets dir\n");
+    return BOOLEAN_FALSE;
+  }
+
+  char app_cfg[BUFFSIZE];
+  const size_t len =
+      strlen(CFG_MAIN) + strlen(default_dir) + 2; // +2 for '\0' and '/'
+  if (snprintf(app_cfg, len, "%s/%s", default_dir, CFG_MAIN) < 0) {
+    fprintf(stderr, "Failed to construct app config path\n");
+    return BOOLEAN_FALSE;
+  }
+  app_cfg[len] = '\0';
+
+  if (access(app_cfg, F_OK) != 0) {
+    fprintf(stderr, "Failed to apply config; %s does not exist\n", app_cfg);
+    return BOOLEAN_FALSE;
+  }
+
+  char content[EXTBUFFSIZE];
+  if (ww_get_file_content(app_cfg, content, EXTBUFFSIZE) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to get content of the main app configuration.\n");
+    return BOOLEAN_FALSE;
+  }
+
+  const size_t content_len = strlen(content);
+  size_t start = 0;
+  char title[BUFFSIZE], filename[BUFFSIZE];
+  for (size_t i = 0; i < content_len; i++) {
+    if (content[i] == ';') {
+      const size_t title_len = i - start;
+      strncpy(title, &content[start], title_len);
+      title[title_len] = '\0';
+      start = i + 1;
+      continue;
+    }
+
+    if (content[i] == '\n') {
+      const size_t filename_len = i - start;
+      strncpy(filename, &content[start], filename_len);
+      filename[filename_len] = '\0';
+
+      ww_widget_ctx *widget = &widgets[widget_index];
+      ww_window_ctx *window = widgets->window_context;
+      if (get_widget_config(filename, window) == BOOLEAN_FALSE) {
+        fprintf(stderr, "Could not load existing configuration\n");
+        return BOOLEAN_FALSE;
+      }
+
+      if (create_widget(window, widgets) == BOOLEAN_FALSE) {
+        fprintf(stderr, "Failed to open previously opened Widget: %s\n",
+                filename);
+        return BOOLEAN_FALSE;
+      }
+
+      start = i + 1;
+    }
+  }
+
+  return BOOLEAN_TRUE;
+}
+
+/**
+ * @brief Saves the main config of the application with information about the
+ * currently opened widgets.
+ * @param widgets Pointer to an array of widgets
+ */
+static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
+  char default_dir[BUFFSIZE];
+  if (ww_default_widgets_dir(default_dir) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to get default widgets dir\n");
+    return BOOLEAN_FALSE;
+  }
+
+  char app_cfg[BUFFSIZE];
+  const size_t len =
+      strlen(CFG_MAIN) + strlen(default_dir) + 2; // +2 for '\0' and '/'
+  if (snprintf(app_cfg, len, "%s/%s", default_dir, CFG_MAIN) < 0) {
+    fprintf(stderr, "Failed to construct app config path\n");
+    return BOOLEAN_FALSE;
+  }
+  app_cfg[len] = '\0';
+
+  if (ww_write_to_file(app_cfg, "", WRITE_OVERWRITE) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to clear the contents of the file\n");
+    return BOOLEAN_FALSE;
+  }
+
+  for (size_t i = 1; i < widget_index; i++) {
+    if (closed_widgets[i] != 0) {
+      continue; // Skipping closed widgets
+    }
+
+    const ww_window_ctx *window = widgets[i].window_context;
+    const char *title = window->title;
+    const char *filename = window->filename;
+    const size_t len =
+        strlen(title) + strlen(filename) + 3; // +3 for ';', '\n', and \0'
+    char concatenated_str[BUFFSIZE];
+    if (snprintf(concatenated_str, len, "%s;%s\n", title, filename) < 0) {
+      fprintf(stderr, "Failed to concatenate title and filename\n");
+    }
+    concatenated_str[len] = '\0';
+
+    if (ww_write_to_file(app_cfg, concatenated_str, WRITE_APPEND) ==
+        BOOLEAN_FALSE) {
+      fprintf(stderr, "Failed to append filename to file\n");
+      return BOOLEAN_FALSE;
+    }
+  }
+  return BOOLEAN_TRUE;
+}
 /**
  * @brief Sets the window to use an RGBA visual if available, enabling
  * transparency and compositing effects. If the screen supports compositing and
@@ -181,15 +308,9 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
     return BOOLEAN_FALSE;
   }
 
-  char *file = (char *)malloc(sizeof(char) * BUFFSIZE);
-  if (file == NULL) {
-    fprintf(stderr, "Failed to allocate memory for file name\n");
-    return BOOLEAN_FALSE;
-  }
-
+  char file[BUFFSIZE];
   if (ww_get_filename_from_absolute_path(filename, file) == BOOLEAN_FALSE) {
     fprintf(stderr, "Could not get file name\n");
-    free(file);
     return BOOLEAN_FALSE;
   }
 
@@ -198,17 +319,13 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   if (snprintf(config_path, len + 1, "%s%s%s", root_dir, file, CFG_SUFFIX) <
       0) {
     fprintf(stderr, "Could not get the config file path\n");
-    free(file);
     return BOOLEAN_FALSE;
   }
   config_path[len] = '\0';
-  free(file);
-  file = NULL;
 
   char config_path_no_prefix[BUFFSIZE];
   if (remove_file_prefix(config_path, config_path_no_prefix) == BOOLEAN_FALSE) {
     fprintf(stderr, "Could not remove prefix from file %s\n", config_path);
-    free(file);
     return BOOLEAN_FALSE;
   }
 
@@ -222,12 +339,7 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
 
   // Getting the properties from the config files
   // ---------------------------------------------------
-  char *title = (char *)malloc(sizeof(char) * BUFFSIZE);
-  if (title == NULL) {
-    fprintf(stderr, "Failed to allocate memory for title\n");
-    return BOOLEAN_FALSE;
-  }
-
+  char title[BUFFSIZE];
   if (get_widget_config_attribute(config_content, "title", title) ==
       BOOLEAN_FALSE) {
     strncpy(title, "Child", sizeof(title) - 1);
@@ -288,21 +400,24 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
     radius[sizeof(radius) - 1] = '\0';
   }
 
-  const ww_window_ctx window = {
-      .width = (size_t)strtol(width, NULL, 10),
-      .height = (size_t)strtol(height, NULL, 10),
-      .x = (size_t)strtol(x, NULL, 10),
-      .y = (size_t)strtol(y, NULL, 10),
-      .title_bar =
-          (strcmp(title_bar, "true") == 0) ? BOOLEAN_FALSE : BOOLEAN_TRUE,
-      .child = BOOLEAN_TRUE,
-      .top_most =
-          (strcmp(top_most, "true") == 0) ? BOOLEAN_TRUE : BOOLEAN_FALSE,
-      .filename = (char *)filename,
-      .title = title,
-      .opacity = (double)strtod(opacity, NULL),
-      .radius = (double)strtod(radius, NULL)};
-  memcpy(dest, &window, sizeof(ww_window_ctx));
+  // Copying primitive values
+  dest->width = (size_t)strtol(width, NULL, 10);
+  dest->height = (size_t)strtol(height, NULL, 10);
+  dest->x = (size_t)strtol(x, NULL, 10);
+  dest->y = (size_t)strtol(y, NULL, 10);
+  dest->title_bar =
+      (strcmp(title_bar, "true") == 0) ? BOOLEAN_FALSE : BOOLEAN_TRUE;
+  dest->child = BOOLEAN_TRUE;
+  dest->top_most =
+      (strcmp(top_most, "true") == 0) ? BOOLEAN_TRUE : BOOLEAN_FALSE;
+  dest->opacity = (double)strtod(opacity, NULL);
+  dest->radius = (double)strtod(radius, NULL);
+
+  // Copying pointers
+  strncpy(dest->title, title, strlen(title));
+  dest->title[strlen(title)] = '\0';
+  strncpy(dest->filename, filename, strlen(filename));
+  dest->filename[strlen(filename)] = '\0';
 
   return BOOLEAN_TRUE;
 }
@@ -348,7 +463,8 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
            window->top_most == BOOLEAN_TRUE ? "true" : "false", window->opacity,
            window->radius);
 
-  if (ww_write_to_file(filename_with_suffix, content) == BOOLEAN_FALSE) {
+  if (ww_write_to_file(filename_with_suffix, content, WRITE_OVERWRITE) ==
+      BOOLEAN_FALSE) {
     fprintf(stderr, "Failed to write content to file\n");
     return BOOLEAN_FALSE;
   }
@@ -362,38 +478,38 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
  * destroyed.
  */
 typedef struct widget_destroy_obj {
-  ww_widget_ctx **widgets;
-  size_t index;
+  ww_widget_ctx *widgets; // All widgets
+  size_t index;           // Index of this specific widget
+  BOOLEAN *running;       // Only the main window has this
 } widget_destroy_obj;
 
 /**
  * @brief Frees allocated memory for the widget that has been destroyed
- * @param widget Pointer to the GtkWidget
- * @param data Pointer to an object containing all widgets and an index of which
- * widget to destroy
+ * @param widget Pointer to the index of the child widget
+ * @param data Pointer to the index of the current widget
  */
 static gboolean on_child_destroy(GtkWidget *widget, void *data) {
-  const widget_destroy_obj *obj = (const widget_destroy_obj *)data;
-
-  // Not worth setting all these to NULL
-  free((void *)(obj->widgets[obj->index])->window_context->title);
-  free((void *)(obj->widgets[obj->index])->window_context->filename);
-  free((void *)(*obj->widgets[obj->index]).window_context);
-  free((void *)obj->widgets[obj->index]);
-  obj->widgets[obj->index] = NULL; // This one is needed though
-
-  free(data);
-  data = NULL;
+  size_t *index = (size_t *)data;
+  closed_widgets[*index] = 1; // Set widget as closed
+  free(index);
   return false;
 }
 
 /**
  * @brief Stops the event loop when the main window closes
  * @param widget Pointer to the GtkWidget
- * @param data Pointer to the boolean containing the state of the event loop
+ * @param data Pointer to the widget destroy struct
  */
-static gboolean on_main_destroy(GtkWidget *widget, void *data) {
-  BOOLEAN *running = (BOOLEAN *)data;
+static gboolean on_main_destroy(GtkWidget *widget,
+                                const widget_destroy_obj *destroy_data) {
+  const widget_destroy_obj *destroy_obj =
+      (const widget_destroy_obj *)destroy_data;
+
+  // Saving the state of all opened widgets before closing
+  save_main_config(destroy_obj->widgets);
+
+  // Stopping the event loop
+  BOOLEAN *running = (BOOLEAN *)destroy_obj->running;
   *running = BOOLEAN_FALSE;
   return false;
 }
@@ -548,9 +664,8 @@ static gboolean on_button_press(GtkWidget *window, GdkEventButton *event,
  * @param context Properties of the widget window
  * @param widgets Pointer to an array of widgets
  */
-static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx **widgets) {
+static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Checking if we can create more widgets
-  static size_t widget_index = 0;
   if (widget_index >= MAX_WIDGETS) {
     fprintf(stderr, "Failed to add widget to list. Widget limit exceeded.\n");
     return BOOLEAN_FALSE;
@@ -566,37 +681,34 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx **widgets) {
   // Creating the WebKit browser
   WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
 
-  ww_widget_ctx *widget_context =
-      (ww_widget_ctx *)malloc(sizeof(ww_widget_ctx));
-  if (widget_context == NULL) {
-    fprintf(stderr, "Failed to allocate memory for widget context\n");
-    return BOOLEAN_FALSE;
-  }
-
-  widget_context->window_context =
-      (ww_window_ctx *)malloc(sizeof(ww_window_ctx));
-  if (widget_context->window_context == NULL) {
-    fprintf(stderr, "Failed to allocate memory for window context\n");
-    free(widget_context);
-    return BOOLEAN_FALSE;
-  }
-
+  ww_widget_ctx *widget_context = &widgets[widget_index];
   widget_context->window = window;
 
-  memcpy((void *)widget_context->window_context, context,
-         sizeof(ww_window_ctx));
+  // Copying the data from the context into the widget entry
+  widget_context->window_context->width = context->width;
+  widget_context->window_context->height = context->height;
+  widget_context->window_context->x = context->x;
+  widget_context->window_context->y = context->y;
+  widget_context->window_context->title_bar = context->title_bar;
+  widget_context->window_context->child = context->child;
+  widget_context->window_context->top_most = context->top_most;
+  widget_context->window_context->opacity = context->opacity;
+  widget_context->window_context->radius = context->radius;
 
-  widgets[widget_index] = widget_context;
+  // Copying pointers into the widget entry
+  strncpy(widget_context->window_context->title, context->title, BUFFSIZE - 1);
+  widget_context->window_context->title[BUFFSIZE - 1] = '\0';
+  strncpy(widget_context->window_context->filename, context->filename,
+          BUFFSIZE - 1);
+  widget_context->window_context->filename[BUFFSIZE - 1] = '\0';
 
   // Hooking up scripts and event handlers
+  size_t *current_index = (size_t *)malloc(sizeof(size_t));
+  *current_index = widget_index;
+  g_signal_connect(window, "destroy", G_CALLBACK(on_child_destroy),
+                   current_index);
   g_signal_connect(window, "draw", G_CALLBACK(on_window_draw),
                    (ww_window_ctx *)context);
-  widget_destroy_obj *destroy_obj =
-      (widget_destroy_obj *)malloc(sizeof(widget_destroy_obj));
-  destroy_obj->widgets = widgets;
-  destroy_obj->index = widget_index;
-  g_signal_connect(window, "destroy", G_CALLBACK(on_child_destroy),
-                   destroy_obj);
   gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
   g_signal_connect(webview, "button-press-event", G_CALLBACK(on_button_press),
                    widget_context);
@@ -618,7 +730,7 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx **widgets) {
  */
 static void on_open_widget_by_filename(WebKitUserContentManager *manager,
                                        WebKitJavascriptResult *result,
-                                       gpointer user_data) {
+                                       ww_widget_ctx *widgets) {
   // Get the value passed from the JavaScript
   JSCValue *value = webkit_javascript_result_get_js_value(result);
   if (jsc_value_is_string(value) <= 0) {
@@ -630,41 +742,47 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
 
   // JSC Values are managed by WebKit; allocate memory for our own string
   const char *jsc_value = jsc_value_to_string(value);
-  const char *filename =
-      (const char *)malloc(sizeof(const char) * strlen(jsc_value));
-  if (filename == NULL) {
-    fprintf(stderr, "Failed to allocate memory to filename\n");
-    return;
-  }
 
+  // Making a copy of JSC value that we can use without worries
+  char filename[BUFFSIZE];
   if (strncpy((void *)filename, jsc_value, strlen(jsc_value)) == 0) {
-    fprintf(stderr, "Failed to copy WebKitJS string to heap memory\n");
-    free((void *)filename);
+    fprintf(stderr, "Failed to copy WebKitJS string to stack memory\n");
     return;
   }
 
   // Getting the configuration into a struct
-  ww_window_ctx window = {0};
-  if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
+  ww_widget_ctx *widget = &widgets[widget_index];
+  ww_window_ctx *window = widget->window_context;
+  if (get_widget_config(filename, window) == BOOLEAN_FALSE) {
     fprintf(stderr, "Could not load existing configuration\n");
   }
 
-  ww_widget_ctx **widget_ctx = (ww_widget_ctx **)user_data;
-  create_widget(&window, widget_ctx);
+  create_widget(window, widgets);
 }
 
-static BOOLEAN event_loop(ww_widget_ctx **widgets, BOOLEAN *running) {
+/**
+ * @brief Main event loop of the application
+ * @param widgets Pointer to an array of widgets
+ * @param running Pointer to the curent state of the event loop
+ */
+static BOOLEAN event_loop(ww_widget_ctx *widgets, BOOLEAN *running) {
   size_t next_tick = time(NULL) + TICK_DELAY;
   while (*running == BOOLEAN_TRUE) {
     gtk_main_iteration_do(TRUE);
 
-    for (size_t i = 0; i < MAX_WIDGETS; i++) {
-      if (widgets[i] == NULL) {
-        continue;
+    const size_t now = time(NULL);
+    if (now < next_tick) {
+      continue; // Skipping if it isn't time to update
+    }
+    next_tick = now + TICK_DELAY;
+
+    for (size_t i = 1; i < widget_index; i++) {
+      if (closed_widgets[i] != 0) {
+        continue; // Skipping closed widgets or if time hasn't reached
       }
 
       // Getting the context for window and widget
-      const ww_widget_ctx *child = widgets[i];
+      const ww_widget_ctx *child = &widgets[i];
       const GtkWidget *gtk_window = (GtkWidget *)child->window;
       const ww_window_ctx *window = child->window_context;
 
@@ -681,13 +799,6 @@ static BOOLEAN event_loop(ww_widget_ctx **widgets, BOOLEAN *running) {
       *ptr_w = w;
       *ptr_h = h;
 
-      // Saving the widgets to the config file if time has elapsed
-      const size_t now = time(NULL);
-      if (now < next_tick) {
-        continue;
-      }
-      next_tick = now + TICK_DELAY;
-
       if (save_widget_config(window) == BOOLEAN_FALSE) {
         fprintf(stderr, "Failed to save new widget position and scale\n");
       }
@@ -696,7 +807,7 @@ static BOOLEAN event_loop(ww_widget_ctx **widgets, BOOLEAN *running) {
   return BOOLEAN_TRUE;
 }
 
-BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx **widgets) {
+BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Initializing GTK
   gtk_init(NULL, NULL);
 
@@ -721,15 +832,22 @@ BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx **widgets) {
                    G_CALLBACK(on_get_widget_filenames), webview);
   g_signal_connect(manager,
                    "script-message-received::on_open_widget_by_filename",
-                   G_CALLBACK(on_open_widget_by_filename), (void *)widgets);
+                   G_CALLBACK(on_open_widget_by_filename), widgets);
 
   static BOOLEAN running = BOOLEAN_TRUE;
-  g_signal_connect(window, "destroy", G_CALLBACK(on_main_destroy), &running);
+  widget_destroy_obj destroy_obj = {.running = &running, .widgets = widgets};
+  g_signal_connect(window, "destroy", G_CALLBACK(on_main_destroy),
+                   &destroy_obj);
 
   // Configuring the WebKit Browser
   webkit_web_view_load_uri(webview, context->filename);
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webview));
   gtk_widget_show_all(window);
+
+  // Load the main app configuration
+  if (apply_main_config(widgets) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to apply main app configuration\n");
+  }
 
   // Event loop
   if (event_loop(widgets, &running) == BOOLEAN_FALSE) {

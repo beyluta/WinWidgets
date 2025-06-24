@@ -4,6 +4,9 @@
 #include "global.h"
 #include <stddef.h>
 
+#define WRITE_APPEND 0
+#define WRITE_OVERWRITE 1
+
 /**
  * @brief Gets the default HTML file for the wigets manager
  * @param dest Full path to the file
@@ -56,8 +59,10 @@ BOOLEAN ww_get_filename_from_absolute_path(const char *src, char *dest);
  * @brief Saves the content to a file
  * @param src Full path to the file on the system
  * @param content Content to write to the file
+ * @param mode How to write to the file `overwrite = 1` or `append = 0`
  * @return Status of the operation
  */
-BOOLEAN ww_write_to_file(const char *src, const char *content);
+BOOLEAN ww_write_to_file(const char *src, const char *content,
+                         const size_t mode);
 
 #endif
