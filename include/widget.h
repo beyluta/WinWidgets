@@ -16,8 +16,8 @@ typedef struct ww_window_ctx {
   BOOLEAN title_bar;
   BOOLEAN child;
   BOOLEAN top_most;
-  char *filename;
-  char *title;
+  char filename[BUFFSIZE];
+  char title[BUFFSIZE];
   double opacity;
   double radius;
 } ww_window_ctx;
@@ -27,7 +27,7 @@ typedef struct ww_window_ctx {
  * Holds pointers to dynamic data.
  */
 typedef struct ww_widget_ctx {
-  ww_window_ctx *window_context;
+  ww_window_ctx window_context;
   const void *window;
 } ww_widget_ctx;
 

@@ -71,13 +71,13 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
       filename[filename_len] = '\0';
 
       ww_widget_ctx *widget = &widgets[widget_index];
-      ww_window_ctx *window = widgets->window_context;
-      if (get_widget_config(filename, window) == BOOLEAN_FALSE) {
+      ww_window_ctx window = widgets->window_context;
+      if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
         fprintf(stderr, "Could not load existing configuration\n");
         return BOOLEAN_FALSE;
       }
 
-      if (create_widget(window, widgets) == BOOLEAN_FALSE) {
+      if (create_widget(&window, widgets) == BOOLEAN_FALSE) {
         fprintf(stderr, "Failed to open previously opened Widget: %s\n",
                 filename);
         return BOOLEAN_FALSE;
@@ -121,9 +121,9 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
       continue; // Skipping closed widgets
     }
 
-    const ww_window_ctx *window = widgets[i].window_context;
-    const char *title = window->title;
-    const char *filename = window->filename;
+    const ww_window_ctx window = widgets[i].window_context;
+    const char *title = window.title;
+    const char *filename = window.filename;
     const size_t len =
         strlen(title) + strlen(filename) + 3; // +3 for ';', '\n', and \0'
     char concatenated_str[BUFFSIZE];
@@ -624,9 +624,9 @@ static void create_menu_item(GtkWidget *menu, const char *label, void *callback,
 static void on_top_most_clicked(GtkMenuItem *item, void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
-  BOOLEAN *top_most = (BOOLEAN *)&ctx->window_context->top_most;
-  *top_most = ctx->window_context->top_most == BOOLEAN_TRUE ? BOOLEAN_FALSE
-                                                            : BOOLEAN_TRUE;
+  BOOLEAN *top_most = (BOOLEAN *)&ctx->window_context.top_most;
+  *top_most = ctx->window_context.top_most == BOOLEAN_TRUE ? BOOLEAN_FALSE
+                                                           : BOOLEAN_TRUE;
   gtk_window_set_keep_above(GTK_WINDOW(window), *top_most == BOOLEAN_TRUE);
 }
 
@@ -685,22 +685,22 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   widget_context->window = window;
 
   // Copying the data from the context into the widget entry
-  widget_context->window_context->width = context->width;
-  widget_context->window_context->height = context->height;
-  widget_context->window_context->x = context->x;
-  widget_context->window_context->y = context->y;
-  widget_context->window_context->title_bar = context->title_bar;
-  widget_context->window_context->child = context->child;
-  widget_context->window_context->top_most = context->top_most;
-  widget_context->window_context->opacity = context->opacity;
-  widget_context->window_context->radius = context->radius;
+  widget_context->window_context.width = context->width;
+  widget_context->window_context.height = context->height;
+  widget_context->window_context.x = context->x;
+  widget_context->window_context.y = context->y;
+  widget_context->window_context.title_bar = context->title_bar;
+  widget_context->window_context.child = context->child;
+  widget_context->window_context.top_most = context->top_most;
+  widget_context->window_context.opacity = context->opacity;
+  widget_context->window_context.radius = context->radius;
 
   // Copying pointers into the widget entry
-  strncpy(widget_context->window_context->title, context->title, BUFFSIZE - 1);
-  widget_context->window_context->title[BUFFSIZE - 1] = '\0';
-  strncpy(widget_context->window_context->filename, context->filename,
+  strncpy(widget_context->window_context.title, context->title, BUFFSIZE - 1);
+  widget_context->window_context.title[BUFFSIZE - 1] = '\0';
+  strncpy(widget_context->window_context.filename, context->filename,
           BUFFSIZE - 1);
-  widget_context->window_context->filename[BUFFSIZE - 1] = '\0';
+  widget_context->window_context.filename[BUFFSIZE - 1] = '\0';
 
   // Hooking up scripts and event handlers
   size_t *current_index = (size_t *)malloc(sizeof(size_t));
@@ -752,12 +752,12 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
 
   // Getting the configuration into a struct
   ww_widget_ctx *widget = &widgets[widget_index];
-  ww_window_ctx *window = widget->window_context;
-  if (get_widget_config(filename, window) == BOOLEAN_FALSE) {
+  ww_window_ctx window = widget->window_context;
+  if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
     fprintf(stderr, "Could not load existing configuration\n");
   }
 
-  create_widget(window, widgets);
+  create_widget(&window, widgets);
 }
 
 /**
@@ -784,22 +784,22 @@ static BOOLEAN event_loop(ww_widget_ctx *widgets, BOOLEAN *running) {
       // Getting the context for window and widget
       const ww_widget_ctx *child = &widgets[i];
       const GtkWidget *gtk_window = (GtkWidget *)child->window;
-      const ww_window_ctx *window = child->window_context;
+      const ww_window_ctx window = child->window_context;
 
       // Values that need to be updated in the config file
       size_t x = 0, y = 0, w = 0, h = 0;
       gtk_window_get_position(GTK_WINDOW(gtk_window), (int *)&x, (int *)&y);
       gtk_window_get_size(GTK_WINDOW(gtk_window), (int *)&w, (int *)&h);
-      size_t *ptr_x = (size_t *)&window->x;
-      size_t *ptr_y = (size_t *)&window->y;
-      size_t *ptr_w = (size_t *)&window->width;
-      size_t *ptr_h = (size_t *)&window->height;
+      size_t *ptr_x = (size_t *)&window.x;
+      size_t *ptr_y = (size_t *)&window.y;
+      size_t *ptr_w = (size_t *)&window.width;
+      size_t *ptr_h = (size_t *)&window.height;
       *ptr_x = x;
       *ptr_y = y;
       *ptr_w = w;
       *ptr_h = h;
 
-      if (save_widget_config(window) == BOOLEAN_FALSE) {
+      if (save_widget_config(&window) == BOOLEAN_FALSE) {
         fprintf(stderr, "Failed to save new widget position and scale\n");
       }
     }
