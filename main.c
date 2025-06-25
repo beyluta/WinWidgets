@@ -25,18 +25,23 @@ int main(void) {
                           .height = 1000,
                           .x = 0,
                           .y = 0,
+                          .index = 0, // Not really needed, but for consistency
                           .title_bar = BOOLEAN_TRUE,
                           .child = BOOLEAN_FALSE,
                           .top_most = BOOLEAN_FALSE,
-                          // .filename = html,
                           .title = "WinWidgets",
                           .opacity = 1,
                           .radius = 0};
   // Copying pointers to the struct
   strncpy(window.filename, html, strlen(html));
 
-  // Default list of all Widgets
+  /* All widgets and their corresponding configuration will be saved inside this
+   * variable. We also go through all widgets and set their index number here.
+   * This way we avoid allocating memory for it later */
   ww_widget_ctx widgets[MAX_WIDGETS];
+  for (size_t i = 0; i < MAX_WIDGETS; i++) {
+    widgets[i].window_context.index = i;
+  }
 
   // Initializing the main window
   if (ww_init_main(&window, widgets) == BOOLEAN_FALSE) {

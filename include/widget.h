@@ -13,6 +13,7 @@ typedef struct ww_window_ctx {
   size_t height;
   size_t x;
   size_t y;
+  size_t index;
   BOOLEAN title_bar;
   BOOLEAN child;
   BOOLEAN top_most;

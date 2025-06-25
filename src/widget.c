@@ -14,7 +14,7 @@
 #define CLICK_RIGHT 3      // Code for right-clicking
 
 // Global variables
-static size_t widget_index = 1;                  // Number of opened widgets
+static size_t open_widgets = 1;                  // Number of opened widgets
 static size_t closed_widgets[MAX_WIDGETS] = {0}; // Number of closed widgets
 
 // Forward declaration of functions
@@ -70,7 +70,7 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
       strncpy(filename, &content[start], filename_len);
       filename[filename_len] = '\0';
 
-      ww_widget_ctx *widget = &widgets[widget_index];
+      ww_widget_ctx *widget = &widgets[open_widgets];
       ww_window_ctx window = widgets->window_context;
       if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
         fprintf(stderr, "Could not load existing configuration\n");
@@ -116,7 +116,7 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
     return BOOLEAN_FALSE;
   }
 
-  for (size_t i = 1; i < widget_index; i++) {
+  for (size_t i = 1; i < open_widgets; i++) {
     if (closed_widgets[i] != 0) {
       continue; // Skipping closed widgets
     }
@@ -484,14 +484,14 @@ typedef struct widget_destroy_obj {
 } widget_destroy_obj;
 
 /**
- * @brief Frees allocated memory for the widget that has been destroyed
+ * @brief Destroy the window of a widget and set the widget as closed
  * @param widget Pointer to the index of the child widget
- * @param data Pointer to the index of the current widget
+ * @param data Pointer to the widget context struct
  */
 static gboolean on_child_destroy(GtkWidget *widget, void *data) {
-  size_t *index = (size_t *)data;
-  closed_widgets[*index] = 1; // Set widget as closed
-  free(index);
+  ww_widget_ctx *context = (ww_widget_ctx *)data;
+  const size_t index = context->window_context.index;
+  closed_widgets[index] = 1; // Set widget as closed
   return false;
 }
 
@@ -666,7 +666,7 @@ static gboolean on_button_press(GtkWidget *window, GdkEventButton *event,
  */
 static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Checking if we can create more widgets
-  if (widget_index >= MAX_WIDGETS) {
+  if (open_widgets >= MAX_WIDGETS) {
     fprintf(stderr, "Failed to add widget to list. Widget limit exceeded.\n");
     return BOOLEAN_FALSE;
   }
@@ -681,7 +681,7 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Creating the WebKit browser
   WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
 
-  ww_widget_ctx *widget_context = &widgets[widget_index];
+  ww_widget_ctx *widget_context = &widgets[open_widgets];
   widget_context->window = window;
 
   // Copying the data from the context into the widget entry
@@ -702,11 +702,8 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
           BUFFSIZE - 1);
   widget_context->window_context.filename[BUFFSIZE - 1] = '\0';
 
-  // Hooking up scripts and event handlers
-  size_t *current_index = (size_t *)malloc(sizeof(size_t));
-  *current_index = widget_index;
   g_signal_connect(window, "destroy", G_CALLBACK(on_child_destroy),
-                   current_index);
+                   widget_context);
   g_signal_connect(window, "draw", G_CALLBACK(on_window_draw),
                    (ww_window_ctx *)context);
   gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
@@ -717,7 +714,7 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   webkit_web_view_load_uri(webview, context->filename);
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webview));
   gtk_widget_show_all(window);
-  widget_index++;
+  open_widgets++;
 
   return BOOLEAN_TRUE;
 }
@@ -751,7 +748,7 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
   }
 
   // Getting the configuration into a struct
-  ww_widget_ctx *widget = &widgets[widget_index];
+  ww_widget_ctx *widget = &widgets[open_widgets];
   ww_window_ctx window = widget->window_context;
   if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
     fprintf(stderr, "Could not load existing configuration\n");
@@ -776,7 +773,7 @@ static BOOLEAN event_loop(ww_widget_ctx *widgets, BOOLEAN *running) {
     }
     next_tick = now + TICK_DELAY;
 
-    for (size_t i = 1; i < widget_index; i++) {
+    for (size_t i = 1; i < open_widgets; i++) {
       if (closed_widgets[i] != 0) {
         continue; // Skipping closed widgets or if time hasn't reached
       }
