@@ -57,6 +57,8 @@ nav .icons img {
 main {
   grid-column: 2;
   padding: 1.5rem;
+  height: calc(100vh - 8rem);
+  overflow: scroll;
 }
 
 main:not(main.widgets) {
@@ -82,7 +84,8 @@ main:not(main.widgets) {
   cursor: pointer;
 }
 
-.settings h3 {
+.settings h3,
+.development h3 {
   grid-column: 1/3;
   text-transform: uppercase;
   color: var(--primary-text-color);
@@ -167,4 +170,29 @@ main:not(main.widgets) {
   border: none;
   border-radius: var(--border-radius);
   pointer-events: none;
+}
+
+.development span {
+  display: block;
+  margin-top: 1rem;
+  line-height: 1.6rem;
+}
+
+.development span code {
+  background: #333;
+  color: white;
+  border-radius: var(--border-radius);
+  padding: 0.15rem 0.45rem;
+}
+
+.development h3:not(:first-of-type) {
+  margin-top: 2rem;
+}
+
+.development blockquote {
+  background: #333;
+  color: white;
+  border-radius: var(--border-radius);
+  padding-top: 1rem;
+  margin: 1rem;
 }

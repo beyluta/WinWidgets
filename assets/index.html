@@ -13,6 +13,7 @@
     <img class="interact" alt="WinWidgets Logo" src="imgs/icon.png" onclick="openScene('widgets', 'block')" />
     <div class="icons interact">
       <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" onclick="openScene('widgets', 'block')" />
+      <img class="interact" alt="Code Image" src="svgs/code.svg" onclick="openScene('development', 'block')" />
       <img class="interact" alt="Gear Image" src="svgs/gear.svg" onclick="openScene('settings', 'grid')" />
     </div>
   </nav>
@@ -28,7 +29,7 @@
       <img class="interact" alt="Folder Logo" src="svgs/folder.svg" />
     </div>
     <article class="list">
-      <!-- <div onclick="alert('works')" class="wrapper"> -->
+      <!-- <div class="wrapper"> -->
       <!--   <iframe src="https://www.pedroribeiro.site"></iframe> -->
       <!-- </div> -->
       <!-- <iframe src="file:///home/beyluta/.local/share/WinWidgets/index.html"></iframe> -->
@@ -41,6 +42,56 @@
     <div class="toggle" onclick="toggleSetting(this)"></div>
     <span>Hide Widgets when another Application is in Fullscreen</span>
     <div class="toggle" onclick="toggleSetting(this)"></div>
+  </main>
+
+  <main class="development">
+    <h3>Default folder</h3>
+    <!-- Explaining where to find the default widget folders -->
+    <span>Widgets are simple HTML, CSS, and JavaScript files. Essentially just websites that are shown in a floating
+      window. Start by navigating to the default WinWidgets folder under <code>C:\\Documents\WinWidgets</code> on
+      Windows 11. On supported Linux distributions you can find the default directory under
+      <code>~/.local/share/WinWidgets/</code>.</span>
+
+    <!-- Which files are needed -->
+    <h3>File structure</h3>
+    <span>Each <code>.html</code> file in the default folder needs a corresponding <code>.cfg</code> file with
+      information about the widget. The name of both files must be the same except for the configuration file which must
+      end with the <code>.cfg</code> suffix. Below is an example of the file structure:</span>
+    <blockquote>
+      <pre>
+        WinWidgets/
+        |__ calculator.html
+        |__ calculator.html.cfg
+      </pre>
+    </blockquote>
+
+    <!-- Configuration file example -->
+    <h3>Configuration file</h3>
+    <span>The configuration file contains data about the current state of the widget. During the program's execution or
+      at the end of execution, this file may be overwritten with new data. If no configuration file is present
+      WinWidgets may create the file itself but it is highly recommended to create one yourself. This is an example of
+      how it should look like:</span>
+    <blockquote>
+      <pre>
+        title=My Widget
+        width=600
+        height=800
+        x=512
+        y=512
+        title_bar=true
+        top_most=false
+        opacity=0.5
+        radius=0
+      </pre>
+    </blockquote>
+
+    <!-- How to control the widgets -->
+    <h3>Widget controls</h3>
+    <span>If <code>title_bar=false</code> in the configuration file then you may freely resize and move your widget by
+      using the handle bar (top bar) of the widget window. If your widget does not have a handle bar, then you can no
+      longer resize it, but you may still drag it by holding down the Windows-key + Left mouse button.</span>
+    <span>Right-clicking the widget windows opens a context-menu where you can close the widget or set its top-most
+      state.</span>
   </main>
 </body>
 
