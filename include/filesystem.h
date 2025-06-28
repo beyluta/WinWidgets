@@ -65,4 +65,11 @@ BOOLEAN ww_get_filename_from_absolute_path(const char *src, char *dest);
 BOOLEAN ww_write_to_file(const char *src, const char *content,
                          const size_t mode);
 
+/**
+ * @brief Opens the file explorer and nagivates to the specified directory
+ * @param src Absolute path to the file on the system
+ * @return Status of the operation
+ */
+BOOLEAN ww_open_folder(const char *src);
+
 #endif

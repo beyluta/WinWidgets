@@ -256,3 +256,20 @@ BOOLEAN ww_write_to_file(const char *src, const char *content,
   fclose(file);
   return BOOLEAN_TRUE;
 }
+
+BOOLEAN ww_open_folder(const char *src) {
+  char cmd[BUFFSIZE];
+
+  // Length of the path + length of command + null terminator
+  const size_t len = strlen(src) + 9 + 1;
+
+  // Building the command to open the folder
+  if (snprintf(cmd, len, "xdg-open %s", src) < 0) {
+    fprintf(stderr, "Failed to construct absolute path to folder\n");
+  }
+  cmd[len] = '\0';
+
+  // Calling the command here
+  system(cmd);
+  return BOOLEAN_TRUE;
+}

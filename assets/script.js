@@ -77,9 +77,16 @@ function parseSingleQuotedArray(str) {
 }
 
 /**
+ * Sends a message back to the C code to open the default directory of the application
+ */
+function openDefaultDirectory() {
+  window.webkit.messageHandlers.on_open_default_directory.postMessage(null);
+}
+
+/**
  * Executes code after the DOM content is fully loaded and parsed.
  */
 document.addEventListener('DOMContentLoaded', async function() {
   // Native C function to get the path of all HTML files
-  window.webkit.messageHandlers.on_get_widget_filenames.postMessage('test');
+  window.webkit.messageHandlers.on_get_widget_filenames.postMessage(null);
 });

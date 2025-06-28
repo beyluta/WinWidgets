@@ -758,6 +758,27 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
 }
 
 /**
+ * @brief JavaScript calls this function to open the default directory
+ * @param manager Content manger from Webkit
+ * @param result JavaScript result of the operation
+ * @param user_data Pointer to custom user data
+ */
+static void on_open_default_directory(WebKitUserContentManager *manager,
+                                      WebKitJavascriptResult *result,
+                                      void *user_data) {
+  char dir[BUFFSIZE];
+  if (ww_default_widgets_dir(dir) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to create the default widgets directory\n");
+    return;
+  }
+
+  if (ww_open_folder(dir) == BOOLEAN_FALSE) {
+    fprintf(stderr, "Failed to open folder to directory %s\n", dir);
+    return;
+  }
+}
+
+/**
  * @brief Main event loop of the application
  * @param widgets Pointer to an array of widgets
  * @param running Pointer to the curent state of the event loop
@@ -818,18 +839,25 @@ BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Creating the WebKit browser
   WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
 
-  // Hooking up scripts and event handlers
+  // Registering the script handler for the different JS functions
   WebKitUserContentManager *manager =
       webkit_web_view_get_user_content_manager(webview);
   webkit_user_content_manager_register_script_message_handler(
       manager, "on_get_widget_filenames");
   webkit_user_content_manager_register_script_message_handler(
       manager, "on_open_widget_by_filename");
+  webkit_user_content_manager_register_script_message_handler(
+      manager, "on_open_default_directory");
+
+  // Connecting the events to their respective functions
   g_signal_connect(manager, "script-message-received::on_get_widget_filenames",
                    G_CALLBACK(on_get_widget_filenames), webview);
   g_signal_connect(manager,
                    "script-message-received::on_open_widget_by_filename",
                    G_CALLBACK(on_open_widget_by_filename), widgets);
+  g_signal_connect(manager,
+                   "script-message-received::on_open_default_directory",
+                   G_CALLBACK(on_open_default_directory), NULL);
 
   static BOOLEAN running = BOOLEAN_TRUE;
   widget_destroy_obj destroy_obj = {.running = &running, .widgets = widgets};
