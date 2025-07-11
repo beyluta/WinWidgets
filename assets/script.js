@@ -20,18 +20,6 @@ function hideScenes() {
 }
 
 /**
- * Toggles the selected setting
- * @param {string} setting - HtmlElement to be modified
- */
-function toggleSetting(setting) {
-  if (setting.classList.contains('enabled')) {
-    setting.classList.remove('enabled');
-  } else {
-    setting.classList.add('enabled');
-  }
-}
-
-/**
  * Adds a widget to the local widget UI
  * @param {string} path - Full path of the widget to add 
  */

@@ -14,7 +14,6 @@
     <div class="icons interact">
       <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" onclick="openScene('widgets', 'block')" />
       <img class="interact" alt="Code Image" src="svgs/code.svg" onclick="openScene('development', 'block')" />
-      <img class="interact" alt="Gear Image" src="svgs/gear.svg" onclick="openScene('settings', 'grid')" />
     </div>
   </nav>
 
@@ -28,20 +27,7 @@
       <input type="text" id="widgets" name="widgets" placeholder="Search for widget...">
       <img class="interact" alt="Folder Logo" src="svgs/folder.svg" onclick="openDefaultDirectory()" />
     </div>
-    <article class="list">
-      <!-- <div class="wrapper"> -->
-      <!--   <iframe src="https://www.pedroribeiro.site"></iframe> -->
-      <!-- </div> -->
-      <!-- <iframe src="file:///home/beyluta/.local/share/WinWidgets/index.html"></iframe> -->
-    </article>
-  </main>
-
-  <main class="settings">
-    <h3>Application</h3>
-    <span>Run the Application on Startup</span>
-    <div class="toggle" onclick="toggleSetting(this)"></div>
-    <span>Hide Widgets when another Application is in Fullscreen</span>
-    <div class="toggle" onclick="toggleSetting(this)"></div>
+    <article class="list"><!-- Widgets are injected here --></article>
   </main>
 
   <main class="development">

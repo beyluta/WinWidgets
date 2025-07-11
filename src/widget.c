@@ -55,16 +55,8 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
 
   const size_t content_len = strlen(content);
   size_t start = 0;
-  char title[BUFFSIZE], filename[BUFFSIZE];
+  char filename[BUFFSIZE];
   for (size_t i = 0; i < content_len; i++) {
-    if (content[i] == ';') {
-      const size_t title_len = i - start;
-      strncpy(title, &content[start], title_len);
-      title[title_len] = '\0';
-      start = i + 1;
-      continue;
-    }
-
     if (content[i] == '\n') {
       const size_t filename_len = i - start;
       strncpy(filename, &content[start], filename_len);
@@ -122,13 +114,12 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
     }
 
     const ww_window_ctx window = widgets[i].window_context;
-    const char *title = window.title;
     const char *filename = window.filename;
-    const size_t len =
-        strlen(title) + strlen(filename) + 3; // +3 for ';', '\n', and \0'
+    const size_t len = strlen(filename) + 2; // +2 for \n and \0
     char concatenated_str[BUFFSIZE];
-    if (snprintf(concatenated_str, len, "%s;%s\n", title, filename) < 0) {
+    if (snprintf(concatenated_str, len, "%s\n", filename) < 0) {
       fprintf(stderr, "Failed to concatenate title and filename\n");
+      return BOOLEAN_FALSE;
     }
     concatenated_str[len] = '\0';
 
@@ -140,6 +131,7 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
   }
   return BOOLEAN_TRUE;
 }
+
 /**
  * @brief Sets the window to use an RGBA visual if available, enabling
  * transparency and compositing effects. If the screen supports compositing and
