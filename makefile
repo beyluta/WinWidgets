@@ -11,7 +11,9 @@ ARGS = -Iinclude \
 			 -O2 \
 			 -Wall \
 			 -Werror \
-			 -Wextra
+			 -Wextra \
+			 -std=c23 \
+			 -D_POSIX_C_SOURCE=200809L
 
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 
