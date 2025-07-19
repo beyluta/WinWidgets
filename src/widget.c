@@ -62,7 +62,6 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
       strncpy(filename, &content[start], filename_len);
       filename[filename_len] = '\0';
 
-      ww_widget_ctx *widget = &widgets[open_widgets];
       ww_window_ctx window = widgets->window_context;
       if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
         fprintf(stderr, "Could not load existing configuration\n");
@@ -183,7 +182,9 @@ static void call_js_function(const char *func, const char *arg,
  * @param result Javascript response
  * @param user_data Pointer to the WebKitWebView
  */
-static void on_get_widget_filenames(WebKitUserContentManager *manager,
+static void on_get_widget_filenames(__attribute__((unused))
+                                    WebKitUserContentManager *manager,
+                                    __attribute__((unused))
                                     WebKitJavascriptResult *result,
                                     gpointer user_data) {
   // Getting the default app directory
@@ -405,11 +406,22 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   dest->opacity = (double)strtod(opacity, NULL);
   dest->radius = (double)strtod(radius, NULL);
 
-  // Copying pointers
-  strncpy(dest->title, title, strlen(title));
-  dest->title[strlen(title)] = '\0';
-  strncpy(dest->filename, filename, strlen(filename));
-  dest->filename[strlen(filename)] = '\0';
+  // Copying the memories of filename and title
+  const size_t title_len = strlen(title);
+  if (title_len >= BUFFSIZE) {
+    fprintf(stderr, "Length of title was bigger than expected\n");
+    return BOOLEAN_FALSE;
+  }
+  memcpy(dest->title, title, title_len);
+  dest->title[title_len] = '\0';
+
+  const size_t filename_len = strlen(filename);
+  if (filename_len >= BUFFSIZE) {
+    fprintf(stderr, "Length of filename was bigger than expected\n");
+    return BOOLEAN_FALSE;
+  }
+  memcpy(dest->filename, filename, filename_len);
+  dest->filename[filename_len] = '\0';
 
   return BOOLEAN_TRUE;
 }
@@ -439,21 +451,26 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
   }
   filename_with_suffix[len] = '\0';
 
-  char content[BUFFSIZE];
-  snprintf(content, BUFFSIZE,
-           "title=%s\n"
-           "width=%zu\n"
-           "height=%zu\n"
-           "x=%zu\n"
-           "y=%zu\n"
-           "title_bar=%s\n"
-           "top_most=%s\n"
-           "opacity=%f\n"
-           "radius=%f\n",
-           window->title, window->width, window->height, window->x, window->y,
-           window->title_bar == BOOLEAN_FALSE ? "true" : "false",
-           window->top_most == BOOLEAN_TRUE ? "true" : "false", window->opacity,
-           window->radius);
+  char content[EXTBUFFSIZE];
+  const ssize_t size =
+      snprintf(content, EXTBUFFSIZE,
+               "title=%s\n"
+               "width=%zu\n"
+               "height=%zu\n"
+               "x=%zu\n"
+               "y=%zu\n"
+               "title_bar=%s\n"
+               "top_most=%s\n"
+               "opacity=%f\n"
+               "radius=%f\n",
+               window->title, window->width, window->height, window->x,
+               window->y, window->title_bar == BOOLEAN_FALSE ? "true" : "false",
+               window->top_most == BOOLEAN_TRUE ? "true" : "false",
+               window->opacity, window->radius);
+  if (size < 0) {
+    fprintf(stderr, "Failed to construct content of the save file\n");
+    return BOOLEAN_FALSE;
+  }
 
   if (ww_write_to_file(filename_with_suffix, content, WRITE_OVERWRITE) ==
       BOOLEAN_FALSE) {
@@ -480,7 +497,8 @@ typedef struct widget_destroy_obj {
  * @param widget Pointer to the index of the child widget
  * @param data Pointer to the widget context struct
  */
-static gboolean on_child_destroy(GtkWidget *widget, void *data) {
+static gboolean on_child_destroy(__attribute__((unused)) GtkWidget *widget,
+                                 void *data) {
   ww_widget_ctx *context = (ww_widget_ctx *)data;
   const size_t index = context->window_context.index;
   closed_widgets[index] = 1; // Set widget as closed
@@ -492,7 +510,7 @@ static gboolean on_child_destroy(GtkWidget *widget, void *data) {
  * @param widget Pointer to the GtkWidget
  * @param data Pointer to the widget destroy struct
  */
-static gboolean on_main_destroy(GtkWidget *widget,
+static gboolean on_main_destroy(__attribute__((unused)) GtkWidget *widget,
                                 const widget_destroy_obj *destroy_data) {
   const widget_destroy_obj *destroy_obj =
       (const widget_destroy_obj *)destroy_data;
@@ -512,7 +530,8 @@ static gboolean on_main_destroy(GtkWidget *widget,
  * @param cr Cairo object with information about the rendering device
  * @param context Window context with information about the widget to be drawn
  */
-static void on_window_draw(GtkWidget *widget, cairo_t *cr,
+static void on_window_draw(GtkWidget *widget,
+                           __attribute__((unused)) cairo_t *cr,
                            const ww_window_ctx *context) {
   // Bounds of the gtk window
   GtkAllocation allocation;
@@ -613,7 +632,8 @@ static void create_menu_item(GtkWidget *menu, const char *label, void *callback,
  * @param item Menu item
  * @param data Widget context struct
  */
-static void on_top_most_clicked(GtkMenuItem *item, void *data) {
+static void on_top_most_clicked(__attribute__((unused)) GtkMenuItem *item,
+                                void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
   BOOLEAN *top_most = (BOOLEAN *)&ctx->window_context.top_most;
@@ -627,7 +647,8 @@ static void on_top_most_clicked(GtkMenuItem *item, void *data) {
  * @param item Menu item
  * @param data Widget context struct
  */
-static void on_close_clicked(GtkMenuItem *item, void *data) {
+static void on_close_clicked(__attribute__((unused)) GtkMenuItem *item,
+                             void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
   gtk_window_close(GTK_WINDOW(window));
@@ -639,8 +660,8 @@ static void on_close_clicked(GtkMenuItem *item, void *data) {
  * @param event Information about the event triggered
  * @param data Pointer to the widget context
  */
-static gboolean on_button_press(GtkWidget *window, GdkEventButton *event,
-                                void *data) {
+static gboolean on_button_press(__attribute__((unused)) GtkWidget *window,
+                                GdkEventButton *event, void *data) {
   if (event->type == GDK_BUTTON_PRESS && event->button == CLICK_RIGHT) {
     GtkWidget *menu = gtk_menu_new();
     create_menu_item(menu, "Top Most", on_top_most_clicked, data);
@@ -717,7 +738,8 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
  * @param result JavaScript result of the operation
  * @param user_data Pointer to an array of widgets
  */
-static void on_open_widget_by_filename(WebKitUserContentManager *manager,
+static void on_open_widget_by_filename(__attribute__((unused))
+                                       WebKitUserContentManager *manager,
                                        WebKitJavascriptResult *result,
                                        ww_widget_ctx *widgets) {
   // Get the value passed from the JavaScript
@@ -729,15 +751,17 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
     return;
   }
 
-  // JSC Values are managed by WebKit; allocate memory for our own string
-  const char *jsc_value = jsc_value_to_string(value);
-
   // Making a copy of JSC value that we can use without worries
   char filename[BUFFSIZE];
-  if (strncpy((void *)filename, jsc_value, strlen(jsc_value)) == 0) {
-    fprintf(stderr, "Failed to copy WebKitJS string to stack memory\n");
+  void *jsc_value = jsc_value_to_string(value);
+  const size_t len = strlen(jsc_value);
+  if (len >= BUFFSIZE) {
+    fprintf(stderr, "Value of JavaScript value was bigger than expected\n");
     return;
   }
+  memcpy(filename, jsc_value, len);
+  filename[len] = '\0';
+  g_free(jsc_value);
 
   // Getting the configuration into a struct
   ww_widget_ctx *widget = &widgets[open_widgets];
@@ -755,9 +779,11 @@ static void on_open_widget_by_filename(WebKitUserContentManager *manager,
  * @param result JavaScript result of the operation
  * @param user_data Pointer to custom user data
  */
-static void on_open_default_directory(WebKitUserContentManager *manager,
+static void on_open_default_directory(__attribute__((unused))
+                                      WebKitUserContentManager *manager,
+                                      __attribute__((unused))
                                       WebKitJavascriptResult *result,
-                                      void *user_data) {
+                                      __attribute__((unused)) void *user_data) {
   char dir[BUFFSIZE];
   if (ww_default_widgets_dir(dir) == BOOLEAN_FALSE) {
     fprintf(stderr, "Failed to create the default widgets directory\n");

@@ -31,7 +31,7 @@ static size_t get_executable_path(char *dest, const size_t max_len) {
 
 static size_t str_to_file(const char *src, char *dest) {
   size_t len = strlen(src) + 7;
-  size_t size = snprintf(dest, len + 1, "file://%s", src);
+  ssize_t size = snprintf(dest, len + 1, "file://%s", src);
   if (size == OOB) {
     fprintf(stderr, "Failed to append file prefix to path\n");
     return OOB;
@@ -63,7 +63,7 @@ static BOOLEAN get_app_directory(char *dest) {
 
 BOOLEAN ww_default_index_html(char *dest) {
   char exec_path[BUFFSIZE];
-  const size_t exec_len = get_executable_path(exec_path, sizeof(exec_path));
+  const ssize_t exec_len = get_executable_path(exec_path, sizeof(exec_path));
   if (exec_len == OOB) {
     fprintf(stderr, "Failed get path to the HTML file\n");
     return BOOLEAN_FALSE;
@@ -72,7 +72,7 @@ BOOLEAN ww_default_index_html(char *dest) {
   const char *directory = dirname(exec_path);
   const char html_path[] = DEFAULT_HTML_PATH;
   const size_t total_len = strlen(directory) + strlen(html_path) + 2;
-  const size_t len = snprintf(dest, total_len, "%s/%s", exec_path, html_path);
+  const ssize_t len = snprintf(dest, total_len, "%s/%s", exec_path, html_path);
   if (len == OOB) {
     fprintf(stderr, "Failed to concatenate HTML file path\n");
     return BOOLEAN_FALSE;
@@ -80,7 +80,7 @@ BOOLEAN ww_default_index_html(char *dest) {
   dest[total_len] = '\0';
 
   char file[BUFFSIZE];
-  const size_t file_size = str_to_file(dest, file);
+  const ssize_t file_size = str_to_file(dest, file);
   if (file_size == OOB) {
     fprintf(stderr, "Failed to build correct string\n");
     return BOOLEAN_FALSE;

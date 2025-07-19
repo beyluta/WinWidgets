@@ -32,8 +32,15 @@ int main(void) {
                           .title = "WinWidgets",
                           .opacity = 1,
                           .radius = 0};
+
   // Copying pointers to the struct
-  strncpy(window.filename, html, strlen(html));
+  const size_t len = strlen(html);
+  if (len >= BUFFSIZE) {
+    fprintf(stderr, "Buffer size of filename was larger than expected\n");
+    return BOOLEAN_FALSE;
+  }
+  memcpy(window.filename, html, len);
+  window.filename[len] = '\0';
 
   /* All widgets and their corresponding configuration will be saved inside this
    * variable. We also go through all widgets and set their index number here.

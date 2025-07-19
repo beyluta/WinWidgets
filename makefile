@@ -7,8 +7,11 @@ OUT = output
 SRC = main.c \
 			src/widget.c \
 			src/filesystem.c
-ARGS = -Iinclude	 \
-			 -O2				 
+ARGS = -Iinclude \
+			 -O2 \
+			 -Wall \
+			 -Werror \
+			 -Wextra
 
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 
