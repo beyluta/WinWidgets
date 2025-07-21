@@ -14,9 +14,9 @@ typedef struct ww_window_ctx {
   size_t x;
   size_t y;
   size_t index;
-  BOOLEAN title_bar;
-  BOOLEAN child;
-  BOOLEAN top_most;
+  bool title_bar;
+  bool child;
+  bool top_most;
   char filename[BUFFSIZE];
   char title[BUFFSIZE];
   double opacity;
@@ -38,6 +38,6 @@ typedef struct ww_widget_ctx {
  * @param widgets A pointer to an array of widgets
  * @return Status of the function execution
  */
-BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets);
+bool ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets);
 
 #endif

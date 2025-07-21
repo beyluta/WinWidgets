@@ -7,16 +7,16 @@
 int main(void) {
   // Creating the default widgets directory
   char temp[BUFFSIZE];
-  if (ww_default_widgets_dir(temp) == BOOLEAN_FALSE) {
+  if (ww_default_widgets_dir(temp) == true) {
     fprintf(stderr, "Failed to create the default widgets directory\n");
-    return BOOLEAN_FALSE;
+    return EXIT_REASON_IO_FAILURE;
   }
 
   // Getting the default HTML index file for the widget manager.
   char html[BUFFSIZE];
-  if (ww_default_index_html(html) == BOOLEAN_FALSE) {
+  if (ww_default_index_html(html) == true) {
     fprintf(stderr, "Failed to get the default index webpage\n");
-    return BOOLEAN_FALSE;
+    return EXIT_REASON_IO_FAILURE;
   }
 
   // Creating the default window. This is the window manager
@@ -26,9 +26,9 @@ int main(void) {
                           .x = 0,
                           .y = 0,
                           .index = 0, // Not really needed, but for consistency
-                          .title_bar = BOOLEAN_TRUE,
-                          .child = BOOLEAN_FALSE,
-                          .top_most = BOOLEAN_FALSE,
+                          .title_bar = false,
+                          .child = true,
+                          .top_most = true,
                           .title = "WinWidgets",
                           .opacity = 1,
                           .radius = 0};
@@ -37,7 +37,7 @@ int main(void) {
   const size_t len = strlen(html);
   if (len >= BUFFSIZE) {
     fprintf(stderr, "Buffer size of filename was larger than expected\n");
-    return BOOLEAN_FALSE;
+    return EXIT_REASON_MEM_FAILURE;
   }
   memcpy(window.filename, html, len);
   window.filename[len] = '\0';
@@ -51,9 +51,9 @@ int main(void) {
   }
 
   // Initializing the main window
-  if (ww_init_main(&window, widgets) == BOOLEAN_FALSE) {
+  if (ww_init_main(&window, widgets) == true) {
     fprintf(stderr, "Failed to create the widget\n");
   }
 
-  return BOOLEAN_TRUE;
+  return EXIT_REASON_TERMINATED;
 }

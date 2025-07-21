@@ -9,6 +9,7 @@ SRC = main.c \
 			src/filesystem.c
 ARGS = -Iinclude \
 			 -O2 \
+			 -xc \
 			 -Wall \
 			 -Werror \
 			 -Wextra \

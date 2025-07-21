@@ -8,29 +8,29 @@
 #include <string.h>
 #include <webkit2/webkit2.h>
 
-#define TICK_DELAY 1       // Seconds between event loop updates
-#define CFG_SUFFIX ".cfg"  // Prefix for default children widgets
-#define CFG_MAIN "app.cfg" // Name of the default config file
-#define CLICK_RIGHT 3      // Code for right-clicking
+constexpr int TICK_DELAY = 1;          // Seconds between event loop updates
+constexpr int CLICK_RIGHT = 3;         // Code for right-clicking
+constexpr char CFG_SUFFIX[] = ".cfg";  // Prefix for default children widgets
+constexpr char CFG_MAIN[] = "app.cfg"; // Name of the default config file
 
 // Global variables
-static size_t open_widgets = 1;                  // Number of opened widgets
-static size_t closed_widgets[MAX_WIDGETS] = {0}; // Number of closed widgets
+static size_t open_widgets = 1;                 // Number of opened widgets
+static size_t closed_widgets[MAX_WIDGETS] = {}; // Number of closed widgets
 
 // Forward declaration of functions
-static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets);
-static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest);
+static bool create_widget(ww_window_ctx *context, ww_widget_ctx *widgets);
+static bool get_widget_config(const char *filename, ww_window_ctx *dest);
 
 /**
  * @brief Applies the main config of the application. Used for opening widgets
  * that were not closed between sessions.
  * @param widgets Pointer to an array of widgets
  */
-static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
+static bool apply_main_config(ww_widget_ctx *widgets) {
   char default_dir[BUFFSIZE];
-  if (ww_default_widgets_dir(default_dir) == BOOLEAN_FALSE) {
+  if (ww_default_widgets_dir(default_dir) == true) {
     fprintf(stderr, "Failed to get default widgets dir\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char app_cfg[BUFFSIZE];
@@ -38,19 +38,19 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
       strlen(CFG_MAIN) + strlen(default_dir) + 2; // +2 for '\0' and '/'
   if (snprintf(app_cfg, len, "%s/%s", default_dir, CFG_MAIN) < 0) {
     fprintf(stderr, "Failed to construct app config path\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
   app_cfg[len] = '\0';
 
   if (access(app_cfg, F_OK) != 0) {
     fprintf(stderr, "Failed to apply config; %s does not exist\n", app_cfg);
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char content[EXTBUFFSIZE];
-  if (ww_get_file_content(app_cfg, content, EXTBUFFSIZE) == BOOLEAN_FALSE) {
+  if (ww_get_file_content(app_cfg, content, EXTBUFFSIZE) == true) {
     fprintf(stderr, "Failed to get content of the main app configuration.\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   const size_t content_len = strlen(content);
@@ -63,22 +63,22 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
       filename[filename_len] = '\0';
 
       ww_window_ctx window = widgets->window_context;
-      if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
+      if (get_widget_config(filename, &window) == true) {
         fprintf(stderr, "Could not load existing configuration\n");
-        return BOOLEAN_FALSE;
+        return true;
       }
 
-      if (create_widget(&window, widgets) == BOOLEAN_FALSE) {
+      if (create_widget(&window, widgets) == true) {
         fprintf(stderr, "Failed to open previously opened Widget: %s\n",
                 filename);
-        return BOOLEAN_FALSE;
+        return true;
       }
 
       start = i + 1;
     }
   }
 
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -86,11 +86,11 @@ static BOOLEAN apply_main_config(ww_widget_ctx *widgets) {
  * currently opened widgets.
  * @param widgets Pointer to an array of widgets
  */
-static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
+static bool save_main_config(const ww_widget_ctx *widgets) {
   char default_dir[BUFFSIZE];
-  if (ww_default_widgets_dir(default_dir) == BOOLEAN_FALSE) {
+  if (ww_default_widgets_dir(default_dir) == true) {
     fprintf(stderr, "Failed to get default widgets dir\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char app_cfg[BUFFSIZE];
@@ -98,13 +98,13 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
       strlen(CFG_MAIN) + strlen(default_dir) + 2; // +2 for '\0' and '/'
   if (snprintf(app_cfg, len, "%s/%s", default_dir, CFG_MAIN) < 0) {
     fprintf(stderr, "Failed to construct app config path\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
   app_cfg[len] = '\0';
 
-  if (ww_write_to_file(app_cfg, "", WRITE_OVERWRITE) == BOOLEAN_FALSE) {
+  if (ww_write_to_file(app_cfg, "", WRITE_OVERWRITE) == true) {
     fprintf(stderr, "Failed to clear the contents of the file\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   for (size_t i = 1; i < open_widgets; i++) {
@@ -118,17 +118,16 @@ static BOOLEAN save_main_config(const ww_widget_ctx *widgets) {
     char concatenated_str[BUFFSIZE];
     if (snprintf(concatenated_str, len, "%s\n", filename) < 0) {
       fprintf(stderr, "Failed to concatenate title and filename\n");
-      return BOOLEAN_FALSE;
+      return true;
     }
     concatenated_str[len] = '\0';
 
-    if (ww_write_to_file(app_cfg, concatenated_str, WRITE_APPEND) ==
-        BOOLEAN_FALSE) {
+    if (ww_write_to_file(app_cfg, concatenated_str, WRITE_APPEND) == true) {
       fprintf(stderr, "Failed to append filename to file\n");
-      return BOOLEAN_FALSE;
+      return true;
     }
   }
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -182,14 +181,12 @@ static void call_js_function(const char *func, const char *arg,
  * @param result Javascript response
  * @param user_data Pointer to the WebKitWebView
  */
-static void on_get_widget_filenames(__attribute__((unused))
-                                    WebKitUserContentManager *manager,
-                                    __attribute__((unused))
-                                    WebKitJavascriptResult *result,
+static void on_get_widget_filenames(WebKitUserContentManager *,
+                                    WebKitJavascriptResult *,
                                     gpointer user_data) {
   // Getting the default app directory
   char app_dir[BUFFSIZE];
-  if (ww_default_widgets_dir(app_dir) == BOOLEAN_FALSE) {
+  if (ww_default_widgets_dir(app_dir) == true) {
     fprintf(stderr, "Failed to get default app directory\n");
     return;
   }
@@ -232,15 +229,15 @@ static void on_get_widget_filenames(__attribute__((unused))
  * @param dest String to save the new string to
  * @returns Status of the operation
  */
-static BOOLEAN remove_file_prefix(const char *filename, char *dest) {
+static bool remove_file_prefix(const char *filename, char *dest) {
   const size_t len = strlen(filename) - 7;
   if (strncpy(dest, &filename[7], len) == NULL) {
     fprintf(stderr, "Failed to remove the prefix from the filename: %s\n",
             filename);
-    return BOOLEAN_FALSE;
+    return true;
   }
   dest[len] = '\0';
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -249,22 +246,22 @@ static BOOLEAN remove_file_prefix(const char *filename, char *dest) {
  * @param target Target attribute to get the value from
  * @param dest String to save the value to
  */
-static BOOLEAN get_widget_config_attribute(const char *src, const char *target,
-                                           char *dest) {
+static bool get_widget_config_attribute(const char *src, const char *target,
+                                        char *dest) {
   const size_t len = strlen(src);
   const size_t target_len = strlen(target);
-  BOOLEAN value_found = BOOLEAN_FALSE;
+  bool value_found = true;
   int start = -1, end = -1;
   for (size_t i = 0, k = 0; i < len; i++) {
-    if (src[i] == target[k] && value_found == BOOLEAN_FALSE) {
+    if (src[i] == target[k] && value_found == true) {
       k++;
       if (k >= target_len) {
-        value_found = BOOLEAN_TRUE;
+        value_found = false;
       }
       continue;
     }
 
-    if (value_found == BOOLEAN_TRUE) {
+    if (value_found == false) {
       if (src[i] == '=' && start < 0 && i + 1 < len) {
         start = i + 1;
       } else if (src[i] == '\n' && end < 0) {
@@ -275,17 +272,17 @@ static BOOLEAN get_widget_config_attribute(const char *src, const char *target,
         const size_t size = end - start;
         if (strncpy(dest, &src[start], size) == NULL) {
           fprintf(stderr, "Failed to get value of attribute %s\n", target);
-          return BOOLEAN_FALSE;
+          return true;
         }
         dest[size] = '\0';
-        return BOOLEAN_TRUE;
+        return false;
       }
       continue;
     }
 
     k = 0;
   }
-  return BOOLEAN_FALSE;
+  return true;
 }
 
 /**
@@ -294,17 +291,17 @@ static BOOLEAN get_widget_config_attribute(const char *src, const char *target,
  * @param dest Widget window context that the props will be saved to
  * @returns Status of the operation
  */
-static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
+static bool get_widget_config(const char *filename, ww_window_ctx *dest) {
   char root_dir[BUFFSIZE];
-  if (ww_get_root_dir(filename, root_dir) == BOOLEAN_FALSE) {
+  if (ww_get_root_dir(filename, root_dir) == true) {
     fprintf(stderr, "Could not get root directory of file %s\n", filename);
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char file[BUFFSIZE];
-  if (ww_get_filename_from_absolute_path(filename, file) == BOOLEAN_FALSE) {
+  if (ww_get_filename_from_absolute_path(filename, file) == true) {
     fprintf(stderr, "Could not get file name\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char config_path[BUFFSIZE];
@@ -312,20 +309,20 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   if (snprintf(config_path, len + 1, "%s%s%s", root_dir, file, CFG_SUFFIX) <
       0) {
     fprintf(stderr, "Could not get the config file path\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
   config_path[len] = '\0';
 
   char config_path_no_prefix[BUFFSIZE];
-  if (remove_file_prefix(config_path, config_path_no_prefix) == BOOLEAN_FALSE) {
+  if (remove_file_prefix(config_path, config_path_no_prefix) == true) {
     fprintf(stderr, "Could not remove prefix from file %s\n", config_path);
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char config_content[BUFFSIZE];
   memset(config_content, 0, BUFFSIZE);
   if (ww_get_file_content(config_path_no_prefix, config_content, BUFFSIZE) ==
-      BOOLEAN_FALSE) {
+      true) {
     fprintf(stderr, "Could not get the content from the config file: %s\n",
             config_path);
   }
@@ -333,62 +330,57 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   // Getting the properties from the config files
   // ---------------------------------------------------
   char title[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "title", title) ==
-      BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "title", title) == true) {
     strncpy(title, "Child", sizeof(title) - 1);
     title[sizeof(title) - 1] = '\0';
   }
 
   char width[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "width", width) ==
-      BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "width", width) == true) {
     strncpy(width, "800", sizeof(width) - 1);
     width[sizeof(width) - 1] = '\0';
   }
 
   char height[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "height", height) ==
-      BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "height", height) == true) {
     strncpy(height, "600", sizeof(height) - 1);
     height[sizeof(height) - 1] = '\0';
   }
 
   char x[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "x", x) == BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "x", x) == true) {
     strncpy(x, "0", sizeof(x) - 1);
     x[sizeof(x) - 1] = '\0';
   }
 
   char y[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "y", y) == BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "y", y) == true) {
     strncpy(y, "0", sizeof(y) - 1);
     y[sizeof(y) - 1] = '\0';
   }
 
   char title_bar[BUFFSIZE];
   if (get_widget_config_attribute(config_content, "title_bar", title_bar) ==
-      BOOLEAN_FALSE) {
+      true) {
     strncpy(title_bar, "true", sizeof(title_bar) - 1);
     title_bar[sizeof(title_bar) - 1] = '\0';
   }
 
   char top_most[BUFFSIZE];
   if (get_widget_config_attribute(config_content, "top_most", top_most) ==
-      BOOLEAN_FALSE) {
+      true) {
     strncpy(top_most, "false", sizeof(top_most) - 1);
     top_most[sizeof(top_most) - 1] = '\0';
   }
 
   char opacity[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "opacity", opacity) ==
-      BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "opacity", opacity) == true) {
     strncpy(opacity, "1", sizeof(opacity) - 1);
     opacity[sizeof(opacity) - 1] = '\0';
   }
 
   char radius[BUFFSIZE];
-  if (get_widget_config_attribute(config_content, "radius", radius) ==
-      BOOLEAN_FALSE) {
+  if (get_widget_config_attribute(config_content, "radius", radius) == true) {
     strncpy(radius, "0", sizeof(radius) - 1);
     radius[sizeof(radius) - 1] = '\0';
   }
@@ -398,11 +390,9 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   dest->height = (size_t)strtol(height, NULL, 10);
   dest->x = (size_t)strtol(x, NULL, 10);
   dest->y = (size_t)strtol(y, NULL, 10);
-  dest->title_bar =
-      (strcmp(title_bar, "true") == 0) ? BOOLEAN_FALSE : BOOLEAN_TRUE;
-  dest->child = BOOLEAN_TRUE;
-  dest->top_most =
-      (strcmp(top_most, "true") == 0) ? BOOLEAN_TRUE : BOOLEAN_FALSE;
+  dest->title_bar = (strcmp(title_bar, "true") == 0) ? true : false;
+  dest->child = false;
+  dest->top_most = (strcmp(top_most, "true") == 0) ? false : true;
   dest->opacity = (double)strtod(opacity, NULL);
   dest->radius = (double)strtod(radius, NULL);
 
@@ -410,7 +400,7 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   const size_t title_len = strlen(title);
   if (title_len >= BUFFSIZE) {
     fprintf(stderr, "Length of title was bigger than expected\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
   memcpy(dest->title, title, title_len);
   dest->title[title_len] = '\0';
@@ -418,12 +408,12 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
   const size_t filename_len = strlen(filename);
   if (filename_len >= BUFFSIZE) {
     fprintf(stderr, "Length of filename was bigger than expected\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
   memcpy(dest->filename, filename, filename_len);
   dest->filename[filename_len] = '\0';
 
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -431,13 +421,12 @@ static BOOLEAN get_widget_config(const char *filename, ww_window_ctx *dest) {
  * @param window Window context object
  * @returns Status of the operation
  */
-static BOOLEAN save_widget_config(const ww_window_ctx *window) {
+static bool save_widget_config(const ww_window_ctx *window) {
   char filename_without_prefix[BUFFSIZE];
-  if (remove_file_prefix(window->filename, filename_without_prefix) ==
-      BOOLEAN_FALSE) {
+  if (remove_file_prefix(window->filename, filename_without_prefix) == true) {
     fprintf(stderr, "Could not remove file prefix from: %s\n",
             window->filename);
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   char filename_with_suffix[BUFFSIZE];
@@ -447,7 +436,7 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
 
     fprintf(stderr, "Failed to add the configuration suffix to %s\n",
             filename_with_suffix);
-    return BOOLEAN_FALSE;
+    return true;
   }
   filename_with_suffix[len] = '\0';
 
@@ -464,21 +453,21 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
                "opacity=%f\n"
                "radius=%f\n",
                window->title, window->width, window->height, window->x,
-               window->y, window->title_bar == BOOLEAN_FALSE ? "true" : "false",
-               window->top_most == BOOLEAN_TRUE ? "true" : "false",
-               window->opacity, window->radius);
+               window->y, window->title_bar == true ? "true" : "false",
+               window->top_most == false ? "true" : "false", window->opacity,
+               window->radius);
   if (size < 0) {
     fprintf(stderr, "Failed to construct content of the save file\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   if (ww_write_to_file(filename_with_suffix, content, WRITE_OVERWRITE) ==
-      BOOLEAN_FALSE) {
+      true) {
     fprintf(stderr, "Failed to write content to file\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -489,7 +478,7 @@ static BOOLEAN save_widget_config(const ww_window_ctx *window) {
 typedef struct widget_destroy_obj {
   ww_widget_ctx *widgets; // All widgets
   size_t index;           // Index of this specific widget
-  BOOLEAN *running;       // Only the main window has this
+  bool *running;          // Only the main window has this
 } widget_destroy_obj;
 
 /**
@@ -497,8 +486,7 @@ typedef struct widget_destroy_obj {
  * @param widget Pointer to the index of the child widget
  * @param data Pointer to the widget context struct
  */
-static gboolean on_child_destroy(__attribute__((unused)) GtkWidget *widget,
-                                 void *data) {
+static gboolean on_child_destroy(GtkWidget *, void *data) {
   ww_widget_ctx *context = (ww_widget_ctx *)data;
   const size_t index = context->window_context.index;
   closed_widgets[index] = 1; // Set widget as closed
@@ -510,7 +498,7 @@ static gboolean on_child_destroy(__attribute__((unused)) GtkWidget *widget,
  * @param widget Pointer to the GtkWidget
  * @param data Pointer to the widget destroy struct
  */
-static gboolean on_main_destroy(__attribute__((unused)) GtkWidget *widget,
+static gboolean on_main_destroy(GtkWidget *,
                                 const widget_destroy_obj *destroy_data) {
   const widget_destroy_obj *destroy_obj =
       (const widget_destroy_obj *)destroy_data;
@@ -519,8 +507,8 @@ static gboolean on_main_destroy(__attribute__((unused)) GtkWidget *widget,
   save_main_config(destroy_obj->widgets);
 
   // Stopping the event loop
-  BOOLEAN *running = (BOOLEAN *)destroy_obj->running;
-  *running = BOOLEAN_FALSE;
+  bool *running = (bool *)destroy_obj->running;
+  *running = true;
   return false;
 }
 
@@ -530,8 +518,7 @@ static gboolean on_main_destroy(__attribute__((unused)) GtkWidget *widget,
  * @param cr Cairo object with information about the rendering device
  * @param context Window context with information about the widget to be drawn
  */
-static void on_window_draw(GtkWidget *widget,
-                           __attribute__((unused)) cairo_t *cr,
+static void on_window_draw(GtkWidget *widget, cairo_t *,
                            const ww_window_ctx *context) {
   // Bounds of the gtk window
   GtkAllocation allocation;
@@ -597,19 +584,17 @@ static void on_window_draw(GtkWidget *widget,
  * @param context Window context containing all properties
  * @param window Pointer to the GtkWidget
  */
-static BOOLEAN set_window_style(ww_window_ctx *context, GtkWidget *window) {
+static bool set_window_style(ww_window_ctx *context, GtkWidget *window) {
   gtk_window_set_title(GTK_WINDOW(window), context->title);
   gtk_window_set_default_size(GTK_WINDOW(window), context->width,
                               context->height);
-  gtk_window_set_decorated(GTK_WINDOW(window),
-                           context->title_bar == BOOLEAN_TRUE);
+  gtk_window_set_decorated(GTK_WINDOW(window), context->title_bar == false);
   gtk_window_move(GTK_WINDOW(window), context->x, context->y);
 
   set_rgba_visuals(window); // Options below require this
   set_window_opacity(window, context->opacity);
-  gtk_window_set_keep_above(GTK_WINDOW(window),
-                            context->top_most == BOOLEAN_TRUE);
-  return BOOLEAN_TRUE;
+  gtk_window_set_keep_above(GTK_WINDOW(window), context->top_most == false);
+  return false;
 }
 
 /**
@@ -632,14 +617,12 @@ static void create_menu_item(GtkWidget *menu, const char *label, void *callback,
  * @param item Menu item
  * @param data Widget context struct
  */
-static void on_top_most_clicked(__attribute__((unused)) GtkMenuItem *item,
-                                void *data) {
+static void on_top_most_clicked(GtkMenuItem *, void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
-  BOOLEAN *top_most = (BOOLEAN *)&ctx->window_context.top_most;
-  *top_most = ctx->window_context.top_most == BOOLEAN_TRUE ? BOOLEAN_FALSE
-                                                           : BOOLEAN_TRUE;
-  gtk_window_set_keep_above(GTK_WINDOW(window), *top_most == BOOLEAN_TRUE);
+  bool *top_most = (bool *)&ctx->window_context.top_most;
+  *top_most = ctx->window_context.top_most == false ? true : false;
+  gtk_window_set_keep_above(GTK_WINDOW(window), *top_most == false);
 }
 
 /**
@@ -647,8 +630,7 @@ static void on_top_most_clicked(__attribute__((unused)) GtkMenuItem *item,
  * @param item Menu item
  * @param data Widget context struct
  */
-static void on_close_clicked(__attribute__((unused)) GtkMenuItem *item,
-                             void *data) {
+static void on_close_clicked(GtkMenuItem *, void *data) {
   const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
   const GtkWidget *window = ctx->window;
   gtk_window_close(GTK_WINDOW(window));
@@ -660,8 +642,8 @@ static void on_close_clicked(__attribute__((unused)) GtkMenuItem *item,
  * @param event Information about the event triggered
  * @param data Pointer to the widget context
  */
-static gboolean on_button_press(__attribute__((unused)) GtkWidget *window,
-                                GdkEventButton *event, void *data) {
+static gboolean on_button_press(GtkWidget *, GdkEventButton *event,
+                                void *data) {
   if (event->type == GDK_BUTTON_PRESS && event->button == CLICK_RIGHT) {
     GtkWidget *menu = gtk_menu_new();
     create_menu_item(menu, "Top Most", on_top_most_clicked, data);
@@ -677,18 +659,18 @@ static gboolean on_button_press(__attribute__((unused)) GtkWidget *window,
  * @param context Properties of the widget window
  * @param widgets Pointer to an array of widgets
  */
-static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
+static bool create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Checking if we can create more widgets
   if (open_widgets >= MAX_WIDGETS) {
     fprintf(stderr, "Failed to add widget to list. Widget limit exceeded.\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   // Setting GTK window options
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  if (set_window_style(context, window) == BOOLEAN_FALSE) {
+  if (set_window_style(context, window) == true) {
     fprintf(stderr, "Failed to set window default style\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   // Creating the WebKit browser
@@ -729,7 +711,7 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
   gtk_widget_show_all(window);
   open_widgets++;
 
-  return BOOLEAN_TRUE;
+  return false;
 }
 
 /**
@@ -738,8 +720,7 @@ static BOOLEAN create_widget(ww_window_ctx *context, ww_widget_ctx *widgets) {
  * @param result JavaScript result of the operation
  * @param user_data Pointer to an array of widgets
  */
-static void on_open_widget_by_filename(__attribute__((unused))
-                                       WebKitUserContentManager *manager,
+static void on_open_widget_by_filename(WebKitUserContentManager *,
                                        WebKitJavascriptResult *result,
                                        ww_widget_ctx *widgets) {
   // Get the value passed from the JavaScript
@@ -766,7 +747,7 @@ static void on_open_widget_by_filename(__attribute__((unused))
   // Getting the configuration into a struct
   ww_widget_ctx *widget = &widgets[open_widgets];
   ww_window_ctx window = widget->window_context;
-  if (get_widget_config(filename, &window) == BOOLEAN_FALSE) {
+  if (get_widget_config(filename, &window) == true) {
     fprintf(stderr, "Could not load existing configuration\n");
   }
 
@@ -779,18 +760,15 @@ static void on_open_widget_by_filename(__attribute__((unused))
  * @param result JavaScript result of the operation
  * @param user_data Pointer to custom user data
  */
-static void on_open_default_directory(__attribute__((unused))
-                                      WebKitUserContentManager *manager,
-                                      __attribute__((unused))
-                                      WebKitJavascriptResult *result,
-                                      __attribute__((unused)) void *user_data) {
+static void on_open_default_directory(WebKitUserContentManager *,
+                                      WebKitJavascriptResult *, void *) {
   char dir[BUFFSIZE];
-  if (ww_default_widgets_dir(dir) == BOOLEAN_FALSE) {
+  if (ww_default_widgets_dir(dir) == true) {
     fprintf(stderr, "Failed to create the default widgets directory\n");
     return;
   }
 
-  if (ww_open_folder(dir) == BOOLEAN_FALSE) {
+  if (ww_open_folder(dir) == true) {
     fprintf(stderr, "Failed to open folder to directory %s\n", dir);
     return;
   }
@@ -801,9 +779,9 @@ static void on_open_default_directory(__attribute__((unused))
  * @param widgets Pointer to an array of widgets
  * @param running Pointer to the curent state of the event loop
  */
-static BOOLEAN event_loop(ww_widget_ctx *widgets, BOOLEAN *running) {
+static bool event_loop(ww_widget_ctx *widgets, bool *running) {
   size_t next_tick = time(NULL) + TICK_DELAY;
-  while (*running == BOOLEAN_TRUE) {
+  while (*running == false) {
     gtk_main_iteration_do(TRUE);
 
     const size_t now = time(NULL);
@@ -835,23 +813,23 @@ static BOOLEAN event_loop(ww_widget_ctx *widgets, BOOLEAN *running) {
       *ptr_w = w;
       *ptr_h = h;
 
-      if (save_widget_config(&window) == BOOLEAN_FALSE) {
+      if (save_widget_config(&window) == true) {
         fprintf(stderr, "Failed to save new widget position and scale\n");
       }
     }
   }
-  return BOOLEAN_TRUE;
+  return false;
 }
 
-BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
+bool ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
   // Initializing GTK
   gtk_init(NULL, NULL);
 
   // Setting GTK window options
   GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  if (set_window_style(context, window) == BOOLEAN_FALSE) {
+  if (set_window_style(context, window) == true) {
     fprintf(stderr, "Failed to set window default style\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
   // Creating the WebKit browser
@@ -877,7 +855,7 @@ BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
                    "script-message-received::on_open_default_directory",
                    G_CALLBACK(on_open_default_directory), NULL);
 
-  static BOOLEAN running = BOOLEAN_TRUE;
+  static bool running = false;
   widget_destroy_obj destroy_obj = {.running = &running, .widgets = widgets};
   g_signal_connect(window, "destroy", G_CALLBACK(on_main_destroy),
                    &destroy_obj);
@@ -888,15 +866,15 @@ BOOLEAN ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets) {
   gtk_widget_show_all(window);
 
   // Load the main app configuration
-  if (apply_main_config(widgets) == BOOLEAN_FALSE) {
+  if (apply_main_config(widgets) == true) {
     fprintf(stderr, "Failed to apply main app configuration\n");
   }
 
   // Event loop
-  if (event_loop(widgets, &running) == BOOLEAN_FALSE) {
+  if (event_loop(widgets, &running) == true) {
     fprintf(stderr, "Could not start start event loop\n");
-    return BOOLEAN_FALSE;
+    return true;
   }
 
-  return BOOLEAN_TRUE;
+  return false;
 }

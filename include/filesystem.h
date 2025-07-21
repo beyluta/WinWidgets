@@ -4,21 +4,21 @@
 #include "global.h"
 #include <stddef.h>
 
-#define WRITE_APPEND 0
-#define WRITE_OVERWRITE 1
+constexpr unsigned char WRITE_APPEND = 0;
+constexpr unsigned char WRITE_OVERWRITE = 1;
 
 /**
  * @brief Gets the default HTML file for the wigets manager
  * @param dest Full path to the file
  */
-BOOLEAN ww_default_index_html(char *dest);
+bool ww_default_index_html(char *dest);
 
 /**
  * @brief Gets the default path to the Widgets.
  * Creates the directory first if it doesn't exist.
  * @param dest Full path to the widgets directory
  */
-BOOLEAN ww_default_widgets_dir(char *dest);
+bool ww_default_widgets_dir(char *dest);
 
 /**
  * @brief Gets a list of files inside a directory
@@ -37,7 +37,7 @@ size_t ww_get_files_from_dir(const char *src, char dest[][BUFFSIZE],
  * @param max_len Max length of the file content
  * @return Status of the operation
  */
-BOOLEAN ww_get_file_content(const char *src, char *dest, const size_t max_len);
+bool ww_get_file_content(const char *src, char *dest, const size_t max_len);
 
 /**
  * @brief Gets the root directory of a file
@@ -45,7 +45,7 @@ BOOLEAN ww_get_file_content(const char *src, char *dest, const size_t max_len);
  * @param dest String to save the content to
  * @return Status of the operation
  */
-BOOLEAN ww_get_root_dir(const char *src, char *dest);
+bool ww_get_root_dir(const char *src, char *dest);
 
 /**
  * @brief Gets the name of a file from the absolute path
@@ -53,7 +53,7 @@ BOOLEAN ww_get_root_dir(const char *src, char *dest);
  * @param dest String to save the content to
  * @return Status of the operation
  */
-BOOLEAN ww_get_filename_from_absolute_path(const char *src, char *dest);
+bool ww_get_filename_from_absolute_path(const char *src, char *dest);
 
 /**
  * @brief Saves the content to a file
@@ -62,14 +62,13 @@ BOOLEAN ww_get_filename_from_absolute_path(const char *src, char *dest);
  * @param mode How to write to the file `overwrite = 1` or `append = 0`
  * @return Status of the operation
  */
-BOOLEAN ww_write_to_file(const char *src, const char *content,
-                         const size_t mode);
+bool ww_write_to_file(const char *src, const char *content, const size_t mode);
 
 /**
  * @brief Opens the file explorer and nagivates to the specified directory
  * @param src Absolute path to the file on the system
  * @return Status of the operation
  */
-BOOLEAN ww_open_folder(const char *src);
+bool ww_open_folder(const char *src);
 
 #endif
