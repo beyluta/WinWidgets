@@ -9,24 +9,39 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
-constexpr char DEFAULT_HTML_DIR[] = ".local/share/WinWidgets";
+#if _WIN32
+#include <windows.h>
+#include <KnownFolders.h>
+#include <libloaderapi.h>
+#include <shlobj.h>
+#include <winerror.h>
+#include <winnt.h>
+#endif
 
-static size_t get_executable_path(char *dest, const size_t max_len) {
+constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
+#if __linux__
+constexpr char DEFAULT_HTML_DIR[] = ".local/share/WinWidgets";
+#elif _WIN32
+constexpr char DEFAULT_HTML_DIR[] = "Widgets";
+#endif
+
+static ssize_t get_executable_path(char *dest, const size_t max_len) {
 #if __linux__
   const ssize_t len = readlink("/proc/self/exe", dest, max_len - 1);
   if (len == OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
     fprintf(stderr, "Failed to get path to the executable\n");
-    return OPERATION_STATE_INDEX_OUT_OF_BOUNDS;
+    return EXIT_REASON_IO_FAILURE;
   }
-  dest[len] = '\0';
-  return len;
-#else
-  // NOTE: Use GetModuleFileName(NULL, dest, sizeof(dest - 1)) for Windows
-  // NOTE: There is also _pgmptr from <windows.h>
-  fprintf(stderr, "Not implemented for this OS\n");
+#elif _WIN32
+  const size_t len = GetModuleFileNameA(NULL, dest, max_len);
+  if (len == OPERATION_STATE_RETURNED_ZERO) {
+    fprintf(stderr, "Failed to get path to the executable\n");
+    return EXIT_REASON_IO_FAILURE;
+  }
 #endif
-  return 0;
+
+  dest[len] = '\0';
+  return EXIT_REASON_TERMINATED;
 }
 
 static size_t str_to_file(const char *src, char *dest) {
@@ -41,30 +56,44 @@ static size_t str_to_file(const char *src, char *dest) {
 }
 
 static bool create_dir(const char *path) {
-  if (mkdir(path, 0777) <= OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
+#if __linux__
+  const size_t status = mkdir(path, 0777);
+#elif _WIN32
+  const size_t status = mkdir(path);
+#endif
+
+  if (status <= OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
     fprintf(stderr, "Failed to run mkdir on path %s\n", path);
   }
   return false;
 }
 
 static bool get_app_directory(char *dest) {
+#if __linux__
   const char *home = getenv("HOME");
   if (home == NULL) {
     fprintf(stderr, "Failed to get the user's home directory\n");
     return true;
   }
+#elif _WIN32
+  char home[BUFFSIZE];
+  const ssize_t hr = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, home);
+  if (!SUCCEEDED(hr)) {
+    fprintf(stderr, "Failed to get folder to documents\n");
+    return true;
+  }
+#endif
 
   size_t len = strlen(home) + strlen(DEFAULT_HTML_DIR) + 1;
   snprintf(dest, len + 1, "%s/%s", home, DEFAULT_HTML_DIR);
   dest[len] = '\0';
-
   return false;
 }
 
 bool ww_default_index_html(char *dest) {
   char exec_path[BUFFSIZE];
-  const ssize_t exec_len = get_executable_path(exec_path, sizeof(exec_path));
-  if (exec_len == OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
+  const ssize_t status = get_executable_path(exec_path, BUFFSIZE);
+  if (status > EXIT_REASON_TERMINATED) {
     fprintf(stderr, "Failed get path to the HTML file\n");
     return true;
   }

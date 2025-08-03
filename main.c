@@ -4,15 +4,22 @@
 #include <stdio.h>
 #include <string.h>
 
+#if _WIN32
+#include <minwindef.h>
+#endif
+
+#if __linux__
 int main(void) {
-  // Creating the default widgets directory
+#elif _WIN32
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
+                   int nCmdShow) {
+#endif
   char temp[BUFFSIZE];
   if (ww_default_widgets_dir(temp) == true) {
     fprintf(stderr, "Failed to create the default widgets directory\n");
     return EXIT_REASON_IO_FAILURE;
   }
 
-  // Getting the default HTML index file for the widget manager.
   char html[BUFFSIZE];
   if (ww_default_index_html(html) == true) {
     fprintf(stderr, "Failed to get the default index webpage\n");
@@ -33,7 +40,6 @@ int main(void) {
                           .opacity = 1,
                           .radius = 0};
 
-  // Copying pointers to the struct
   const size_t len = strlen(html);
   if (len >= BUFFSIZE) {
     fprintf(stderr, "Buffer size of filename was larger than expected\n");
@@ -42,16 +48,12 @@ int main(void) {
   memcpy(window.filename, html, len);
   window.filename[len] = '\0';
 
-  /* All widgets and their corresponding configuration will be saved inside this
-   * variable. We also go through all widgets and set their index number here.
-   * This way we avoid allocating memory for it later */
   ww_widget_ctx widgets[MAX_WIDGETS];
   for (size_t i = 0; i < MAX_WIDGETS; i++) {
     widgets[i].window_context.index = i;
   }
 
-  // Initializing the main window
-  if (ww_init_main(&window, widgets) == true) {
+  if (ww_init_main(hInstance, nCmdShow, &window, widgets) == true) {
     fprintf(stderr, "Failed to create the widget\n");
   }
 
