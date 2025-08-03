@@ -53,7 +53,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
     widgets[i].window_context.index = i;
   }
 
+#if __linux__
+  if (ww_init_main(&window, widgets) == true) {
+#elif _WIN32
   if (ww_init_main(hInstance, nCmdShow, &window, widgets) == true) {
+#endif
     fprintf(stderr, "Failed to create the widget\n");
   }
 

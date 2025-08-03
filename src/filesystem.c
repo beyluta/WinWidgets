@@ -57,9 +57,9 @@ static size_t str_to_file(const char *src, char *dest) {
 
 static bool create_dir(const char *path) {
 #if __linux__
-  const size_t status = mkdir(path, 0777);
+  const ssize_t status = mkdir(path, 0777);
 #elif _WIN32
-  const size_t status = mkdir(path);
+  const ssize_t status = mkdir(path);
 #endif
 
   if (status <= OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
