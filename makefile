@@ -3,22 +3,29 @@
 CC = gcc
 CFLAGS = `pgk-config --cflags --libs gtk+-3.0 webkit2gtk+-4.1`
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
-OUT = output
+BUILDDIR = build
+OUT = $(BUILDDIR)/output
 SRC = main.c \
 			src/filesystem.c
 
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
+				-Ilib/WebView2/build/native/include \
 				-O2 \
 				-xc \
 				-std=c23
 LDFLAGS := -lole32 \
 					 -loleaut32 \
-					 -luuid
+					 -luuid \
+					 -Llib/WebView2/build/native/x64 \
+					 -lWebView2Loader \
+					 -mwindows
 SRC := $(SRC) \
 			 src/widget_windows.c
 
 build:
+	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
+	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
 	$(CC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
 run: build
 	./$(OUT)

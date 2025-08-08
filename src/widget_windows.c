@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <winscard.h>
+#include <WebView2.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
 
@@ -65,7 +66,7 @@ bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
 
   RegisterClass(&wc);
 
-  HWND hwnd =
+  HWND hWindow =
       CreateWindowEx(0,                   // Optional window styles.
                      CLASS_NAME,          // Window class
                      WINDOW_NAME,         // Window text
@@ -77,13 +78,14 @@ bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
                      hInstance, // Instance handle
                      NULL       // Additional application data
       );
-  if (hwnd == nullptr) {
+  if (hWindow == nullptr) {
     fprintf(stderr, "Failed to create window\n");
     CoUninitialize();
     return true;
   }
 
-  ShowWindow(hwnd, nCmdShow);
+  ShowWindow(hWindow, nCmdShow);
+  UpdateWindow(hWindow);
 
   return event_loop();
 }
