@@ -8,80 +8,41 @@
 
 constexpr char CLASS_NAME[] = "WidgetClass";
 
-static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *envHandler =
-    nullptr;
-static ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
-    *completedHandler = nullptr;
 static HWND hWnd = nullptr;
 static ICoreWebView2Controller *webviewController = nullptr;
 static ICoreWebView2 *webviewWindow = nullptr;
 static bool bEnvCreated = false;
 static ULONG HandlerRefCount = 0;
 
-static ULONG
-HandlerAddRef(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *) {
-  return ++HandlerRefCount;
-}
+static ULONG HandlerAddRef(IUnknown *) { return ++HandlerRefCount; }
 
-static ULONG
-HandlerRelease(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *) {
-  --HandlerRefCount;
+static ULONG HandlerRelease(IUnknown *) { return --HandlerRefCount; }
 
-  if (HandlerRefCount == 0) {
-    if (completedHandler) {
-      free(completedHandler->lpVtbl);
-      free(completedHandler);
-    }
-
-    if (envHandler) {
-      free(envHandler->lpVtbl);
-      free(envHandler);
-    }
-  }
-
-  return HandlerRefCount;
-}
-
-static HRESULT HandlerQueryInterface(
-    ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *this,
-    const IID *riid, void **ppvObject) {
+static HRESULT HandlerQueryInterface(IUnknown *this, const IID *riid,
+                                     void **ppvObject) {
   *ppvObject = this;
   HandlerAddRef(this);
   return EXIT_REASON_TERMINATED;
 }
+static HRESULT HandlerInvoke(IUnknown *this, HRESULT errorCode,
+                             ICoreWebView2Controller *arg);
 
-static HRESULT
-HandlerInvoke(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *this,
-              HRESULT errorCode, ICoreWebView2Controller *arg) {
+ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl
+    completedHandlerVtbl = {.AddRef = (void *)HandlerAddRef,
+                            .Release = (void *)HandlerRelease,
+                            .QueryInterface = (void *)HandlerQueryInterface,
+                            .Invoke = (void *)HandlerInvoke};
+
+ICoreWebView2CreateCoreWebView2ControllerCompletedHandler completedHandler = {
+    .lpVtbl = &completedHandlerVtbl};
+
+static HRESULT HandlerInvoke(IUnknown *this, HRESULT errorCode,
+                             ICoreWebView2Controller *arg) {
   if (!bEnvCreated) {
     bEnvCreated = true;
 
-    completedHandler =
-        (ICoreWebView2CreateCoreWebView2ControllerCompletedHandler *)malloc(
-            sizeof(ICoreWebView2CreateCoreWebView2ControllerCompletedHandler));
-    if (completedHandler == nullptr) {
-      fprintf(stderr, "Failed to allocate memory for WebView2 Controller\n");
-      return EXIT_REASON_MEM_FAILURE;
-    }
-
-    completedHandler->lpVtbl =
-        (ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl *)malloc(
-            sizeof(
-                ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl));
-    if (completedHandler->lpVtbl == nullptr) {
-      fprintf(
-          stderr,
-          "Failed to allocate memory for WebView2 Controller virtual table\n");
-      return EXIT_REASON_MEM_FAILURE;
-    }
-
-    completedHandler->lpVtbl->AddRef = HandlerAddRef;
-    completedHandler->lpVtbl->Release = HandlerRelease;
-    completedHandler->lpVtbl->QueryInterface = HandlerQueryInterface;
-    completedHandler->lpVtbl->Invoke = HandlerInvoke;
-
     ICoreWebView2Environment *env = (ICoreWebView2Environment *)arg;
-    env->lpVtbl->CreateCoreWebView2Controller(env, hWnd, completedHandler);
+    env->lpVtbl->CreateCoreWebView2Controller(env, hWnd, &completedHandler);
     return EXIT_REASON_TERMINATED;
   }
 
@@ -141,6 +102,15 @@ static bool event_loop() {
   return false;
 }
 
+ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl envHandlerVtbl =
+    {.AddRef = (void *)HandlerAddRef,
+     .Release = (void *)HandlerRelease,
+     .QueryInterface = (void *)HandlerQueryInterface,
+     .Invoke = (void *)HandlerInvoke};
+
+ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
+    .lpVtbl = &envHandlerVtbl};
+
 bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
                   ww_widget_ctx *widgets) {
   if (FAILED(CoInitialize(NULL))) {
@@ -184,35 +154,9 @@ bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
   }
 
   ShowWindow(hWnd, nCmdShow);
-
-  envHandler =
-      (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler *)malloc(
-          sizeof(ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler));
-  if (envHandler == nullptr) {
-    fprintf(stderr,
-            "Failed to allocate memory for Environment Completed Handler\n");
-    return EXIT_REASON_MEM_FAILURE;
-  }
-
-  envHandler->lpVtbl =
-      (ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl *)malloc(
-          sizeof(
-              ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl));
-  if (envHandler->lpVtbl == nullptr) {
-    fprintf(stderr, "Failed to allocate memory for Environment Completed "
-                    "Handler virtual table\n");
-    return EXIT_REASON_MEM_FAILURE;
-  }
-
-  envHandler->lpVtbl->AddRef = (void *)HandlerAddRef;
-  envHandler->lpVtbl->Release = (void *)HandlerRelease;
-  envHandler->lpVtbl->QueryInterface = (void *)HandlerQueryInterface;
-  envHandler->lpVtbl->Invoke = (void *)HandlerInvoke;
-
   UpdateWindow(hWnd);
 
   CreateCoreWebView2EnvironmentWithOptions(nullptr, nullptr, nullptr,
-                                           envHandler);
-
+                                           &envHandler);
   return event_loop();
 }
