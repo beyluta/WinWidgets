@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <time.h>
 #include <windows.h>
+#include <winnt.h>
 #include <winscard.h>
 #include <WebView2.h>
+#include <stringapiset.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
 
@@ -77,7 +79,12 @@ static HRESULT HandlerInvoke(IUnknown *this, HRESULT errorCode,
   RECT bounds;
   GetClientRect(hWndParent, &bounds);
   webviewController->lpVtbl->put_Bounds(webviewController, bounds);
-  webviewWindow->lpVtbl->Navigate(webviewWindow, L"https://google.com");
+
+  // Convert char* to wide char for the navigate function to work
+  wchar_t wTpmlPath[BUFFSIZE];
+  MultiByteToWideChar(CP_ACP, 0, tmplPath, -1, wTpmlPath, BUFFSIZE);
+
+  webviewWindow->lpVtbl->Navigate(webviewWindow, wTpmlPath);
   return EXIT_REASON_TERMINATED;
 }
 
@@ -161,7 +168,6 @@ bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
   }
   memcpy(tmplPath, context->filename, len);
   tmplPath[len] = '\0';
-  printf("Path is: %s\n", tmplPath);
 
   WNDCLASS wc = {};
   wc.lpfnWndProc = WindowProc;
@@ -178,10 +184,10 @@ bool ww_init_main(HINSTANCE hInstance, int nCmdShow, ww_window_ctx *context,
                               CW_USEDEFAULT,       // Y Position
                               CW_USEDEFAULT,       // Width
                               CW_USEDEFAULT,       // Height
-                              NULL,                // Parent window
-                              NULL,                // Menu
+                              nullptr,             // Parent window
+                              nullptr,             // Menu
                               hInstance,           // Instance handle
-                              NULL // Additional application data
+                              nullptr // Additional application data
   );
   if (hWndParent == nullptr) {
     fprintf(stderr, "Failed to create window\n");

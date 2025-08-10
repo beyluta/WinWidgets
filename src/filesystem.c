@@ -1,5 +1,6 @@
 #include "filesystem.h"
 #include "global.h"
+#include <corecrt.h>
 #include <dirent.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -19,6 +20,7 @@
 #endif
 
 constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
+constexpr char FILE_PREFIX[] = "file://";
 #if __linux__
 constexpr char DEFAULT_HTML_DIR[] = ".local/share/WinWidgets";
 #elif _WIN32
@@ -45,8 +47,14 @@ static ssize_t get_executable_path(char *dest, const size_t max_len) {
 }
 
 static size_t str_to_file(const char *src, char *dest) {
-  size_t len = strlen(src) + 7;
-  ssize_t size = snprintf(dest, len + 1, "file://%s", src);
+#if __linux__
+  const size_t len = strlen(src) + strlen(FILE_PREFIX);
+  const ssize_t size = snprintf(dest, len + 1, "%s%s", FILE_PREFIX, src);
+#elif _WIN32
+  const size_t len = strlen(src);
+  const ssize_t size = snprintf(dest, len + 1, "%s", src);
+#endif
+
   if (size == OPERATION_STATE_INDEX_OUT_OF_BOUNDS) {
     fprintf(stderr, "Failed to append file prefix to path\n");
     return OPERATION_STATE_INDEX_OUT_OF_BOUNDS;
