@@ -68,7 +68,16 @@ function parseSingleQuotedArray(str) {
  * Sends a message back to the C code to open the default directory of the application
  */
 function openDefaultDirectory() {
-  window.webkit.messageHandlers.on_open_default_directory.postMessage(null);
+  postMessage("on_open_default_directory");
+}
+
+/**
+ * Triggers a postMessages for all platform available
+ * @param {string} messageName - Identifier of the message to be posted
+ */
+function postMessage(messageName) {
+  window.chrome.webview.postMessage(messageName);               // Windows
+  window.webkit.messageHandlers[messageName].postMessage(null); // Linux
 }
 
 /**

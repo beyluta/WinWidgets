@@ -1,5 +1,4 @@
 # Build artifacts
 .clangd
-.clang-format
 build
 output

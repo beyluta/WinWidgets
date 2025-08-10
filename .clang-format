@@ -1,0 +1,17 @@
+SortIncludes: 'false'
+BasedOnStyle: LLVM
+IndentWidth: 8
+ContinuationIndentWidth: 8
+UseTab: Never
+BinPackParameters: false
+BinPackArguments: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortFunctionsOnASingleLine: None
+PenaltyBreakBeforeFirstCallParameter: 1
+PenaltyReturnTypeOnItsOwnLine: 0
+AlignAfterOpenBracket: Align
+BreakBeforeBraces: Allman
+AlwaysBreakAfterReturnType: All
+AlwaysBreakAfterDefinitionReturnType: All
+
+
