@@ -8,9 +8,6 @@ OUT = $(BUILDDIR)/output
 SRC = main.c \
 			src/filesystem.c
 
-format:
-	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
-
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
 				-Ilib/WebView2/build/native/include \
@@ -26,6 +23,8 @@ LDFLAGS := -lole32 \
 SRC := $(SRC) \
 			 src/widget_windows.c
 
+format:
+	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
 build: format
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
@@ -46,6 +45,10 @@ LDFLAGS = -ldl
 SRC := $(SRC) \
 			 src/widget_linux.c
 
+format:
+	clang-format -i $(CURDIR)/src/*.c \
+	$(CURDIR)/include/*.h \
+	$(CURDIR)/main.c
 build: format
 	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT) 
 run: build

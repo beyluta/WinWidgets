@@ -1,6 +1,5 @@
 #include "filesystem.h"
 #include "global.h"
-#include <corecrt.h>
 #include <dirent.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -17,6 +16,7 @@
 #include <shlobj.h>
 #include <winerror.h>
 #include <winnt.h>
+#include <corecrt.h>
 #endif
 
 constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
