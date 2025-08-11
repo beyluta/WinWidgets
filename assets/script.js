@@ -1,4 +1,12 @@
 /**
+ * @brief Table of ids that correspond to the unique id of this event
+ */
+const EVENT_IDS = {
+  "on_open_default_directory": "0",
+  "on_get_widget_filenames": "1"
+};
+
+/**
  * Opens the specified scene in the application.
  * @param {string} scene - The name of the scene to open.
  * @param {string} mode - Display style of the scene.
@@ -76,7 +84,7 @@ function openDefaultDirectory() {
  * @param {string} messageName - Identifier of the message to be posted
  */
 function postMessage(messageName) {
-  window.chrome.webview.postMessage(messageName);               // Windows
+  window.chrome.webview.postMessage(EVENT_IDS[messageName]);    // Windows
   window.webkit.messageHandlers[messageName].postMessage(null); // Linux
 }
 
@@ -84,6 +92,5 @@ function postMessage(messageName) {
  * Executes code after the DOM content is fully loaded and parsed.
  */
 document.addEventListener('DOMContentLoaded', async function() {
-  // Native C function to get the path of all HTML files
-  window.webkit.messageHandlers.on_get_widget_filenames.postMessage(null);
+  postMessage("on_get_widget_filenames");
 });

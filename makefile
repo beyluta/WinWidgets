@@ -10,7 +10,7 @@ SRC = main.c \
 
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
-				-Ilib/WebView2/build/native/include \
+				-isystem lib/WebView2/build/native/include \
 				-O2 \
 				-xc \
 				-std=c23

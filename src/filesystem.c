@@ -97,12 +97,21 @@ get_app_directory(char *dest)
                 return true;
         }
 #elif _WIN32
-        char home[BUFFSIZE];
+        char home[BUFFSIZE] = {};
         const ssize_t hr = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, 0, home);
         if (!SUCCEEDED(hr))
         {
                 fprintf(stderr, "Failed to get folder to documents\n");
                 return true;
+        }
+
+        // Convert all backslashes to forwardslashes
+        for (size_t i = 0; i < BUFFSIZE; i++)
+        {
+                if (home[i] == '\\')
+                {
+                        home[i] = '/';
+                }
         }
 #endif
 
@@ -176,7 +185,7 @@ str_ends_with(const char *src, const char *prefix)
 {
         const size_t src_len = strlen(src);
         const size_t prefix_len = strlen(prefix);
-        if (src < prefix)
+        if (src_len < prefix_len)
         {
                 return true;
         }
@@ -355,6 +364,7 @@ ww_write_to_file(const char *src, const char *content, const size_t mode)
 bool
 ww_open_folder(const char *src)
 {
+#if __linux__
         char cmd[BUFFSIZE];
 
         // Length of the path + length of command + null terminator
@@ -370,5 +380,8 @@ ww_open_folder(const char *src)
 
         // Calling the command here
         system(cmd);
+#elif _WIN32
+        ShellExecute(nullptr, "open", src, nullptr, nullptr, SW_SHOWDEFAULT);
+#endif
         return false;
 }
