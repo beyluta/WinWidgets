@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- 
+    Productivity Hub Widget for WinWidgets
+    Author: Hanzla Ahmad
+    GitHub: https://github.com/hanzlaahmadcheema
+    Email: hanzlaahmad100@gmail.com
+    
+    Complete productivity suite with task management, Pomodoro timer, and notes
+  -->
+  <meta name="applicationTitle" content="Productivity Hub" />
+  <meta name="windowSize" content="350 450" />
+  <meta name="windowBorderRadius" content="16" />
+  <meta name="previewSize" content="350 450" />
+  <meta name="windowOpacity" content="230" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+</head>
+<body>
+  <div class="productivity-container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <i class="fas fa-rocket"></i>
+        <h2>Productivity Hub</h2>
+      </div>
+      <div class="current-time" id="currentTime">10:30 AM</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="tasks" onclick="switchTab('tasks')">
+        <i class="fas fa-tasks"></i> Tasks
+      </div>
+      <div class="tab" data-tab="timer" onclick="switchTab('timer')">
+        <i class="fas fa-clock"></i> Timer
+      </div>
+      <div class="tab" data-tab="notes" onclick="switchTab('notes')">
+        <i class="fas fa-sticky-note"></i> Notes
+      </div>
+    </div>
+
+    <!-- Tasks Tab -->
+    <div class="tab-content active" id="tasks">
+      <div class="add-task">
+        <input type="text" id="taskInput" placeholder="Add a new task..." maxlength="50">
+        <button onclick="addTask()">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+      
+      <div class="task-stats">
+        <span id="taskProgress">3/7 tasks completed</span>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill" style="width: 43%"></div>
+        </div>
+      </div>
+
+      <div class="task-list" id="taskList">
+        <!-- Tasks will be populated here -->
+      </div>
+    </div>
+
+    <!-- Timer Tab -->
+    <div class="tab-content" id="timer">
+      <div class="timer-display">
+        <div class="timer-circle">
+          <div class="timer-time" id="timerTime">25:00</div>
+          <div class="timer-label" id="timerLabel">Focus Time</div>
+        </div>
+      </div>
+      
+      <div class="timer-presets">
+        <button onclick="setTimer(25)" class="preset-btn">25m Focus</button>
+        <button onclick="setTimer(5)" class="preset-btn">5m Break</button>
+        <button onclick="setTimer(15)" class="preset-btn">15m Break</button>
+      </div>
+
+      <div class="timer-controls">
+        <button onclick="toggleTimer()" id="timerBtn">
+          <i class="fas fa-play"></i> Start
+        </button>
+        <button onclick="resetTimer()">
+          <i class="fas fa-stop"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Notes Tab -->
+    <div class="tab-content" id="notes">
+      <div class="quick-notes">
+        <textarea id="noteArea" placeholder="Jot down your thoughts..."></textarea>
+        <div class="note-actions">
+          <button onclick="saveNote()">
+            <i class="fas fa-save"></i> Save
+          </button>
+          <button onclick="clearNote()">
+            <i class="fas fa-trash"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+<script>
+  let tasks = [
+    { id: 1, text: "Review project documentation", completed: false },
+    { id: 2, text: "Prepare presentation slides", completed: true },
+    { id: 3, text: "Update team on progress", completed: false },
+    { id: 4, text: "Test new features", completed: true },
+    { id: 5, text: "Write unit tests", completed: false },
+    { id: 6, text: "Code review for PR #123", completed: true },
+    { id: 7, text: "Deploy to staging", completed: false }
+  ];
+
+  let timerInterval = null;
+  let timerMinutes = 25;
+  let timerSeconds = 0;
+  let timerActive = false;
+
+  // Initialize
+  function init() {
+    updateTime();
+    setInterval(updateTime, 1000);
+    renderTasks();
+    loadNote();
+  }
+
+  // Time display
+  function updateTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('currentTime').textContent = timeString;
+  }
+
+  // Tab switching
+  function switchTab(tabName) {
+    // Remove active class from all tabs and contents
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    
+    // Add active class to selected tab and content
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+  }
+
+  // Task management
+  function addTask() {
+    const input = document.getElementById('taskInput');
+    const text = input.value.trim();
+    
+    if (text) {
+      const newTask = {
+        id: Date.now(),
+        text: text,
+        completed: false
+      };
+      
+      tasks.unshift(newTask);
+      input.value = '';
+      renderTasks();
+    }
+  }
+
+  function toggleTask(id) {
+    const task = tasks.find(t => t.id === id);
+    if (task) {
+      task.completed = !task.completed;
+      renderTasks();
+    }
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    renderTasks();
+  }
+
+  function renderTasks() {
+    const taskList = document.getElementById('taskList');
+    const completedCount = tasks.filter(t => t.completed).length;
+    const totalCount = tasks.length;
+    
+    // Update progress
+    document.getElementById('taskProgress').textContent = `${completedCount}/${totalCount} tasks completed`;
+    const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+    document.getElementById('progressFill').style.width = progressPercent + '%';
+    
+    // Render tasks
+    taskList.innerHTML = tasks.map(task => `
+      <div class="task-item ${task.completed ? 'completed' : ''}">
+        <div class="task-checkbox" onclick="toggleTask(${task.id})">
+          <i class="fas ${task.completed ? 'fa-check-circle' : 'fa-circle'}"></i>
+        </div>
+        <div class="task-text">${task.text}</div>
+        <div class="task-actions">
+          <button onclick="deleteTask(${task.id})" class="delete-btn">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Timer functions
+  function setTimer(minutes) {
+    timerMinutes = minutes;
+    timerSeconds = 0;
+    updateTimerDisplay();
+    resetTimer();
+  }
+
+  function toggleTimer() {
+    if (timerActive) {
+      pauseTimer();
+    } else {
+      startTimer();
+    }
+  }
+
+  function startTimer() {
+    timerActive = true;
+    document.getElementById('timerBtn').innerHTML = '<i class="fas fa-pause"></i> Pause';
+    
+    timerInterval = setInterval(() => {
+      if (timerSeconds === 0) {
+        if (timerMinutes === 0) {
+          // Timer finished
+          resetTimer();
+          alert('Timer finished!');
+          return;
+        }
+        timerMinutes--;
+        timerSeconds = 59;
+      } else {
+        timerSeconds--;
+      }
+      updateTimerDisplay();
+    }, 1000);
+  }
+
+  function pauseTimer() {
+    timerActive = false;
+    document.getElementById('timerBtn').innerHTML = '<i class="fas fa-play"></i> Start';
+    clearInterval(timerInterval);
+  }
+
+  function resetTimer() {
+    timerActive = false;
+    clearInterval(timerInterval);
+    document.getElementById('timerBtn').innerHTML = '<i class="fas fa-play"></i> Start';
+  }
+
+  function updateTimerDisplay() {
+    const minutes = String(timerMinutes).padStart(2, '0');
+    const seconds = String(timerSeconds).padStart(2, '0');
+    document.getElementById('timerTime').textContent = `${minutes}:${seconds}`;
+  }
+
+  // Notes functions
+  function saveNote() {
+    const noteText = document.getElementById('noteArea').value;
+    localStorage.setItem('productivityNote', noteText);
+    
+    // Show save feedback
+    const saveBtn = event.target.closest('button');
+    const originalHTML = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fas fa-check"></i> Saved';
+    setTimeout(() => {
+      saveBtn.innerHTML = originalHTML;
+    }, 1000);
+  }
+
+  function loadNote() {
+    const savedNote = localStorage.getItem('productivityNote');
+    if (savedNote) {
+      document.getElementById('noteArea').value = savedNote;
+    }
+  }
+
+  function clearNote() {
+    document.getElementById('noteArea').value = '';
+    localStorage.removeItem('productivityNote');
+  }
+
+  // Enter key for task input
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('taskInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        addTask();
+      }
+    });
+  });
+
+  // Initialize the app
+  init();
+</script>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap");
+
+  :root {
+    --bg-primary: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+    --bg-secondary: rgba(255, 255, 255, 0.1);
+    --bg-card: rgba(255, 255, 255, 0.15);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.8);
+    --accent: #ffd700;
+    --success: #4CAF50;
+    --danger: #f44336;
+    --border: rgba(255, 255, 255, 0.2);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    font-family: "Poppins", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+
+  .productivity-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-left i {
+    font-size: 20px;
+    color: var(--accent);
+  }
+
+  .header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .current-time {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px 12px;
+    text-align: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .tab.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--accent);
+  }
+
+  .tab:hover:not(.active) {
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+
+  .tab-content {
+    display: none;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .tab-content.active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Tasks Tab */
+  .add-task {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .add-task input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+
+  .add-task input::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .add-task button {
+    padding: 10px;
+    background: var(--accent);
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .task-stats {
+    margin-bottom: 16px;
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--success);
+    transition: width 0.3s ease;
+  }
+
+  .task-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .task-item.completed {
+    opacity: 0.7;
+  }
+
+  .task-checkbox {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 16px;
+  }
+
+  .task-text {
+    flex: 1;
+    font-size: 14px;
+  }
+
+  .task-item.completed .task-text {
+    text-decoration: line-through;
+  }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+  }
+
+  /* Timer Tab */
+  .timer-display {
+    display: flex;
+    justify-content: center;
+    margin: 40px 0;
+  }
+
+  .timer-circle {
+    width: 150px;
+    height: 150px;
+    border: 3px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+  }
+
+  .timer-time {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .timer-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .timer-presets {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .preset-btn {
+    flex: 1;
+    padding: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  .preset-btn:hover {
+    background: var(--bg-card);
+  }
+
+  .timer-controls {
+    display: flex;
+    gap: 12px;
+  }
+
+  .timer-controls button {
+    flex: 1;
+    padding: 12px;
+    background: var(--accent);
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .timer-controls button:last-child {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+
+  /* Notes Tab */
+  .quick-notes {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  #noteArea {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    resize: none;
+    min-height: 200px;
+  }
+
+  #noteArea::placeholder {
+    color: var(--text-secondary);
+  }
+
+  .note-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .note-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+
+  .note-actions button:first-child {
+    background: var(--success);
+    color: white;
+  }
+
+  .note-actions button:last-child {
+    background: var(--danger);
+    color: white;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+</style>

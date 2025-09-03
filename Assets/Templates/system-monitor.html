@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!-- 
+    System Monitor Widget for WinWidgets
+    Author: Hanzla Ahmad
+    GitHub: https://github.com/hanzlaahmadcheema
+    Email: hanzlaahmad100@gmail.com
+    
+    Dark-themed system monitoring widget with CPU, Memory, Storage, and Network metrics
+  -->
+  <meta name="applicationTitle" content="System Monitor" />
+  <meta name="windowSize" content="280 420" />
+  <meta name="windowBorderRadius" content="12" />
+  <meta name="previewSize" content="280 320" />
+  <meta name="windowOpacity" content="240" />
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+</head>
+<body>
+  <div class="monitor-container">
+    <div class="header">
+      <i class="fas fa-desktop"></i>
+      <h3>System Monitor</h3>
+    </div>
+    
+    <div class="metrics-grid">
+      <!-- CPU Section -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <i class="fas fa-microchip cpu-icon"></i>
+          <span class="metric-title">CPU</span>
+        </div>
+        <div class="progress-container">
+          <div class="circular-progress" id="cpuProgress">
+            <div class="circular-progress-fill cpu-progress"></div>
+            <div class="circular-progress-text" id="cpuPercentage">0%</div>
+          </div>
+        </div>
+        <div class="metric-details">
+          <span id="cpuTemp">42°C</span>
+          <span id="cpuCores">8 Cores</span>
+        </div>
+      </div>
+      
+      <!-- Memory Section -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <i class="fas fa-memory ram-icon"></i>
+          <span class="metric-title">Memory</span>
+        </div>
+        <div class="progress-container">
+          <div class="circular-progress" id="ramProgress">
+            <div class="circular-progress-fill ram-progress"></div>
+            <div class="circular-progress-text" id="ramPercentage">0%</div>
+          </div>
+        </div>
+        <div class="metric-details">
+          <span id="ramUsed">8.2 GB</span>
+          <span id="ramTotal">16 GB</span>
+        </div>
+      </div>
+      
+      <!-- Storage Section -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <i class="fas fa-hdd storage-icon"></i>
+          <span class="metric-title">Storage</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div class="progress-bar-fill" id="storageBar"></div>
+          </div>
+          <div class="progress-text" id="storagePercentage">0%</div>
+        </div>
+        <div class="metric-details">
+          <span id="storageUsed">450 GB</span>
+          <span id="storageTotal">1 TB</span>
+        </div>
+      </div>
+      
+      <!-- Network Section -->
+      <div class="metric-card">
+        <div class="metric-header">
+          <i class="fas fa-wifi network-icon"></i>
+          <span class="metric-title">Network</span>
+        </div>
+        <div class="network-stats">
+          <div class="network-stat">
+            <i class="fas fa-arrow-down"></i>
+            <span id="downloadSpeed">125 MB/s</span>
+          </div>
+          <div class="network-stat">
+            <i class="fas fa-arrow-up"></i>
+            <span id="uploadSpeed">45 MB/s</span>
+          </div>
+        </div>
+        <div class="metric-details">
+          <span id="networkStatus">Connected</span>
+          <span id="networkType">Ethernet</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+<script>
+  // Simulate system metrics (in a real implementation, you'd get actual system data)
+  function updateCPU() {
+    const cpuUsage = Math.floor(Math.random() * 100);
+    const cpuTemp = Math.floor(Math.random() * 20) + 35; // 35-55°C
+    
+    document.getElementById('cpuPercentage').textContent = cpuUsage + '%';
+    document.getElementById('cpuTemp').textContent = cpuTemp + '°C';
+    
+    // Update circular progress
+    const cpuProgressFill = document.querySelector('.cpu-progress');
+    const circumference = 2 * Math.PI * 35; // radius = 35
+    const offset = circumference - (cpuUsage / 100) * circumference;
+    cpuProgressFill.style.strokeDashoffset = offset;
+  }
+  
+  function updateMemory() {
+    const ramUsage = Math.floor(Math.random() * 100);
+    const ramUsedGB = (16 * ramUsage / 100).toFixed(1);
+    
+    document.getElementById('ramPercentage').textContent = ramUsage + '%';
+    document.getElementById('ramUsed').textContent = ramUsedGB + ' GB';
+    
+    // Update circular progress
+    const ramProgressFill = document.querySelector('.ram-progress');
+    const circumference = 2 * Math.PI * 35; // radius = 35
+    const offset = circumference - (ramUsage / 100) * circumference;
+    ramProgressFill.style.strokeDashoffset = offset;
+  }
+  
+  function updateStorage() {
+    const storageUsage = Math.floor(Math.random() * 30) + 40; // 40-70%
+    const storageUsedGB = Math.floor(1000 * storageUsage / 100);
+    
+    document.getElementById('storagePercentage').textContent = storageUsage + '%';
+    document.getElementById('storageUsed').textContent = storageUsedGB + ' GB';
+    document.getElementById('storageBar').style.width = storageUsage + '%';
+  }
+  
+  function updateNetwork() {
+    const downloadSpeeds = ['45 MB/s', '125 MB/s', '87 MB/s', '156 MB/s', '203 MB/s'];
+    const uploadSpeeds = ['12 MB/s', '45 MB/s', '67 MB/s', '89 MB/s', '34 MB/s'];
+    
+    const randomDownload = downloadSpeeds[Math.floor(Math.random() * downloadSpeeds.length)];
+    const randomUpload = uploadSpeeds[Math.floor(Math.random() * uploadSpeeds.length)];
+    
+    document.getElementById('downloadSpeed').textContent = randomDownload;
+    document.getElementById('uploadSpeed').textContent = randomUpload;
+  }
+  
+  function updateAllMetrics() {
+    updateCPU();
+    updateMemory();
+    updateStorage();
+    updateNetwork();
+  }
+  
+  // Initialize and update every 2 seconds
+  updateAllMetrics();
+  setInterval(updateAllMetrics, 2000);
+</script>
+
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap");
+
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --accent-cpu: #ff6b6b;
+    --accent-ram: #4ecdc4;
+    --accent-storage: #45b7d1;
+    --accent-network: #96ceb4;
+    --border-color: #404040;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    font-family: "Inter", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+  }
+
+  .monitor-container {
+    height: 100vh;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .header i {
+    font-size: 18px;
+    color: var(--accent-cpu);
+  }
+
+  .header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .metric-card {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+  }
+
+  .metric-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .metric-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .metric-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .cpu-icon { color: var(--accent-cpu); }
+  .ram-icon { color: var(--accent-ram); }
+  .storage-icon { color: var(--accent-storage); }
+  .network-icon { color: var(--accent-network); }
+
+  .progress-container {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+  }
+
+  .circular-progress {
+    width: 70px;
+    height: 70px;
+    position: relative;
+  }
+
+  .circular-progress-fill {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: conic-gradient(var(--accent-cpu) 0deg, transparent 0deg);
+    position: absolute;
+    transform: rotate(-90deg);
+  }
+
+  .cpu-progress {
+    background: conic-gradient(var(--accent-cpu) 0deg, transparent 0deg);
+  }
+
+  .ram-progress {
+    background: conic-gradient(var(--accent-ram) 0deg, transparent 0deg);
+  }
+
+  .circular-progress-fill {
+    background: none;
+    border: 3px solid transparent;
+    border-top: 3px solid var(--accent-cpu);
+    border-radius: 50%;
+    animation: none;
+  }
+
+  .circular-progress-fill.cpu-progress {
+    border-top-color: var(--accent-cpu);
+  }
+
+  .circular-progress-fill.ram-progress {
+    border-top-color: var(--accent-ram);
+  }
+
+  .circular-progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent-storage);
+    transition: width 0.3s ease;
+  }
+
+  .progress-text {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 32px;
+    text-align: right;
+  }
+
+  .network-stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+  }
+
+  .network-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .network-stat i {
+    font-size: 10px;
+    color: var(--accent-network);
+  }
+
+  .metric-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+  }
+
+  /* Simple circular progress simulation */
+  .circular-progress {
+    background: conic-gradient(var(--accent-cpu) 0% 0%, var(--border-color) 0% 100%);
+    border-radius: 50%;
+    mask: radial-gradient(circle closest-side, transparent 80%, black 80%);
+    -webkit-mask: radial-gradient(circle closest-side, transparent 80%, black 80%);
+  }
+
+  .circular-progress.cpu {
+    background: conic-gradient(var(--accent-cpu) 0% var(--cpu-percent, 0%), var(--border-color) var(--cpu-percent, 0%) 100%);
+  }
+
+  .circular-progress.ram {
+    background: conic-gradient(var(--accent-ram) 0% var(--ram-percent, 0%), var(--border-color) var(--ram-percent, 0%) 100%);
+  }
+</style>
