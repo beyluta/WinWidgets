@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+          <!-- 
+    Microsoft To Do Widget for WinWidgets
+    Author: Hanzla Ahmad
+    GitHub: https://github.com/hanzlaahmadcheema
+    Email: hanzlaahmad100@gmail.com
+
+    Dark-themed Microsoft To Do widget with task management features
+  -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=280,height=420,initial-scale=1" />
+    <title>WinWidget — Microsoft To Do</title>
+    <meta name="description" content="Microsoft To Do styled widget. Full editable tasks via Microsoft Graph." />
+    <meta name="author" content="Hanzla Ahmad" />
+    <meta name="theme-color" content="#121212" />
+    <meta name="applicationTitle" content="Microsoft To Do Widget" />
+    <meta name="windowSize" content="320 400" />
+    <meta name="windowBorderRadius" content="10" />
+    <meta name="previewSize" content="320 400" />
+    <meta name="windowOpacity" content="240" />
+    <style>
+      :root{
+        --bg:#121212;--card:#1f1f1f;--muted:#b5b5b5;--accent:#ff4d4d;--blue:#2564cf;--surface:#2a2a2a
+      }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:#e6e6e6;font-family:Segoe UI,system-ui,Roboto,'Helvetica Neue',Arial}
+      #todo-widget{width:280px;height:320px;margin:36px auto;border-radius:10px;overflow:hidden;background:var(--card);box-shadow:0 8px 30px rgba(0,0,0,.6)}
+      .header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:linear-gradient(90deg,var(--accent),#ff6666);}
+      .title-row{display:flex;align-items:center;gap:10px}
+      .title-row h1{font-size:16px;margin:0;font-weight:600}
+      .header-actions{display:flex;gap:8px;align-items:center}
+.add-btn{background:transparent;border:none;color: #e6e6e6;font-size:20px;cursor:pointer;padding:6px;border-radius:6px;transition:background 0.2s;}
+.add-btn:hover{background:rgba(255,255,255,0.06);}
+.popup-bg{position:fixed;inset:0;background:rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.add-popup{background:var(--card);padding:12px 10px;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,0.14);min-width:180px;max-width:240px;display:flex;flex-direction:column;gap:7px;}
+.add-popup input,.add-popup select{padding:6px 7px;border-radius:7px;border:none;background:rgba(255,255,255,0.04);color:#fff;font-size:14px;}
+.add-popup button{background:var(--accent);color:#fff;border:none;padding:7px 0;border-radius:7px;font-weight:600;cursor:pointer;font-size:14px;}
+.add-popup .close-btn{background:transparent;color:var(--muted);border:none;font-size:16px;align-self:flex-end;cursor:pointer;}
+      #status-row{padding:10px 16px;color:var(--muted);font-size:13px;display:none}
+
+      #task-list{list-style:none;margin:0;padding:0;max-height:200px;overflow:auto;will-change:transform;scroll-behavior:smooth}
+#task-list::-webkit-scrollbar{width:5px;background:rgba(255,255,255,0.01);border-radius:6px;}
+#task-list::-webkit-scrollbar-thumb{background:var(--surface);border-radius:6px;}
+#task-list::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+#task-list{scrollbar-width:thin;scrollbar-color:var(--surface) var(--card);}
+      .task{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.03)}
+      .task[draggable]{cursor:grab;}
+      .task.dragging{opacity:0.5;}
+      .task.drop-target{border:2px dashed var(--accent);}
+      .task-left{display:flex;align-items:flex-start;gap:12px;flex:1}
+      .checkbox{width:20px;height:20px;border-radius:50%;border:2px solid #aaa;position:relative;flex:0 0 20px;cursor:pointer}
+      .checkbox.checked{background:var(--accent);border-color:var(--accent)}
+      .checkbox .tick{position:absolute;left:50%;top:50%;width:6px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:translate(-50%,-60%) rotate(45deg) scale(0.85);opacity:1}
+      .task-title{display:flex;flex-direction:column;gap:6px;min-width:0}
+      .title-text{font-size:14px;color:var(--text,#e6e6e6);outline:none}
+      .title-text[contenteditable]:focus{box-shadow:0 0 0 3px rgba(37,100,207,.08);border-radius:6px}
+      .meta-row{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:12px}
+      .chip{background:rgba(255,255,255,0.03);padding:4px 8px;border-radius:12px;font-size:12px;color:var(--muted)}
+      .task-controls{display:flex;gap:10px;align-items:center}
+      .small-input{background:transparent;border:1px solid rgba(255,255,255,0.03);padding:6px;border-radius:6px;color:#e6e6e6;font-size:13px}
+      .notes{margin-top:4px;padding:2px 8px;max-width: 150px;background:rgba(0,0,0,0.06);border:1px solid#ff4d4d;color:#dcdcdc;font-size:13px}
+      .muted{color:var(--muted)}
+      .icon-btn {background:transparent;border:none;cursor:pointer;color: #e6e6e6;}
+      .hidden{display:none}
+      .three-dot{background:transparent;border:none;cursor:pointer;padding:4px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;}
+      .three-dot:hover{background:rgba(255,255,255,0.06);}
+      .three-dot svg{width:18px;height:18px;fill:#bbb;}
+      .fade-in{animation:fadeIn 0.4s;}
+      @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+      .checkbox .tick{transition:opacity 0.2s,transform 0.2s;}
+      .checkbox:not(.checked) .tick{opacity:0;transform:scale(0.5);}
+      .checkbox.checked .tick{opacity:1;transform:scale(1);}
+      .list-name-class{font-size:13px;color:var(--muted);}
+    </style>
+  </head>
+  <body>
+    <div id="todo-widget">
+      <div class="header">
+        <div class="title-row">
+          <h1>Tasks</h1>
+          <div id="list-name" class="list-name-class"></div>
+        </div>
+        <div class="header-actions">
+          <button id="refresh-btn" class="icon-btn" title="Refresh"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" d="M2.232 11A6.5 6.5 0 0 1 12 2.876L9.5 4M7 12l-3.08 1.06a6.5 6.5 0 0 0 9.485-8.672" stroke-width="1"/></svg></button>
+          <button id="add-btn" class="add-btn" title="Add Task"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" d="M12 3.5v17m8.5-8.5h-17" stroke-width="1"/></svg></button>
+          <button id="login-btn" class="icon-btn" title="Sign in">Sign in</button>
+          <button id="signout-btn" class="icon-btn hidden" title="Sign out">Sign out</button>
+        </div>
+      </div>
+
+      <div id="status-row"><span id="status-text">Signed in</span></div>
+
+      <ul id="task-list"></ul>
+
+    </div>
+
+  <script>
+  // --- Config ---
+  const clientId = '1ae89272-60df-4aab-9673-6235caace5d7';
+  const redirectUri = 'https://winwidget-todo.netlify.app';
+  const tokenEndpoint = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+  const scopes = 'Tasks.ReadWrite Tasks.ReadWrite.Shared offline_access';
+  const AUTO_REFRESH_INTERVAL = 60000;
+
+  // --- State ---
+  let accessToken = localStorage.getItem('access_token') || null;
+  let refreshToken = localStorage.getItem('refresh_token') || null;
+  let listId = localStorage.getItem('todo_list_id') || null;
+
+  // --- Helpers ---
+  function el(tag, attrs={}, children=[]){const e=document.createElement(tag);for(const k in attrs){if(k==='html')e.innerHTML=attrs[k];else if(k==='text')e.textContent=attrs[k];else e.setAttribute(k,attrs[k])}if(!Array.isArray(children))children=[children];children.forEach(c=>{if(typeof c==='string')e.appendChild(document.createTextNode(c));else e.appendChild(c)});return e}
+  function formatDate(iso){if(!iso) return ''; const d=new Date(iso); return d.toLocaleString();}
+
+  // --- PKCE ---
+  function generateCodeVerifier(){const arr=new Uint8Array(32);crypto.getRandomValues(arr);return Array.from(arr, b=>('0'+b.toString(16)).slice(-2)).join('')}
+  async function sha256base64url(str){const data=new TextEncoder().encode(str);const hash=await crypto.subtle.digest('SHA-256', data);const b64=btoa(String.fromCharCode(...new Uint8Array(hash)));return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+
+  // --- Auth ---
+  async function login(){const verifier=generateCodeVerifier();const challenge=await sha256base64url(verifier);localStorage.setItem('pkce_verifier',verifier);const authUrl=`https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${encodeURIComponent(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&response_mode=query&scope=${encodeURIComponent(scopes)}&code_challenge=${challenge}&code_challenge_method=S256`;window.open(authUrl,'mslogin','width=600,height=700')}
+
+  async function exchangeCodeForToken(code){
+  try{
+    const verifier=localStorage.getItem('pkce_verifier');
+    const params=new URLSearchParams();
+    params.append('client_id',clientId);
+    params.append('grant_type','authorization_code');
+    params.append('code',code);
+    params.append('redirect_uri',redirectUri);
+    params.append('code_verifier',verifier);
+    const resp=await fetch(tokenEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});
+    const data=await resp.json();
+    if(data.error)throw data;
+    accessToken=data.access_token;
+    refreshToken=data.refresh_token||null;
+    localStorage.setItem('access_token',accessToken);
+    if(refreshToken)localStorage.setItem('refresh_token',refreshToken);
+    document.getElementById('login-btn').classList.add('hidden');
+    var statusRow = document.getElementById('status-row');
+    if(statusRow) statusRow.style.display='block';
+    await getDefaultListId();
+    await fetchTasks();
+  }catch(e){
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    accessToken=null;
+    refreshToken=null;
+    var loginBtn = document.getElementById('login-btn');
+    if(loginBtn) loginBtn.classList.remove('hidden');
+    var statusRow = document.getElementById('status-row');
+    if(statusRow) statusRow.style.display='none';
+    console.error('exchange error',e);
+    alert('Login failed. Please try again.');
+  }
+}
+
+  async function refreshAccessToken(){try{const storedRefresh=localStorage.getItem('refresh_token');if(!storedRefresh) return null;const params=new URLSearchParams();params.append('client_id',clientId);params.append('grant_type','refresh_token');params.append('refresh_token',storedRefresh);params.append('redirect_uri',redirectUri);const resp=await fetch(tokenEndpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:params});const data=await resp.json();if(data.error) throw data;accessToken=data.access_token;refreshToken=data.refresh_token||storedRefresh;localStorage.setItem('access_token',accessToken);localStorage.setItem('refresh_token',refreshToken);return accessToken;}catch(e){localStorage.removeItem('access_token');localStorage.removeItem('refresh_token');accessToken=null;refreshToken=null;document.getElementById('login-btn').classList.remove('hidden');document.getElementById('add-task-form').classList.add('hidden');document.getElementById('status-row').style.display='none';console.error('refresh error',e);return null;}}
+
+  // --- API helpers ---
+  function handleApiError(e, msg){
+    console.error(msg, e);
+    let statusRow = document.getElementById('status-row');
+    let statusText = document.getElementById('status-text');
+    if (statusRow && statusText) {
+      statusText.textContent = msg;
+      statusRow.style.display = 'block';
+      statusText.style.color = 'var(--accent)';
+      setTimeout(()=>{
+        statusText.textContent = 'Signed in';
+        statusText.style.color = 'var(--muted)';
+      }, 4000);
+    }
+  }
+  async function apiGet(path){try{const resp=await fetch('https://graph.microsoft.com/v1.0'+path,{headers:{Authorization:`Bearer ${accessToken}`}});if(resp.status===401){const r=await refreshAccessToken();if(!r) throw new Error('not authorized');return apiGet(path);}return await resp.json();}catch(e){handleApiError(e,'API GET error');return null;}}
+  async function apiPatch(path, body){try{const resp=await fetch('https://graph.microsoft.com/v1.0'+path,{method:'PATCH',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(body)});if(resp.status===401){const r=await refreshAccessToken();if(!r) throw new Error('not authorized');return apiPatch(path,body);}return await resp.json();}catch(e){handleApiError(e,'API PATCH error');return null;}}
+  async function apiPost(path, body){try{const resp=await fetch('https://graph.microsoft.com/v1.0'+path,{method:'POST',headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json'},body:JSON.stringify(body)});if(resp.status===401){const r=await refreshAccessToken();if(!r) throw new Error('not authorized');return apiPost(path,body);}return await resp.json();}catch(e){handleApiError(e,'API POST error');return null;}}
+  async function deleteTask(taskId){try{await fetch(`https://graph.microsoft.com/v1.0/me/todo/lists/${listId}/tasks/${taskId}`,{method:'DELETE',headers:{Authorization:`Bearer ${accessToken}`}});await fetchTasks();}catch(e){handleApiError(e,'Failed to delete task.');}}
+
+  // --- List and tasks ---
+  async function getDefaultListId(){if(listId) return listId;try{const data=await apiGet('/me/todo/lists');if(data && data.value && data.value.length){const dl=data.value.find(l=>l.displayName==='Tasks')||data.value[0];listId=dl.id;localStorage.setItem('todo_list_id',listId);document.getElementById('list-name').textContent = dl.displayName;return listId}else{console.warn('no lists');return null}}catch(e){console.error('get lists error',e);return null}}
+
+  async function fetchTasks(){
+    try{
+      accessToken=accessToken||localStorage.getItem('access_token');
+      if(!accessToken){
+        var loginBtn = document.getElementById('login-btn');
+        var addTaskForm = document.getElementById('add-task-form');
+        if(loginBtn) loginBtn.classList.remove('hidden');
+        if(addTaskForm) addTaskForm.classList.add('hidden');
+        return;
+      }
+      if(!listId) await getDefaultListId();
+      if(!listId) return;
+      var addTaskForm = document.getElementById('add-task-form');
+      if(addTaskForm) addTaskForm.classList.remove('hidden');
+      const data=await apiGet(`/me/todo/lists/${listId}/tasks`);
+      const tasks = (data && data.value) ? data.value : [];
+      const ordered = [...tasks.filter(t=>t.status!=='completed'), ...tasks.filter(t=>t.status==='completed')];
+      renderTasks(ordered);
+      scrollToBottom();
+    }catch(e){handleApiError(e,'Error fetching tasks');}}
+  let refreshTimer = null;function startAutoRefresh(){if(refreshTimer) clearInterval(refreshTimer);refreshTimer = setInterval(()=>{if(localStorage.getItem('access_token')) fetchTasks();}, AUTO_REFRESH_INTERVAL);}startAutoRefresh();
+
+  // --- Render & actions ---
+  function threeDotSVG(){return `<svg viewBox='0 0 24 24'><circle cx='5' cy='12' r='2'/><circle cx='12' cy='12' r='2'/><circle cx='19' cy='12' r='2'/></svg>`;}
+  function calendarSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M19.5 4h-3V2.5a.5.5 0 0 0-1 0V4h-7V2.5a.5.5 0 0 0-1 0V4h-3A2.503 2.503 0 0 0 2 6.5v13A2.503 2.503 0 0 0 4.5 22h15a2.5 2.5 0 0 0 2.5-2.5v-13A2.5 2.5 0 0 0 19.5 4M21 19.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5V11h18zm0-9.5H3V6.5C3 5.672 3.67 5 4.5 5h3v1.5a.5.5 0 0 0 1 0V5h7v1.5a.5.5 0 0 0 1 0V5h3A1.5 1.5 0 0 1 21 6.5z"/></svg>`;}
+  function starOutlineSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m8.85 16.825l3.15-1.9l3.15 1.925l-.825-3.6l2.775-2.4l-3.65-.325l-1.45-3.4l-1.45 3.375l-3.65.325l2.775 2.425zm3.15-.723l-3.63 2.192q-.16.079-.297.064q-.136-.016-.265-.094q-.13-.08-.196-.226t-.012-.319l.966-4.11l-3.195-2.77q-.135-.11-.178-.263t.019-.293t.165-.23q.104-.087.28-.118l4.216-.368l1.644-3.892q.068-.165.196-.238T12 5.364t.288.073t.195.238l1.644 3.892l4.215.368q.177.03.281.119q.104.088.166.229q.061.14.018.293t-.178.263l-3.195 2.77l.966 4.11q.056.171-.011.318t-.197.226q-.128.08-.265.095q-.136.015-.296-.064zm0-3.852"/></svg>`;}
+  function starFilledSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="m12 16.102l-3.63 2.192q-.16.079-.297.064q-.136-.016-.265-.094q-.13-.08-.196-.226t-.012-.319l.966-4.11l-3.195-2.77q-.135-.11-.178-.263t.019-.293t.165-.23q.104-.087.28-.118l4.216-.368l1.644-3.892q.068-.165.196-.238T12 5.364t.288.073t.195.238l1.644 3.892l4.215.368q.177.03.281.119q.104.088.166.229q.061.14.018.293t-.178.263l-3.195 2.77l.966 4.11q.056.171-.011.318t-.197.226q-.128.08-.265.095q-.136.015-.296-.064z"/></svg>`;}
+  function reminderSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="8.5"/><path stroke-linecap="round" d="M5 2.804A6 6 0 0 0 2.804 5M19 2.804A6 6 0 0 1 21.196 5M12 6.5v5.25c0 .138.112.25.25.25h4.25"/></g></svg>`;}
+  function deleteSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M14 12.5a.5.5 0 0 0-1 0v11a.5.5 0 0 0 1 0zm4.5-.5a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-1 0v-11a.5.5 0 0 1 .5-.5m2-5.5V7h8a.5.5 0 0 1 0 1h-2.543l-1.628 17.907A4.5 4.5 0 0 1 19.847 30h-7.694a4.5 4.5 0 0 1-4.482-4.093L6.043 8H3.5a.5.5 0 0 1 0-1h8v-.5a4.5 4.5 0 1 1 9 0m-8 0V7h7v-.5a3.5 3.5 0 1 0-7 0M7.048 8l1.62 17.817A3.5 3.5 0 0 0 12.152 29h7.694a3.5 3.5 0 0 0 3.486-3.183L24.953 8z"/></svg>`;}
+  function checkmarkSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M16 2a14 14 0 1 0 14 14A14 14 0 0 0 16 2m-2 19.59l-5-5L10.59 15L14 18.41L21.41 11l1.596 1.586Z"/><path fill="none" d="m14 21.591l-5-5L10.591 15L14 18.409L21.41 11l1.595 1.585z"/></svg>`;}
+  function dropdownSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#fff" d="m12 15l-5-5h10z"/></svg>`;}
+  function dropupSVG(){return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#fff" d="m7 14l5-5l5 5z"/></svg>`;}
+
+  let dragSrcIdx = null;
+function renderTasks(tasks){
+  const ul=document.getElementById('task-list');ul.innerHTML='';
+  tasks.forEach((task, idx)=>{
+    const li=el('li');
+    li.dataset.id=task.id;
+    li.classList.add('fade-in','task');
+    li.setAttribute('draggable','true');
+    li.addEventListener('dragstart',e=>{
+      dragSrcIdx=idx;li.classList.add('dragging');e.dataTransfer.effectAllowed='move';
+    });
+    li.addEventListener('dragend',()=>{
+      li.classList.remove('dragging');dragSrcIdx=null;ul.querySelectorAll('.drop-target').forEach(el=>el.classList.remove('drop-target'));
+    });
+    li.addEventListener('dragover',e=>{
+      e.preventDefault();li.classList.add('drop-target');
+    });
+    li.addEventListener('dragleave',()=>{
+      li.classList.remove('drop-target');
+    });
+    li.addEventListener('drop',e=>{
+      e.preventDefault();li.classList.remove('drop-target');
+      if(dragSrcIdx!==null && dragSrcIdx!==idx){moveTask(dragSrcIdx,idx);}
+    });
+
+    // Checkbox
+    const left=el('div',{class:'task-left'});
+        const meta=el('div',{class:'meta-row',style:'display:none;'});
+    const cb=el('div',{class:'checkbox'+(task.status==='completed'?' checked':''),title:task.status==='completed'?'Completed':'Mark complete'});
+    if(task.status==='completed'){
+      cb.innerHTML = checkmarkSVG();
+        cb.style.display = 'flex';
+  cb.style.alignItems = 'center';
+  cb.style.justifyContent = 'center';
+    }
+    cb.addEventListener('click',async()=>{
+      cb.classList.add('disabled');
+      await toggleTask(task.id, cb.classList.contains('checked')?false:true);
+      cb.classList.remove('disabled')
+    });
+
+    // Title, dropdown for notes
+    const titleWrap=el('div',{class:'task-title'});
+    const titleRow=el('div',{style:'display:flex;align-items:center;gap:4px;'});
+    const title=el('div',{class:'title-text',contenteditable:true});
+    title.textContent=task.title||'';
+    title.addEventListener('blur',async ()=>{
+      if(title.textContent.trim()!==task.title){
+        await editTask(task.id,{title:title.textContent.trim()})
+      }
+    });
+
+    // Dropdown button for notes
+    let notesVisible = false;
+    const dropdownBtn = el('button',{
+      style:'border-radius:50%;border:none;background-color:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;',
+      title:'Show/hide notes'
+    });
+    dropdownBtn.innerHTML = dropdownSVG();
+
+    // Notes element
+    const notes = el('div',{class:'notes',style:'display:none;'});
+    notes.textContent = (task.body && task.body.content) ? task.body.content : '';
+    notes.contentEditable = true;
+    notes.addEventListener('blur', async ()=>{
+      if(notes.textContent.trim() !== (task.body && task.body.content || '')){
+        await editTask(task.id, { body: { content: notes.textContent, contentType: 'text' } })
+      }
+    });
+
+    dropdownBtn.addEventListener('click',()=>{
+      notesVisible = !notesVisible;
+      notes.style.display = notesVisible ? '' : 'none';
+      meta.style.display = notesVisible ? '' : 'none';
+      dropdownBtn.innerHTML = notesVisible ? dropupSVG() : dropdownSVG();
+    });
+
+    // Build title row
+    titleRow.appendChild(title);
+    titleRow.appendChild(dropdownBtn);
+    titleWrap.appendChild(titleRow);
+    titleWrap.appendChild(meta);
+    titleWrap.appendChild(notes);
+
+    // Meta row
+    if(task.dueDateTime && task.dueDateTime.dateTime){
+      meta.appendChild(el('div',{class:'chip',text: 'Due: '+ formatDate(task.dueDateTime.dateTime)}))
+    }
+    if(task.reminderDateTime && task.reminderDateTime.dateTime){
+      meta.appendChild(el('div',{class:'chip',text:'Rem: '+formatDate(task.reminderDateTime.dateTime)}))
+    }
+    if(task.categories && task.categories.length){
+      meta.appendChild(el('div',{class:'chip',text: task.categories.join(', ')}))
+    }
+    titleWrap.appendChild(meta);
+    titleWrap.appendChild(notes);
+
+    left.appendChild(cb);
+    left.appendChild(titleWrap);
+
+    // Controls
+    const controls=el('div',{class:'task-controls'});
+    const menuBtn=el('button',{class:'three-dot',title:'Task menu',type:'button'});
+    menuBtn.innerHTML=threeDotSVG();
+    menuBtn.addEventListener('click',()=>{showTaskMenu(task, menuBtn)});
+    const impBtn=el('button',{class:'icon-btn',title:'Toggle importance',type:'button'});
+    impBtn.innerHTML=task.importance==='high'?starFilledSVG():starOutlineSVG();
+    impBtn.addEventListener('click',async ()=>{
+      await editTask(task.id,{importance: task.importance==='high' ? 'normal' : 'high'});
+      fetchTasks()
+    });
+    controls.appendChild(menuBtn);
+    controls.appendChild(impBtn);
+
+    li.appendChild(left);
+    li.appendChild(controls);
+    ul.appendChild(li);
+  });
+}
+  function showTaskMenu(task, anchorBtn){let menu=document.getElementById('task-menu-popup');if(menu)menu.remove();menu=document.createElement('div');menu.id='task-menu-popup';menu.style.position='absolute';menu.style.zIndex='1000';menu.style.background='var(--card)';menu.style.borderRadius='8px';menu.style.boxShadow='0 2px 12px rgba(0,0,0,0.18)';menu.style.padding='8px 0';menu.style.minWidth='140px';menu.style.top=anchorBtn.getBoundingClientRect().bottom+window.scrollY+"px";menu.style.left=anchorBtn.getBoundingClientRect().left+window.scrollX+"px";menu.innerHTML='';const calBtn=document.createElement('button');calBtn.className='icon-btn';calBtn.innerHTML=calendarSVG()+"<span style='margin-left:8px'>Due date</span>";calBtn.onclick=()=>{openDateEditor(task);menu.remove();};const remBtn=document.createElement('button');remBtn.className='icon-btn';remBtn.innerHTML=reminderSVG()+"<span style='margin-left:8px'>Reminder</span>";remBtn.onclick=()=>{openReminderEditor(task);menu.remove();};const delBtn=document.createElement('button');delBtn.className='icon-btn';delBtn.innerHTML=deleteSVG()+"<span style='margin-left:8px'>Delete</span>";delBtn.onclick=async()=>{await deleteTask(task.id);menu.remove();};[calBtn,remBtn,delBtn].forEach(b=>{b.style.display='flex';b.style.alignItems='center';b.style.width='100%';b.style.justifyContent='flex-start';b.style.padding='8px 16px';b.style.background='none';b.style.border='none';b.style.color='#fff';b.style.cursor='pointer';b.onmouseover=()=>b.style.background='rgba(255,255,255,0.04)';b.onmouseout=()=>b.style.background='none';menu.appendChild(b);});document.body.appendChild(menu);document.addEventListener('click',function handler(e){if(!menu.contains(e.target)&&e.target!==anchorBtn){menu.remove();document.removeEventListener('click',handler);}},true);}
+  function moveTask(fromIdx,toIdx){if(fromIdx===toIdx)return;const ul=document.getElementById('task-list');const items=[...ul.children];ul.insertBefore(items[fromIdx], items[toIdx]);}
+
+  async function toggleTask(taskId, completed){try{await apiPatch(`/me/todo/lists/${listId}/tasks/${taskId}`,{status: completed ? 'completed' : 'notStarted'});await fetchTasks();}catch(e){console.error('toggle error',e)}}
+  async function addTask(title){try{await apiPost(`/me/todo/lists/${listId}/tasks`,{title});await fetchTasks();}catch(e){console.error('add error',e)}}
+  async function editTask(taskId, updates){try{await apiPatch(`/me/todo/lists/${listId}/tasks/${taskId}`,updates);await fetchTasks();}catch(e){console.error('edit error',e)}}
+
+  function scrollToBottom(){const list=document.getElementById('task-list');if(!list) return;setTimeout(()=>list.scrollTo({top:list.scrollTop,behavior:'smooth'}),120)}
+
+  // --- Editors (lightweight polished) ---
+  function openDateEditor(task){const input = document.createElement('input');input.type='date';input.className='small-input';input.value = (task.dueDateTime && task.dueDateTime.dateTime) ? new Date(task.dueDateTime.dateTime).toISOString().slice(0,10) : '';input.addEventListener('change', async ()=>{const val=input.value;if(val){await editTask(task.id,{dueDateTime:{dateTime: new Date(val).toISOString(), timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}})};document.body.removeChild(overlay)});
+    const overlay = el('div', {style:'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)'} , el('div',{style:'background:var(--card);padding:12px;border-radius:8px'} , [input]));overlay.addEventListener('click',(e)=>{if(e.target===overlay)document.body.removeChild(overlay)});document.body.appendChild(overlay)}
+
+  function openReminderEditor(task){const input = document.createElement('input');input.type='datetime-local';input.className='small-input';input.value = (task.reminderDateTime && task.reminderDateTime.dateTime) ? new Date(task.reminderDateTime.dateTime).toISOString().slice(0,16) : '';input.addEventListener('change', async ()=>{const val=input.value;if(val){await editTask(task.id,{isReminderOn:true,reminderDateTime:{dateTime:new Date(val).toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}})};document.body.removeChild(overlay)});
+    const overlay = el('div', {style:'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)'} , el('div',{style:'background:var(--card);padding:12px;border-radius:8px'} , [input]));overlay.addEventListener('click',(e)=>{if(e.target===overlay)document.body.removeChild(overlay)});document.body.appendChild(overlay)}
+
+  // --- Message handler from redirect page ---
+  window.addEventListener('message', (ev)=>{try{if(ev.data && ev.data.type==='ms_auth_code' && ev.data.code){exchangeCodeForToken(ev.data.code)}}catch(e){console.error(e)}}, false);
+
+  // --- UI bindings ---
+  document.addEventListener('DOMContentLoaded', function() {
+    var loginBtn = document.getElementById('login-btn');
+    var refreshBtn = document.getElementById('refresh-btn');
+    var addBtn = document.getElementById('add-btn');
+    var signoutBtn = document.getElementById('signout-btn');
+    if (loginBtn) loginBtn.addEventListener('click', login);
+    if (refreshBtn) refreshBtn.addEventListener('click', fetchTasks);
+    if (addBtn) addBtn.addEventListener('click', showAddTaskPopup);
+    if (signoutBtn) signoutBtn.addEventListener('click', function() {
+      // Confirmation popup
+      let bg=document.createElement('div');bg.className='popup-bg';
+      let popup=document.createElement('div');popup.className='add-popup';popup.style.maxWidth='220px';
+      let msg=document.createElement('div');msg.textContent='Are you sure you want to sign out?';msg.style.fontSize='14px';msg.style.color='var(--muted)';msg.style.marginBottom='10px';
+      let confirmBtn=document.createElement('button');confirmBtn.textContent='Sign out';confirmBtn.style.background='var(--accent)';confirmBtn.style.marginRight='8px';
+      let cancelBtn=document.createElement('button');cancelBtn.textContent='Cancel';cancelBtn.style.background='var(--surface)';cancelBtn.style.color='var(--muted)';
+      confirmBtn.onclick=function(){
+        localStorage.clear();
+        accessToken = null;
+        refreshToken = null;
+        listId = null;
+        if(loginBtn) loginBtn.classList.remove('hidden');
+        if(signoutBtn) signoutBtn.classList.add('hidden');
+        var statusRow = document.getElementById('status-row');
+        if(statusRow) statusRow.style.display='none';
+        var ul = document.getElementById('task-list');
+        if(ul) ul.innerHTML = '';
+        bg.remove();
+      };
+      cancelBtn.onclick=function(){bg.remove();};
+      popup.appendChild(msg);
+      popup.appendChild(confirmBtn);
+      popup.appendChild(cancelBtn);
+      bg.appendChild(popup);
+      document.body.appendChild(bg);
+    });
+    // auto-refresh
+    // init
+    (async function init(){
+      if(localStorage.getItem('access_token')){
+        accessToken=localStorage.getItem('access_token');
+        if(loginBtn) loginBtn.classList.add('hidden');
+        if(signoutBtn) signoutBtn.classList.remove('hidden');
+        var statusRow = document.getElementById('status-row');
+        if(statusRow) statusRow.style.display='block';
+        await getDefaultListId();
+        await fetchTasks();
+      }else{
+        if(loginBtn) loginBtn.classList.remove('hidden');
+        if(signoutBtn) signoutBtn.classList.add('hidden');
+      }
+    })();
+  });
+  function showAddTaskPopup(){
+  let bg=document.createElement('div');bg.className='popup-bg';
+  let popup=document.createElement('div');popup.className='add-popup';
+  let close=document.createElement('button');close.className='close-btn';close.innerHTML='&times;';close.onclick=()=>bg.remove();
+
+  // Title
+  let titleLabel=document.createElement('label');titleLabel.textContent='Title:';titleLabel.setAttribute('for','popup-task-title');titleLabel.style.fontSize='13px';titleLabel.style.color='var(--muted)';
+  let input=document.createElement('input');input.placeholder='Task title';input.id='popup-task-title';
+
+  // Due date
+  let dueLabel=document.createElement('label');dueLabel.textContent='Due date:';dueLabel.setAttribute('for','popup-task-due');dueLabel.style.fontSize='13px';dueLabel.style.color='var(--muted)';
+  let due=document.createElement('input');due.type='date';due.id='popup-task-due';due.placeholder='Due date';
+
+  // Reminder
+  let remLabel=document.createElement('label');remLabel.textContent='Reminder:';remLabel.setAttribute('for','popup-task-rem');remLabel.style.fontSize='13px';remLabel.style.color='var(--muted)';
+  let rem=document.createElement('input');rem.type='datetime-local';rem.id='popup-task-rem';rem.placeholder='Reminder';
+
+  // Importance
+  let impLabel=document.createElement('label');impLabel.textContent='Importance:';impLabel.setAttribute('for','popup-task-imp');impLabel.style.fontSize='13px';impLabel.style.color='var(--muted)';
+  let imp=document.createElement('select');imp.id='popup-task-imp';imp.innerHTML='<option value="normal">Normal</option><option value="high">High</option>';
+
+  let addBtn=document.createElement('button');addBtn.textContent='Add Task';addBtn.onclick=async()=>{
+    let title=input.value.trim();if(!title)return input.focus();
+    let body={title};
+    if(due.value)body.dueDateTime={dateTime:new Date(due.value).toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone};
+    if(rem.value)body.reminderDateTime={dateTime:new Date(rem.value).toISOString(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone};
+    if(imp.value)body.importance=imp.value;
+    await addTaskPopup(body);
+    bg.remove();
+  };
+
+  popup.appendChild(close);
+  popup.appendChild(titleLabel);
+  popup.appendChild(input);
+  popup.appendChild(dueLabel);
+  popup.appendChild(due);
+  popup.appendChild(remLabel);
+  popup.appendChild(rem);
+  popup.appendChild(impLabel);
+  popup.appendChild(imp);
+  popup.appendChild(addBtn);
+  bg.appendChild(popup);
+  document.body.appendChild(bg);
+}
+async function addTaskPopup(body){
+  try {
+    await apiPost(`/me/todo/lists/${listId}/tasks`, body);
+    await fetchTasks();
+  } catch(e) {
+    console.error('add error', e);
+  }
+}
+  </script>
+  </body>
+  </html>
