@@ -1,0 +1,3 @@
+[submodule "lib/minimal-json-c-parser"]
+	path = lib/minimal-json-c-parser
+	url = https://github.com/beyluta/minimal-c-json-parser

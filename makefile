@@ -6,10 +6,12 @@ GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 BUILDDIR = build
 OUT = $(BUILDDIR)/output
 SRC = main.c \
-			src/filesystem.c
+			src/filesystem.c \
+			lib/minimal-json-c-parser/src/json.c
 
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
+				-Ilib/minimal-json-c-parser/include \
 				-isystem lib/WebView2/build/native/include \
 				-O2 \
 				-xc \

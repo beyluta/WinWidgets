@@ -85,7 +85,11 @@ function openDefaultDirectory() {
  * @param {string} messageName - Identifier of the message to be posted
  */
 function postMessage(messageName, args) {
-  window.chrome.webview.postMessage(EVENT_IDS[messageName]);            // Windows
+  const programArgs = {
+    eventId: EVENT_IDS[messageName],
+    args: args ?? null
+  };
+  window.chrome.webview.postMessage(JSON.stringify(programArgs));       // Windows
   window.webkit.messageHandlers[messageName].postMessage(args ?? null); // Linux
 }
 

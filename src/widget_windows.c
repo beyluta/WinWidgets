@@ -4,9 +4,10 @@
 #include <WebView2.h>
 #include <stdio.h>
 #include <windows.h>
+#include <json.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
-typedef enum : size_t
+typedef enum : int
 {
         EVT_OPEN_DEFAULT_DIR,
         EVT_GET_WGT_FILENAMES,
@@ -17,8 +18,10 @@ typedef enum : size_t
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
 static HWND hWndParent = nullptr;
-static ICoreWebView2Controller *webviewController = nullptr;
-static ICoreWebView2 *webviewWindow = nullptr;
+static HINSTANCE hInstance = nullptr;
+static int nCmdShow = {};
+static ICoreWebView2Controller *parentWebviewController = nullptr;
+static ICoreWebView2 *parentWebviewWindow = nullptr;
 static bool bEnvCreated = false;
 static ULONG HandlerRefCount = 0;
 
@@ -45,6 +48,9 @@ OpenDefaultDirectory();
 
 static bool
 AppendWidgetToBrowserList(ICoreWebView2 *webview);
+
+static bool
+create_widget_window(ww_window_ctx *context, HWND *destHwnd);
 
 // --------------------------------------------------
 // Vtable functions for creating the default window |
@@ -122,8 +128,51 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 return EXIT_REASON_MEM_FAILURE;
         }
 
-        // Each event has an associated id to trigger default functions
-        const size_t eventId = strtol(cMessage, nullptr, 0);
+        // The result is returned as a JSON string, parse the string here
+        string_json_t dataString;
+        if (ConvertStringToJson(cMessage, &dataString) != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting \"%s\" to JSON\n", cMessage);
+                return EXIT_REASON_MEM_FAILURE;
+        }
+
+        string_json_t eventIdStr;
+        if (GetProperty(dataString, &eventIdStr, "eventId") != FUNC_SUCCESS)
+        {
+                fprintf(stderr,
+                        "Event ID could not be found in \"%s\"\n",
+                        cMessage);
+                return EXIT_REASON_MEM_FAILURE;
+        }
+
+        string_json_t argsStr;
+        if (GetProperty(dataString, &argsStr, "args") != FUNC_SUCCESS)
+        {
+                fprintf(stderr,
+                        "Event arguments could not be found in \"%s\"\n",
+                        cMessage);
+                return EXIT_REASON_MEM_FAILURE;
+        }
+
+        // Each event has an associated id to trigger default functions. Some
+        // may also have arguments with relevant information of what
+        // instructions to perform
+        int eventId;
+        if (ConvertJsonToStandardType(eventIdStr, JSON_INT, &eventId) !=
+            FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting JSON to Integer type\n");
+                return EXIT_REASON_MEM_FAILURE;
+        }
+
+        char arguments[BUFFSIZE];
+        if (ConvertJsonToStandardType(argsStr, JSON_CHAR_ARR, &arguments) !=
+            FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting JSON to char array type\n");
+                return EXIT_REASON_MEM_FAILURE;
+        }
+
         switch (eventId)
         {
         case EVT_OPEN_DEFAULT_DIR:
@@ -143,7 +192,6 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 }
                 break;
         case EVT_OPEN_WGT_FILENAME:
-                MessageBox(nullptr, "Title", "Title", MB_OK);
                 break;
         }
 
@@ -250,15 +298,17 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
         ICoreWebView2Controller *controller = arg;
         if (controller != nullptr)
         {
-                webviewController = controller;
-                webviewController->lpVtbl->get_CoreWebView2(webviewController,
-                                                            &webviewWindow);
-                webviewController->lpVtbl->AddRef(webviewController);
+                parentWebviewController = controller;
+                parentWebviewController->lpVtbl->get_CoreWebView2(
+                        parentWebviewController, &parentWebviewWindow);
+                parentWebviewController->lpVtbl->AddRef(
+                        parentWebviewController);
         }
 
         // Browser settings
         ICoreWebView2Settings *settings;
-        webviewWindow->lpVtbl->get_Settings(webviewWindow, &settings);
+        parentWebviewWindow->lpVtbl->get_Settings(parentWebviewWindow,
+                                                  &settings);
         settings->lpVtbl->put_IsScriptEnabled(settings, true);
         settings->lpVtbl->put_AreDefaultScriptDialogsEnabled(settings, true);
         settings->lpVtbl->put_IsWebMessageEnabled(settings, true);
@@ -268,7 +318,8 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
 
         RECT bounds;
         GetClientRect(hWndParent, &bounds);
-        webviewController->lpVtbl->put_Bounds(webviewController, bounds);
+        parentWebviewController->lpVtbl->put_Bounds(parentWebviewController,
+                                                    bounds);
 
         // Convert char* to wide char for the navigate function to work
         wchar_t wTpmlPath[BUFFSIZE];
@@ -276,10 +327,10 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
 
         // Registering event handlers
         EventRegistrationToken token;
-        webviewWindow->lpVtbl->add_WebMessageReceived(
-                webviewWindow, &messageReceivedEventHandler, &token);
+        parentWebviewWindow->lpVtbl->add_WebMessageReceived(
+                parentWebviewWindow, &messageReceivedEventHandler, &token);
 
-        webviewWindow->lpVtbl->Navigate(webviewWindow, wTpmlPath);
+        parentWebviewWindow->lpVtbl->Navigate(parentWebviewWindow, wTpmlPath);
         return EXIT_REASON_TERMINATED;
 }
 
@@ -300,12 +351,12 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(EXIT_REASON_TERMINATED);
                 return 0;
         case WM_SIZE:
-                if (webviewController != nullptr)
+                if (parentWebviewController != nullptr)
                 {
                         RECT bounds;
                         GetClientRect(hWndParent, &bounds);
-                        webviewController->lpVtbl->put_Bounds(webviewController,
-                                                              bounds);
+                        parentWebviewController->lpVtbl->put_Bounds(
+                                parentWebviewController, bounds);
                 }
                 return EXIT_REASON_TERMINATED;
         }
@@ -349,23 +400,11 @@ ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl envHandlerVtbl =
 ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
         .lpVtbl = &envHandlerVtbl};
 
-/*
- * @brief Initializing the main window of the application. It will be
- * responsible for spawning children widgets.
- * @returns The status code of the function at its conclusion
- */
-bool
-ww_init_main(HINSTANCE hInstance,
-             int nCmdShow,
-             ww_window_ctx *context,
-             ww_widget_ctx *widgets)
-{
-        if (FAILED(CoInitialize(NULL)))
-        {
-                fprintf(stderr, "COM Failed to initialize\n");
-                return true;
-        }
+static bool ranOnce = false;
 
+static bool
+create_widget_window(ww_window_ctx *context, HWND *destHwnd)
+{
         // Copying the title of the window to a local variable here
         size_t len = strlen(context->title);
         if (len >= BUFFSIZE)
@@ -395,30 +434,59 @@ ww_init_main(HINSTANCE hInstance,
 
         RegisterClass(&wc);
 
-        hWndParent = CreateWindowEx(0,          // Optional window styles.
-                                    CLASS_NAME, // Window class
-                                    tmplName,   // Window text
-                                    WS_OVERLAPPEDWINDOW, // Window style
-                                    CW_USEDEFAULT,       // X Position
-                                    CW_USEDEFAULT,       // Y Position
-                                    CW_USEDEFAULT,       // Width
-                                    CW_USEDEFAULT,       // Height
-                                    nullptr,             // Parent window
-                                    nullptr,             // Menu
-                                    hInstance,           // Instance handle
-                                    nullptr // Additional application data
+        *destHwnd = CreateWindowEx(0,          // Optional window styles.
+                                   CLASS_NAME, // Window class
+                                   tmplName,   // Window text
+                                   WS_OVERLAPPEDWINDOW, // Window style
+                                   CW_USEDEFAULT,       // X Position
+                                   CW_USEDEFAULT,       // Y Position
+                                   CW_USEDEFAULT,       // Width
+                                   CW_USEDEFAULT,       // Height
+                                   nullptr,             // Parent window
+                                   nullptr,             // Menu
+                                   hInstance,           // Instance handle
+                                   nullptr // Additional application data
         );
-        if (hWndParent == nullptr)
+        if (*destHwnd == nullptr)
         {
                 fprintf(stderr, "Failed to create window\n");
                 CoUninitialize();
                 return true;
         }
 
-        ShowWindow(hWndParent, nCmdShow);
-        UpdateWindow(hWndParent);
+        ShowWindow(*destHwnd, nCmdShow);
+        UpdateWindow(*destHwnd);
 
         CreateCoreWebView2EnvironmentWithOptions(
                 nullptr, nullptr, nullptr, &envHandler);
+        return true;
+}
+
+/*
+ * @brief Initializing the main window of the application. It will be
+ * responsible for spawning children widgets.
+ * @returns The status code of the function at its conclusion
+ */
+bool
+ww_init_main(HINSTANCE local_hInstance,
+             int local_nCmdShow,
+             ww_window_ctx *context,
+             ww_widget_ctx *widgets)
+{
+        hInstance = local_hInstance;
+        nCmdShow = local_nCmdShow;
+
+        if (FAILED(CoInitialize(NULL)))
+        {
+                fprintf(stderr, "COM Failed to initialize\n");
+                return true;
+        }
+
+        if (!create_widget_window(context, &hWndParent))
+        {
+                fprintf(stderr, "WebView2 Failed to create a window\n");
+                return false;
+        }
+
         return event_loop();
 }
