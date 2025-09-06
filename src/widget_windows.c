@@ -6,8 +6,12 @@
 #include <windows.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
-constexpr size_t EVT_OPEN_DEFAULT_DIR = 0;
-constexpr size_t EVT_GET_WGT_FILENAMES = 1;
+typedef enum : size_t
+{
+        EVT_OPEN_DEFAULT_DIR,
+        EVT_GET_WGT_FILENAMES,
+        EVT_OPEN_WGT_FILENAME
+} widget_events_t;
 
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
@@ -137,6 +141,9 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                                 "list\n");
                         return EXIT_REASON_IO_FAILURE;
                 }
+                break;
+        case EVT_OPEN_WGT_FILENAME:
+                MessageBox(nullptr, "Title", "Title", MB_OK);
                 break;
         }
 

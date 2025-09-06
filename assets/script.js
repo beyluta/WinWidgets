@@ -3,7 +3,8 @@
  */
 const EVENT_IDS = {
   "on_open_default_directory": "0",
-  "on_get_widget_filenames": "1"
+  "on_get_widget_filenames": "1",
+  "on_open_widget_by_filename": "2"
 };
 
 /**
@@ -47,7 +48,7 @@ function addWidget(path) {
  * @returns {Promise<void>} Resolves when the widget is opened.
  */
 async function openWidget(path) {
-  window.webkit.messageHandlers.on_open_widget_by_filename.postMessage(`file://${path}`);
+  postMessage("on_open_widget_by_filename", `file://${path}`);
 }
 
 /**
@@ -83,9 +84,9 @@ function openDefaultDirectory() {
  * Triggers a postMessages for all platform available
  * @param {string} messageName - Identifier of the message to be posted
  */
-function postMessage(messageName) {
-  window.chrome.webview.postMessage(EVENT_IDS[messageName]);    // Windows
-  window.webkit.messageHandlers[messageName].postMessage(null); // Linux
+function postMessage(messageName, args) {
+  window.chrome.webview.postMessage(EVENT_IDS[messageName]);            // Windows
+  window.webkit.messageHandlers[messageName].postMessage(args ?? null); // Linux
 }
 
 /**
