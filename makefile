@@ -36,6 +36,7 @@ run: build
 	./$(OUT)
 else
 ARGS := -Iinclude \
+				-Ilib/minimal-json-c-parser/include \
 				-O2 \
 				-xc \
 				-Wall \
