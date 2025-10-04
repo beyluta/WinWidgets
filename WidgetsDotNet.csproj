@@ -136,7 +136,9 @@
   <ItemGroup>
     <Compile Include="Hooks\HardwareActivity.Hook.cs" />
     <Compile Include="Models\Configuration.Model.cs" />
+    <Compile Include="Models\CustomRequestHandler.Model.cs" />
     <Compile Include="Models\Hardware.Model.cs" />
+    <Compile Include="Models\CustomResourceRequestHandler.cs" />
     <Compile Include="Models\Widget.Model.cs" />
     <Compile Include="Modules\WidgetForm.Module.cs">
       <SubType>Form</SubType>
