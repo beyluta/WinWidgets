@@ -360,6 +360,24 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
 }
 
 /**
+ * @brief Finds the target HWND in the list of global g_hWnds
+ * @param target The target to be searched for
+ * @returns The index where the target was found; on error -1
+ */
+static ssize_t
+FindHwnd(HWND target)
+{
+        for (size_t i = 0; i < MAX_WIDGETS; i++)
+        {
+                if (target == g_hWnds[i])
+                {
+                        return i;
+                }
+        }
+        return -1;
+}
+
+/**
  * @brief Callback function used by the window cration process of the default
  * messages
  * @param hwnd Default handle of th application
@@ -373,6 +391,14 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         switch (uMsg)
         {
         case WM_DESTROY:
+                const ssize_t indexHwnd = FindHwnd(hwnd);
+                g_hWnds[indexHwnd] = g_hWnds[g_widgets];
+
+                if (g_widgets-- > 0 && hwnd != g_hWnds[0])
+                {
+                        return 0;
+                }
+
                 PostQuitMessage(EXIT_REASON_TERMINATED);
                 return 0;
         case WM_SIZE:
