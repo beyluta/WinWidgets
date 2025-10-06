@@ -1,15 +1,15 @@
-﻿using CefSharp;
+﻿using System;
+using System.Drawing;
+using System.Threading;
+using System.Timers;
+using System.Windows.Forms;
+using CefSharp;
 using CefSharp.WinForms;
 using Microsoft.Win32;
 using Models;
 using Modules;
 using Newtonsoft.Json;
 using Services;
-using System;
-using System.Drawing;
-using System.Threading;
-using System.Timers;
-using System.Windows.Forms;
 
 namespace Components
 {
@@ -50,7 +50,15 @@ namespace Components
         public override ChromiumWebBrowser browser
         {
             get { return _browser; }
-            set { _browser = value; }
+            set 
+            { 
+                _browser = value; 
+
+                if (_browser != null)
+                {
+                    _browser.RequestHandler = new CustomRequestHandler();
+                }
+            }
         }
 
         public override Configuration configuration
