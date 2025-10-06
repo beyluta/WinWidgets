@@ -393,8 +393,10 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case WM_DESTROY:
                 const ssize_t indexHwnd = FindHwnd(hwnd);
                 g_hWnds[indexHwnd] = g_hWnds[g_widgets];
+                g_controllers[indexHwnd] = g_controllers[g_widgets];
+                g_windows[indexHwnd] = g_windows[g_widgets];
 
-                if (g_widgets-- > 0 && hwnd != g_hWnds[0])
+                if (g_widgets-- > 0 && indexHwnd != 0)
                 {
                         return 0;
                 }
