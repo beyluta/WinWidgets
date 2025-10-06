@@ -1,18 +1,15 @@
-﻿using CefSharp;
-using CefSharp.Handler;
+﻿using System;
+using System.Drawing;
+using System.Threading;
+using System.Timers;
+using System.Windows.Forms;
+using CefSharp;
 using CefSharp.WinForms;
 using Microsoft.Win32;
 using Models;
 using Modules;
 using Newtonsoft.Json;
 using Services;
-using System;
-using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Timers;
-using System.Windows.Forms;
-using WidgetsDotNet.Models;
 
 namespace Components
 {

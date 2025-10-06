@@ -1,7 +1,7 @@
 ﻿using CefSharp;
 using CefSharp.Handler;
 
-namespace WidgetsDotNet.Models
+namespace Models
 {
     internal class CustomResourceRequestHandler : ResourceRequestHandler
     {
