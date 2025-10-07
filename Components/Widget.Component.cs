@@ -81,17 +81,45 @@ namespace Components
                 POINT mousePos;
                 GetCursorPos(out mousePos);
 
+                WidgetHtmlTags tags = GetWidgetHtmlTags(htmlPath);
                 double scale = Int32.Parse((string)Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\ThemeManager", "LastLoadedDPI", "96")) / 96.0;
 
-                WidgetHtmlTags tags = GetWidgetHtmlTags(htmlPath);
-                int roundess = tags.Radius != null ? (int)(int.Parse(tags.Radius) * scale) : 0;
-                this.width = tags.Size != null ? (int)(int.Parse(tags.Size.Split(' ')[0]) * scale) : (int)(width * scale);
-                this.height = tags.Size != null ? (int)(int.Parse(tags.Size.Split(' ')[1]) * scale) : (int)(height * scale);
-                int locationX = tags.Location != null ? int.Parse(tags.Location.Split(' ')[0]) : mousePos.X;
-                int locationY = tags.Location != null ? int.Parse(tags.Location.Split(' ')[1]) : mousePos.Y;
-                byte opacity = (byte)(tags.Opacity != null ? byte.Parse(tags.Opacity.Split(' ')[0]) : 255);
-                bool dropShadow = tags.DropShadow != null ? bool.Parse(tags.DropShadow.Split(' ')[0]) : false;
-                bool topMost = tags.TopMost != null ? bool.Parse(tags.TopMost.Split(' ')[0]) : false;
+                if (tags.Size != null)
+                {
+                    this.width = int.TryParse(tags.Size.Split(' ')[0], out this.width) ? this.width : (int)(width * scale);
+                    this.height = int.TryParse(tags.Size.Split(' ')[1], out this.height) ? this.height : (int)(height * scale);
+                }
+
+                bool dropShadow = false;
+                if (tags.DropShadow != null)
+                {
+                    dropShadow = bool.TryParse(tags.DropShadow.Split(' ')[0], out dropShadow) ? dropShadow : false;
+                }
+
+                int roundness = 0;
+                if (tags.Radius != null)
+                {
+                    roundness = int.TryParse(tags.Radius.Split(' ')[0], out roundness) ? (int)(roundness * scale) : 0;
+                }
+
+                byte opacity = byte.MaxValue;
+                if (tags.Opacity != null)
+                {
+                    opacity = (byte)(byte.TryParse(tags.Opacity.Split(' ')[0], out opacity) ? opacity : 255);
+                }
+
+                int locationX = 0, locationY = 0;
+                if (tags.Location != null)
+                {
+                    locationX = int.TryParse(tags.Location.Split(' ')[0], out locationX) == true ? locationX : 0;
+                    locationY = int.TryParse(tags.Location.Split(' ')[1], out locationY) == true ? locationY : 0;
+                }
+
+                bool topMost = false;
+                if (tags.TopMost != null)
+                {
+                    topMost = bool.TryParse(tags.TopMost.Split(' ')[0], out topMost) ? topMost : false;
+                }
                 topMost = alwaysOnTop.HasValue ? (bool)alwaysOnTop : topMost;
 
                 window = new WidgetForm(dropShadow);
@@ -101,7 +129,7 @@ namespace Components
                 window.Text = title;
                 window.FormBorderStyle = FormBorderStyle.None;
                 window.ShowInTaskbar = false;
-                window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundess, roundess)); // Border radius
+                window.Region = System.Drawing.Region.FromHrgn(CreateRoundRectRgn(0, 0, this.width, this.height, roundness, roundness)); // Border radius
                 window.Activated += OnFormActivated;
                 window.BackColor = Color.Black;
 
