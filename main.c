@@ -44,7 +44,7 @@ WinMain(HINSTANCE hInstance,
                 .y = 0,
                 .index = 0, // Not really needed, but for consistency
                 .title_bar = false,
-                .child = true,
+                .child = false,
                 .top_most = true,
                 .title = "WinWidgets",
                 .opacity = 1,

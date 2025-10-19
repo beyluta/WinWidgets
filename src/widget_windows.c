@@ -824,6 +824,43 @@ SetWindowOpacity(const HWND hWnd, const double alpha)
         return true;
 }
 
+/**
+ * @brief Set the border radius for the corners of the window
+ * @param hWnd Handle to the window
+ * @param context Window context of the widget
+ * @returns True if successful, else false
+ */
+static bool
+SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
+{
+        const size_t width = context->width;
+        const size_t height = context->height;
+        const size_t radius = context->radius;
+        const bool child = context->child;
+        if (radius <= 0 || !child)
+        {
+                return true;
+        }
+
+        const HRGN hRgn =
+                CreateRoundRectRgn(0, 0, width, height, radius, radius);
+        if (hRgn == nullptr)
+        {
+                fprintf(stderr, "Faield to create round rect\n");
+                return false;
+        }
+
+        if (SetWindowRgn(hWnd, hRgn, true) == 0)
+        {
+                fprintf(stderr, "Failed to set the window region\n");
+                return false;
+        }
+
+        DeleteObject(hRgn);
+
+        return true;
+}
+
 static bool
 create_widget_window(ww_window_ctx *const context)
 {
@@ -876,6 +913,12 @@ create_widget_window(ww_window_ctx *const context)
         }
 
         ShowWindow(*handle, g_nCmdShow);
+
+        if (!SetWindowBorderRadius(*handle, context))
+        {
+                fprintf(stderr, "Failed to set window opacity\n");
+                return true;
+        }
 
         if (!SetWindowOpacity(*handle, context->opacity))
         {
