@@ -144,13 +144,20 @@ static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
  * @brief Strips the `file://` prefix from url
  * @param src Original string to edit
  * @param dest Where the output will be saved to
+ * @returns True if successful, else false
  */
-static void
+static bool
 StripFilePrefix(const char *const src, char *const dest)
 {
         const size_t offset = 7;
         const size_t len = strlen(src);
-        snprintf(dest, (len - offset) + 1, "%s", &src[offset]);
+        if (snprintf(dest, (len - offset) + 1, "%s", &src[offset]) < 0)
+        {
+                fprintf(stderr, "Failed to copy string into buffer\n");
+                return false;
+        }
+
+        return true;
 }
 
 // TODO: Enable this only for the development build later
@@ -184,7 +191,11 @@ GetMetaTagValue(const char *const filename,
                 const size_t destLen)
 {
         char path[destLen];
-        StripFilePrefix(filename, path);
+        if (!StripFilePrefix(filename, path))
+        {
+                fprintf(stderr, "Failed to strip the prefix from filename\n");
+                return false;
+        }
 
         char content[destLen];
         if (ww_get_file_content(path, content, destLen) == true)
