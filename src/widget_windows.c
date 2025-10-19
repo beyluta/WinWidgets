@@ -268,19 +268,19 @@ GetMetaTagValue(const char *const filename,
                 }
 
                 // Getting the value of name between quotes
-                if (c == widget_char_quote && start < 0 && isName && !isTarget)
+                if (c == widget_char_quote && start < 0 && !isTarget)
                 {
                         start = i + 1;
                         continue;
                 }
 
-                if (c == widget_char_quote && end < 0 && isName && !isTarget)
+                if (c == widget_char_quote && end < 0 && !isTarget)
                 {
                         end = i;
                         continue;
                 }
 
-                if ((start < 0 || end < 0) && isName && !isTarget)
+                if ((start < 0 || end < 0) && !isTarget)
                 {
                         continue;
                 }
@@ -314,13 +314,13 @@ GetMetaTagValue(const char *const filename,
                 }
 
                 // Getting the value of the attribute "value" between quotes
-                if (c == widget_char_quote && start < 0 && isValue)
+                if (c == widget_char_quote && start < 0)
                 {
                         start = i + 1;
                         continue;
                 }
 
-                if (c == widget_char_quote && end < 0 && isValue)
+                if (c == widget_char_quote && end < 0)
                 {
                         end = i;
                         continue;
