@@ -2,17 +2,52 @@
 #include "global.h"
 #include "widget.h"
 #include <WebView2.h>
+#include <consoleapi.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <windows.h>
 #include <json.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
+constexpr char TAG_APP_NAME[] = "applicationTitle";
+constexpr char TAG_APP_TOPMOST[] = "topMost";
+constexpr char TAG_WIN_SIZE[] = "windowSize";
+constexpr char TAG_WIN_LOCATION[] = "windowLocation";
+constexpr char TAG_WIN_PREV[] = "previewSize";
+constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
+constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
+
+constexpr uint8_t MAX_ALPHA = UINT8_MAX;
+
+constexpr uint16_t BUFFSIZ = USHRT_MAX;
+constexpr uint16_t DEF_WIDTH = 500;
+constexpr uint16_t DEF_HEIGHT = 500;
+constexpr uint16_t DEF_PREV_WIDTH = DEF_WIDTH;
+constexpr uint16_t DEF_PREV_HEIGHT = DEF_HEIGHT;
+constexpr uint16_t DEF_X = 0;
+constexpr uint16_t DEF_Y = 0;
+constexpr uint16_t DEF_OPACITY = 1;
+constexpr uint16_t DEF_RADIUS = 0;
+
+constexpr bool DEF_CHILD = true;
+constexpr bool DEF_TOPMOST = false;
+
 typedef enum : int
 {
         EVT_OPEN_DEFAULT_DIR,
         EVT_GET_WGT_FILENAMES,
         EVT_OPEN_WGT_FILENAME
 } widget_events_t;
+
+typedef enum : uint8_t
+{
+        widget_char_space = 32,
+        widget_char_quote = 34,
+        widget_char_slash = 47,
+        widget_char_gt = 62
+} widget_char_t;
 
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
@@ -106,6 +141,241 @@ static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
         .lpVtbl = &envHandlerVtbl};
 
 /**
+ * @brief Strips the `file://` prefix from url
+ * @param src Original string to edit
+ * @param dest Where the output will be saved to
+ */
+static void
+StripFilePrefix(const char *const src, char *const dest)
+{
+        const size_t offset = 7;
+        const size_t len = strlen(src);
+        snprintf(dest, (len - offset) + 1, "%s", &src[offset]);
+}
+
+// TODO: Enable this only for the development build later
+/**
+ * @brief Creates a console window and writes debug messages to it
+ * @param message Text to print out
+ */
+static void
+Debug(const char *const message)
+{
+        AllocConsole();
+        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (stdOut != NULL && stdOut != INVALID_HANDLE_VALUE)
+        {
+                DWORD written = 0;
+                WriteConsoleA(stdOut, message, strlen(message), &written, NULL);
+        }
+}
+
+/**
+ * @brief Gets the value of a meta tag as a string
+ * @param filenaem Path to the file
+ * @param src Name of the tag to search for
+ * @param dest Destination string to save the result to
+ * @returns Whether the function was successful or not
+ */
+static bool
+GetMetaTagValue(const char *const filename,
+                const char *const src,
+                char *const dest,
+                const size_t destLen)
+{
+        char path[destLen];
+        StripFilePrefix(filename, path);
+
+        char content[destLen];
+        if (ww_get_file_content(path, content, destLen) == true)
+        {
+                fprintf(stderr, "Failed to get contents of HTML file\n");
+                return false;
+        }
+
+        const size_t len = strlen(content);
+        bool isTarget = false;
+        bool isMeta = false;
+        bool isName = false;
+        bool isValue = false;
+        ssize_t start = -1, end = -1;
+        const char *const metaTag = "<meta";
+        const char *const nameAttr = "name=";
+        const char *const valueAttr = "value=";
+        const size_t metaTagLen = strlen(metaTag);
+        const size_t nameAttrLen = strlen(nameAttr);
+        const size_t valueAttrLen = strlen(valueAttr);
+        for (size_t i = 0, j = 0; i < len; i++)
+        {
+                const char c = content[i];
+
+                // Put values between start and end inside this variable
+                char value[destLen];
+                size_t valueLen = 0;
+                if (start > -1 && end > -1)
+                {
+                        valueLen = end - start;
+                        memcpy(value, &content[start], valueLen);
+                        value[valueLen] = '\0';
+                }
+
+                // Searching for the Meta tag
+                if (c == metaTag[j] && !isMeta)
+                {
+                        j++;
+                }
+
+                if (j >= metaTagLen && !isMeta)
+                {
+                        j = 0;
+                        isMeta = true;
+                        continue;
+                }
+
+                if (!isMeta)
+                {
+                        continue;
+                }
+
+                // Searching for meta close tag then resetting all flags
+                if (c == widget_char_gt)
+                {
+                        isTarget = false;
+                        isMeta = false;
+                        isName = false;
+                        isValue = false;
+                        start = -1;
+                        end = -1;
+                        continue;
+                }
+
+                // Searching for the name attribute
+                if (c == nameAttr[j] && !isName)
+                {
+                        j++;
+                }
+
+                if (j >= nameAttrLen && !isName)
+                {
+                        j = 0;
+                        isName = true;
+                        continue;
+                }
+
+                if (!isName)
+                {
+                        continue;
+                }
+
+                // Getting the value of name between quotes
+                if (c == widget_char_quote && start < 0 && isName && !isTarget)
+                {
+                        start = i + 1;
+                        continue;
+                }
+
+                if (c == widget_char_quote && end < 0 && isName && !isTarget)
+                {
+                        end = i;
+                        continue;
+                }
+
+                if ((start < 0 || end < 0) && isName && !isTarget)
+                {
+                        continue;
+                }
+
+                if (valueLen > 0 && !isTarget)
+                {
+                        isTarget = strcmp(value, src) == 0;
+                        j = 0;
+                        start = -1;
+                        end = -1;
+                        valueLen = 0;
+                        continue;
+                }
+
+                // Searching for the value attribute
+                if (c == valueAttr[j] && !isValue)
+                {
+                        j++;
+                }
+
+                if (j >= valueAttrLen && !isValue)
+                {
+                        j = 0;
+                        isValue = true;
+                        continue;
+                }
+
+                if (!isValue)
+                {
+                        continue;
+                }
+
+                // Getting the value of the attribute "value" between quotes
+                if (c == widget_char_quote && start < 0 && isValue)
+                {
+                        start = i + 1;
+                        continue;
+                }
+
+                if (c == widget_char_quote && end < 0 && isValue)
+                {
+                        end = i;
+                        continue;
+                }
+
+                if (valueLen <= 0)
+                {
+                        continue;
+                }
+
+                memcpy(dest, value, destLen);
+                dest[destLen] = '\0';
+
+                return true;
+        }
+
+        return false;
+}
+
+/**
+ * @brief Gets a set of values separated by a whitespace from a string
+ * @param src Source containing the numeric values
+ * @param a First numeric value
+ * @param b Second numeric value
+ * @retuns true if successful, else false
+ */
+static bool
+Get2DValue(const char *const src, size_t *const a, size_t *const b)
+{
+        char substrA[512], substrB[512];
+        const size_t size = strlen(src);
+        size_t spaceIndex = 0;
+        for (size_t i = 0; i < size; i++)
+        {
+                const char c = src[i];
+                if (c == widget_char_space)
+                {
+                        memcpy(substrA, src, i);
+                        substrA[i] = '\0';
+
+                        const size_t substrBLen = size - i - 1;
+                        memcpy(substrB, &src[i + 1], substrBLen);
+                        substrB[substrBLen] = '\0';
+
+                        *a = strtol(substrA, nullptr, 10);
+                        *b = strtol(substrB, nullptr, 10);
+
+                        return true;
+                }
+        }
+
+        return false;
+}
+
+/**
  * @brief Handles incoming events from JavaScript
  * @param handler Received event handler
  * @param webview Context of the webview
@@ -113,9 +383,9 @@ static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
  */
 static HRESULT
 WebView2WebMessageReceivedEventHandlerInvoke(
-        ICoreWebView2WebMessageReceivedEventHandler *handler,
-        ICoreWebView2 *webview,
-        ICoreWebView2WebMessageReceivedEventArgs *args)
+        ICoreWebView2WebMessageReceivedEventHandler *const handler,
+        ICoreWebView2 *const webview,
+        ICoreWebView2WebMessageReceivedEventArgs *const args)
 {
         // Getting the message sent from JavaScript
         LPWSTR wMessage;
@@ -176,8 +446,8 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 return EXIT_REASON_MEM_FAILURE;
         }
 
-        char arguments[BUFFSIZE];
-        if (ConvertJsonToStandardType(argsStr, JSON_CHAR_ARR, &arguments) !=
+        char path[BUFFSIZE];
+        if (ConvertJsonToStandardType(argsStr, JSON_CHAR_ARR, &path) !=
             FUNC_SUCCESS)
         {
                 fprintf(stderr, "Error converting JSON to char array type\n");
@@ -204,28 +474,85 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 break;
         case EVT_OPEN_WGT_FILENAME:
                 g_widgets++;
-                ww_window_ctx context = {.width = 500,
-                                         .height = 500,
-                                         .x = 0,
-                                         .y = 0,
-                                         .index = 1,
-                                         .child = true,
-                                         .top_most = true,
-                                         .opacity = 1,
-                                         .radius = 0};
-                memcpy(context.filename, arguments, argsStr.length);
-                HWND hwnd;
-                create_widget_window(&context);
+
+                ww_window_ctx context = {.width = DEF_WIDTH,
+                                         .height = DEF_HEIGHT,
+                                         .prevWidth = DEF_PREV_WIDTH,
+                                         .prevHeight = DEF_PREV_HEIGHT,
+                                         .x = DEF_X,
+                                         .y = DEF_HEIGHT,
+                                         .child = DEF_CHILD,
+                                         .top_most = DEF_TOPMOST,
+                                         .opacity = DEF_OPACITY,
+                                         .radius = DEF_RADIUS};
+
+                memcpy(context.filename, path, argsStr.length);
+
+                char buf[BUFFSIZE] = {};
+                if (GetMetaTagValue(path, TAG_APP_NAME, buf, BUFFSIZE))
+                {
+                        memcpy(context.title, buf, BUFFSIZE);
+                        context.title[BUFFSIZE - 1] = '\0';
+                }
+
+                if (GetMetaTagValue(path, TAG_WIN_SIZE, buf, BUFFSIZE))
+                {
+                        size_t width, height;
+                        const bool isSet = Get2DValue(buf, &width, &height);
+                        context.width = isSet ? width : DEF_WIDTH;
+                        context.height = isSet ? height : DEF_HEIGHT;
+                }
+
+                if (GetMetaTagValue(path, TAG_WIN_LOCATION, buf, BUFFSIZE))
+                {
+                        size_t x, y;
+                        const bool isSet = Get2DValue(buf, &x, &y);
+                        context.x = isSet ? x : DEF_X;
+                        context.y = isSet ? y : DEF_Y;
+                }
+
+                if (GetMetaTagValue(path, TAG_WIN_PREV, buf, BUFFSIZE))
+                {
+                        size_t width, height;
+                        const bool isSet = Get2DValue(buf, &width, &height);
+                        context.prevWidth = isSet ? width : DEF_X;
+                        context.prevHeight = isSet ? height : DEF_Y;
+                }
+
+                if (GetMetaTagValue(path, TAG_APP_TOPMOST, buf, BUFFSIZE))
+                {
+                        context.top_most = strcmp(buf, "true") == 0;
+                }
+
+                if (GetMetaTagValue(path, TAG_WIN_OPACITY, buf, BUFFSIZE))
+                {
+                        const double opacity = strtod(buf, nullptr);
+                        context.opacity = opacity;
+                }
+
+                if (GetMetaTagValue(path, TAG_WIN_BORD_RAD, buf, BUFFSIZE))
+                {
+                        const double radius = strtod(buf, nullptr);
+                        context.radius = radius;
+                }
+
+                if (!create_widget_window(&context))
+                {
+                        fprintf(stderr, "Failed to create child widget\n");
+                }
                 break;
         }
 
         return EXIT_REASON_TERMINATED;
 }
 
+/**
+ * @brief Appends the widget to the global list of browsers
+ * @param webview Webview component
+ */
 static bool
-AppendWidgetToBrowserList(ICoreWebView2 *webview)
+AppendWidgetToBrowserList(ICoreWebView2 *const webview)
 {
-        // Getting the default app directory
         char app_dir[BUFFSIZE];
         if (ww_default_widgets_dir(app_dir) == true)
         {
@@ -233,40 +560,50 @@ AppendWidgetToBrowserList(ICoreWebView2 *webview)
                 return false;
         }
 
-        // Getting all filenames from the directory
+        size_t count = 0;
         char widgets[MAX_WIDGETS][BUFFSIZE];
-        const size_t count =
-                ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS);
-        if (count <= 0)
+        if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
         {
                 fprintf(stderr, "Failed to read directory %s\n", app_dir);
                 return false;
         }
 
-        // Building a comma separated list with the list all files found
         size_t j = 0;
         const size_t len = (MAX_WIDGETS * BUFFSIZE) + (MAX_WIDGETS * 2) +
                            (MAX_WIDGETS - 1) + 2;
         char list[len];
         for (size_t i = 0; i < count; i++)
         {
+                const size_t offset = 3;
                 const size_t size = strlen(widgets[i]);
-                char temp[size + 3];
-                snprintf(temp, sizeof(temp) + 1, "'%s',", widgets[i]);
+                char temp[size + offset];
+                if (snprintf(temp, sizeof(temp) + 1, "'%s',", widgets[i]) < 0)
+                {
+                        fprintf(stderr, "Failed to put widget into list\n");
+                        return false;
+                }
+
                 memcpy(&list[j], temp, sizeof(temp));
                 j = j + sizeof(temp);
         }
         list[j - 1] = '\0';
 
-        // Build a JSON object out of the list
-        const size_t list_len = strlen(list) + 4;
+        const size_t offset = 4;
+        const size_t list_len = strlen(list) + offset;
         char json[list_len];
-        snprintf(json, list_len + 1, "\"[%s]\"", list);
+        if (snprintf(json, list_len + 1, "\"[%s]\"", list) < 0)
+        {
+                fprintf(stderr, "Failed to convert list to JSON object\n");
+                return false;
+        }
         json[list_len] = '\0';
 
-        // Building the correct command string
         char command[EXTBUFFSIZE];
-        snprintf(command, EXTBUFFSIZE, "addWidgets(%s)", json);
+        if (snprintf(command, EXTBUFFSIZE, "addWidgets(%s)", json) < 0)
+        {
+                fprintf(stderr, "Failed to build correct command string\n");
+                return false;
+        }
 
         // Converting to wide characters from UTF-8
         wchar_t wCommand[EXTBUFFSIZE];
@@ -341,12 +678,20 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
 
         HWND hWnd = g_hWnds[g_widgets];
         RECT bounds;
-        GetClientRect(hWnd, &bounds);
+        if (!GetClientRect(hWnd, &bounds))
+        {
+                fprintf(stderr, "Failed to get client rect\n");
+                return EXIT_REASON_MEM_FAILURE;
+        }
         controller->lpVtbl->put_Bounds(controller, bounds);
 
-        // Convert char* to wide char for the navigate function to work
         wchar_t wTpmlPath[BUFFSIZE];
-        MultiByteToWideChar(CP_ACP, 0, g_tmplPath, -1, wTpmlPath, BUFFSIZE);
+        if (MultiByteToWideChar(
+                    CP_ACP, 0, g_tmplPath, -1, wTpmlPath, BUFFSIZE) == 0)
+        {
+                fprintf(stderr, "Failed to convert char array to wide char\n");
+                return EXIT_REASON_MEM_FAILURE;
+        }
 
         // Registering event handlers
         EventRegistrationToken token;
@@ -441,30 +786,54 @@ event_loop()
         return false;
 }
 
+/**
+ * @brief Sets the transparency of the window
+ * @param hWnd Handle to the window
+ * @param alpha Value between 0 to 1 for opacity
+ */
 static bool
-create_widget_window(ww_window_ctx *context)
+SetWindowOpacity(const HWND hWnd, const double alpha)
 {
-        // Copying the title of the window to a local variable here
-        size_t len = strlen(context->title);
-        if (len >= BUFFSIZE)
+        LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
+        style |= WS_EX_LAYERED;
+
+        if (SetWindowLong(hWnd, GWL_EXSTYLE, style) == 0)
+        {
+                fprintf(stderr, "Failed to change the window attribute\n");
+                return false;
+        }
+
+        const byte byteAlpha = alpha * MAX_ALPHA;
+        if (SetLayeredWindowAttributes(hWnd, 0, byteAlpha, LWA_ALPHA) == 0)
+        {
+                fprintf(stderr, "Failed to set window attributes\n");
+                return false;
+        }
+
+        return true;
+}
+
+static bool
+create_widget_window(ww_window_ctx *const context)
+{
+        size_t bufLen = 0;
+        if ((bufLen = strlen(context->title)) >= BUFFSIZE)
         {
                 fprintf(stderr, "Window name was bigger than expectd\n");
                 CoUninitialize();
                 return true;
         }
-        memcpy(g_tmplName, context->title, len);
-        g_tmplName[len] = '\0';
+        memcpy(g_tmplName, context->title, bufLen);
+        g_tmplName[bufLen] = '\0';
 
-        // Copying the complete path to the wiget in the machine
-        len = strlen(context->filename);
-        if (len >= BUFFSIZE)
+        if ((bufLen = strlen(context->filename)) >= BUFFSIZE)
         {
                 fprintf(stderr,
                         "Path to the specified file location was too big\n");
                 return true;
         }
-        memcpy(g_tmplPath, context->filename, len);
-        g_tmplPath[len] = '\0';
+        memcpy(g_tmplPath, context->filename, bufLen);
+        g_tmplPath[bufLen] = '\0';
 
         WNDCLASS wc = {};
         wc.lpfnWndProc = WindowProc;
@@ -473,31 +842,42 @@ create_widget_window(ww_window_ctx *context)
 
         RegisterClass(&wc);
 
-        g_hWnds[g_widgets] =
-                CreateWindowEx(0,                   // Optional window styles.
-                               CLASS_NAME,          // Window class
-                               g_tmplName,          // Window text
-                               WS_OVERLAPPEDWINDOW, // Window style
-                               CW_USEDEFAULT,       // X Position
-                               CW_USEDEFAULT,       // Y Position
-                               CW_USEDEFAULT,       // Width
-                               CW_USEDEFAULT,       // Height
-                               nullptr,             // Parent window
-                               nullptr,             // Menu
-                               g_hInstance,         // Instance handle
-                               nullptr // Additional application data
-                );
-        if (g_hWnds[g_widgets] == nullptr)
+        HWND *const handle = &g_hWnds[g_widgets];
+        *handle = CreateWindowEx(0,                   // Optional window styles.
+                                 CLASS_NAME,          // Window class
+                                 g_tmplName,          // Window text
+                                 WS_OVERLAPPEDWINDOW, // Window style
+                                 context->x,          // X Position
+                                 context->y,          // Y Position
+                                 context->width,      // Width
+                                 context->height,     // Height
+                                 nullptr,             // Parent window
+                                 nullptr,             // Menu
+                                 g_hInstance,         // Instance handle
+                                 nullptr // Additional application data
+        );
+
+        if (*handle == nullptr)
         {
                 fprintf(stderr, "Failed to create window\n");
                 CoUninitialize();
                 return true;
         }
 
-        ShowWindow(g_hWnds[g_widgets], g_nCmdShow);
-        UpdateWindow(g_hWnds[g_widgets]);
+        ShowWindow(*handle, g_nCmdShow);
 
-        // Createing the environment if it hasn't already been created
+        if (!SetWindowOpacity(*handle, context->opacity))
+        {
+                fprintf(stderr, "Failed to set window opacity\n");
+                return true;
+        }
+
+        if (!UpdateWindow(*handle))
+        {
+                fprintf(stderr, "Failed to update window\n");
+                return true;
+        }
+
         if (!g_envCreated)
         {
                 CreateCoreWebView2EnvironmentWithOptions(
@@ -507,7 +887,7 @@ create_widget_window(ww_window_ctx *context)
 
         // Just opening a new window
         g_env->lpVtbl->CreateCoreWebView2Controller(
-                g_env, g_hWnds[g_widgets], &completedHandler);
+                g_env, *handle, &completedHandler);
         return true;
 }
 
@@ -525,7 +905,7 @@ ww_init_main(HINSTANCE hInstance,
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
 
-        if (FAILED(CoInitialize(NULL)))
+        if (FAILED(CoInitialize(nullptr)))
         {
                 fprintf(stderr, "COM Failed to initialize\n");
                 return true;

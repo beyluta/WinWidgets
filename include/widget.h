@@ -16,6 +16,8 @@ typedef struct ww_window_ctx
 {
         size_t width;
         size_t height;
+        size_t prevWidth;
+        size_t prevHeight;
         size_t x;
         size_t y;
         size_t index;
