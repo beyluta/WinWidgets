@@ -891,19 +891,19 @@ create_widget_window(ww_window_ctx *const context)
         RegisterClass(&wc);
 
         HWND *const handle = &g_hWnds[g_widgets];
-        *handle = CreateWindowEx(0,                   // Optional window styles.
-                                 CLASS_NAME,          // Window class
-                                 g_tmplName,          // Window text
-                                 WS_OVERLAPPEDWINDOW, // Window style
-                                 context->x,          // X Position
-                                 context->y,          // Y Position
-                                 context->width,      // Width
-                                 context->height,     // Height
-                                 nullptr,             // Parent window
-                                 nullptr,             // Menu
-                                 g_hInstance,         // Instance handle
-                                 nullptr // Additional application data
-        );
+        const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+        *handle = CreateWindowEx(WS_EX_LAYERED,
+                                 CLASS_NAME,
+                                 g_tmplName,
+                                 wsStyle,
+                                 context->x,
+                                 context->y,
+                                 context->width,
+                                 context->height,
+                                 nullptr,
+                                 nullptr,
+                                 g_hInstance,
+                                 nullptr);
 
         if (*handle == nullptr)
         {
