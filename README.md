@@ -49,7 +49,7 @@ run on operating systems or distributions not listed here but it isn't guarantee
 | Platform | Availability | Supported Version |
 | -------- | ------------ | ----------------- |
 | Linux    | ✅           | Arch              |
-| Windows  | ❌           | Windows 11        |
+| Windows  | ✅           | Windows 11        |
 | MacOS    | ❌           | N/A               |
 
 ## Contributing

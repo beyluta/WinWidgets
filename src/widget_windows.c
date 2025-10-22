@@ -9,6 +9,8 @@
 #include <string.h>
 #include <windows.h>
 #include <json.h>
+#include <winerror.h>
+#include <winnt.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
 constexpr char TAG_APP_NAME[] = "applicationTitle";
@@ -68,11 +70,33 @@ static ULONG g_handlerRefCount = 0;
 static char g_tmplName[BUFFSIZE] = {};
 static char g_tmplPath[BUFFSIZE] = {};
 
+// TODO: Enable this only for the development build later
+/**
+ * @brief Creates a console window and writes debug messages to it
+ * @param message Text to print out
+ */
+static void
+Debug(const char *const message)
+{
+        AllocConsole();
+        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (stdOut != NULL && stdOut != INVALID_HANDLE_VALUE)
+        {
+                DWORD written = 0;
+                WriteConsoleA(stdOut, message, strlen(message), &written, NULL);
+        }
+}
+
 // ---------------------------------------------------------------------
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
 static HRESULT
 HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg);
+
+static HRESULT
+WebView2ContextMenuRequestEventHandlerInvoke(
+        ICoreWebView2 *sender,
+        ICoreWebView2ContextMenuRequestedEventArgs *args);
 
 static HRESULT
 WebView2WebMessageReceivedEventHandlerInvoke(
@@ -140,6 +164,23 @@ static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl
 static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
         .lpVtbl = &envHandlerVtbl};
 
+static ICoreWebView2ContextMenuRequestedEventHandlerVtbl contextMenuVtbl = {
+        .AddRef = (void *)HandlerAddRef,
+        .Release = (void *)HandlerRelease,
+        .QueryInterface = (void *)HandlerQueryInterface,
+        .Invoke = (void *)WebView2ContextMenuRequestEventHandlerInvoke};
+
+static ICoreWebView2ContextMenuRequestedEventHandler contextMenu = {
+        .lpVtbl = &contextMenuVtbl};
+
+static HRESULT
+WebView2ContextMenuRequestEventHandlerInvoke(
+        ICoreWebView2 *sender,
+        ICoreWebView2ContextMenuRequestedEventArgs *args)
+{
+        return S_OK;
+}
+
 /**
  * @brief Strips the `file://` prefix from url
  * @param src Original string to edit
@@ -158,23 +199,6 @@ StripFilePrefix(const char *const src, char *const dest)
         }
 
         return true;
-}
-
-// TODO: Enable this only for the development build later
-/**
- * @brief Creates a console window and writes debug messages to it
- * @param message Text to print out
- */
-static void
-Debug(const char *const message)
-{
-        AllocConsole();
-        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (stdOut != NULL && stdOut != INVALID_HANDLE_VALUE)
-        {
-                DWORD written = 0;
-                WriteConsoleA(stdOut, message, strlen(message), &written, NULL);
-        }
 }
 
 /**
@@ -678,7 +702,7 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
 
         // Browser settings
         ICoreWebView2Settings *settings;
-        ICoreWebView2 *window = g_windows[g_widgets];
+        ICoreWebView2_11 *window = (ICoreWebView2_11 *)g_windows[g_widgets];
         window->lpVtbl->get_Settings(window, &settings);
         settings->lpVtbl->put_IsScriptEnabled(settings, true);
         settings->lpVtbl->put_AreDefaultScriptDialogsEnabled(settings, true);
@@ -704,10 +728,15 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg)
                 return EXIT_REASON_MEM_FAILURE;
         }
 
-        // Registering event handlers
+        /**
+         *  Registering event handlers
+         *  1- Event handler to receive JavaScript messages
+         *  2- Event handler to detect when the context menu opens
+         */
         EventRegistrationToken token;
         window->lpVtbl->add_WebMessageReceived(
                 window, &messageReceivedEventHandler, &token);
+        window->lpVtbl->add_ContextMenuRequested(window, &contextMenu, &token);
 
         // Navigating to the requested URL or file
         window->lpVtbl->Navigate(window, wTpmlPath);
@@ -734,8 +763,8 @@ FindHwnd(HWND target)
 }
 
 /**
- * @brief Callback function used by the window cration process of the default
- * messages
+ * @brief Callback function used by the window cration process of the
+ * default messages
  * @param hwnd Default handle of th application
  * @param uMsg Code of the event triggered
  * @param WPARAM wParam
@@ -754,11 +783,11 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                 if (g_widgets-- > 0 && indexHwnd != 0)
                 {
-                        return 0;
+                        return EXIT_REASON_TERMINATED;
                 }
 
                 PostQuitMessage(EXIT_REASON_TERMINATED);
-                return 0;
+                return EXIT_REASON_TERMINATED;
         case WM_SIZE:
                 if (g_controllers[g_widgets] != nullptr)
                 {
@@ -861,6 +890,11 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
         return true;
 }
 
+/**
+ * @brief Creates a new window
+ * @param context Context of the window with all options
+ * @returns true if successful, else false on failure
+ */
 static bool
 create_widget_window(ww_window_ctx *const context)
 {
@@ -877,7 +911,8 @@ create_widget_window(ww_window_ctx *const context)
         if ((bufLen = strlen(context->filename)) >= BUFFSIZE)
         {
                 fprintf(stderr,
-                        "Path to the specified file location was too big\n");
+                        "Path to the specified file location was too "
+                        "big\n");
                 return true;
         }
         memcpy(g_tmplPath, context->filename, bufLen);
@@ -942,6 +977,7 @@ create_widget_window(ww_window_ctx *const context)
         // Just opening a new window
         g_env->lpVtbl->CreateCoreWebView2Controller(
                 g_env, *handle, &completedHandler);
+
         return true;
 }
 

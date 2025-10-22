@@ -6,13 +6,13 @@
     <members>
         <member name="T:Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties">
             <summary>
-            This class is a bundle of the most common parameters used to create a <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Environment"/>.
-            Its main purpose is to be set to <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> in order to customize the environment used by a <see cref="T:Microsoft.Web.WebView2.WinForms.WebView2"/> during implicit initialization.
+            This class is a bundle of the most common parameters used to create <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Environment"/> and <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Controller"/> instances.
+            Its main purpose is to be set to <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> in order to customize the environment and/or controller used by a <see cref="T:Microsoft.Web.WebView2.WinForms.WebView2"/> during implicit initialization.
             </summary>
             <remarks>
-            This class isn't intended to contain all possible environment customization options.
-            If you need complete control over the environment used by a WebView2 control then you'll need to initialize the control explicitly by
-            creating your own environment with <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(System.String,System.String,Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions)"/> and passing it to <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)"/>
+            This class isn't intended to contain all possible environment or controller customization options.
+            If you need complete control over the environment and/or controller used by a WebView2 control then you'll need to initialize the control explicitly by
+            creating your own environment (with <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(System.String,System.String,Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions)"/>) and/or controller options (with <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateCoreWebView2ControllerOptions"/>) and passing them to <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)"/>
             *before* you set the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property to anything.
             See the <see cref="T:Microsoft.Web.WebView2.WinForms.WebView2"/> class documentation for an initialization overview.
             </remarks>
@@ -37,15 +37,32 @@
             Gets or sets the value to use for the Language property of the CoreWebView2EnvironmentOptions parameter passed to <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(System.String,System.String,Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions)"/> when creating an environment with this instance.
             </summary>
         </member>
+        <member name="P:Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties.ProfileName">
+            <summary>
+            Gets or sets the value to use for the ProfileName property of the CoreWebView2ControllerOptions parameter passed to CreateCoreWebView2ControllerWithOptionsAsync when creating an controller with this instance.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties.IsInPrivateModeEnabled">
+            <summary>
+            Gets or sets the value to use for the IsInPrivateModeEnabled property of the CoreWebView2ControllerOptions parameter passed to CreateCoreWebView2ControllerWithOptionsAsync when creating an controller with this instance.
+            </summary>
+        </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties.CreateEnvironmentAsync">
             <summary>
             Create a <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Environment"/> using the current values of this instance's properties.
             </summary>
-            <returns>A task which will provide the created environment on completion.</returns>
+            <returns>A task which will provide the created environment on completion, or null if no environment-related options are set.</returns>
             <remarks>
             As long as no other properties on this instance are changed, repeated calls to this method will return the same task/environment as earlier calls.
             If some other property is changed then the next call to this method will return a different task/environment.
             </remarks>
+        </member>
+        <member name="M:Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties.CreateCoreWebView2ControllerOptions(Microsoft.Web.WebView2.Core.CoreWebView2Environment)">
+            <summary>
+            Creates a <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions"/> using the current values of this instance's properties.
+            </summary>
+            <returns>A <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions"/> object or null if no controller-related properties are set.</returns>
+            <exception cref="!:NullReferenceException">Thrown if the parameter environment is null.</exception>
         </member>
         <member name="T:Microsoft.Web.WebView2.WinForms.WebView2">
             <summary>
@@ -56,7 +73,7 @@
              <summary>
              Create a new WebView2 WinForms control.
              After construction the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> property is <c>null</c>.
-             Call <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)"/> to initialize the underlying <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2"/>.
+             Call <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)"/> to initialize the underlying <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2"/>.
              </summary>
              <remarks>
              This control is effectively a wrapper around the WebView2 COM API, which you can find documentation for here: https://aka.ms/webview2
@@ -66,7 +83,7 @@
              Upon creation, the control's CoreWebView2 property will be null.
              This is because creating the CoreWebView2 is an expensive operation which involves things like launching Edge browser processes.
              There are two ways to cause the CoreWebView2 to be created:
-             1) Call the <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)"/> method.  This is referred to as explicit initialization.
+             1) Call the <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)"/> method.  This is referred to as explicit initialization.
              2) Set the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property. This is referred to as implicit initialization.
              Either option will start initialization in the background and return back to the caller without waiting for it to finish.
              To specify options regarding the initialization process, either pass your own <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Environment"/> to EnsureCoreWebView2Async or set the control's <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> property prior to initialization.
@@ -74,7 +91,7 @@
              When initialization has finished (regardless of how it was triggered) then the following things will occur, in this order:
              1) The control's <see cref="E:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2InitializationCompleted"/> event will be invoked.  If you need to perform one time setup operations on the CoreWebView2 prior to its use then you should do so in a handler for that event.
              2) If a Uri has been set to the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property then the control will start navigating to it in the background (i.e. these steps will continue without waiting for the navigation to finish).
-             3) The Task returned from <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)"/> will complete.
+             3) The Task returned from <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)"/> will complete.
             
              For more details about any of the methods/properties/events involved in the initialization process, see its specific documentation.
             
@@ -125,7 +142,7 @@
             </summary>
             <exception cref="T:System.InvalidOperationException">Thrown if initialization of the control's CoreWebView2 has already started.</exception>
         </member>
-        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)">
+        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)">
             <summary>
             Explicitly trigger initialization of the control's <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/>.
             </summary>
@@ -134,6 +151,12 @@
             Creating your own environment gives you control over several options that affect how the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> is initialized.
             If you pass <c>null</c> (the default value) then a default environment will be created and used automatically.
             </param>
+            <param name="controllerOptions">
+            A pre-created <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions"/> that should be used to create the <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2"/>.
+            Creating your own controller options gives you control over several options that affect how the <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2"/> is initialized.
+            If you pass a controllerOptions to this method then it will override any settings specified on the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> property.
+            If you pass <c>null</c> (the default value) and no value has been set to <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> then a default controllerOptions will be created and used automatically.
+            </param>
             <returns>
             A Task that represents the background initialization process.
             When the task completes then the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> property will be available for use (i.e. non-null).
@@ -141,12 +164,24 @@
             or on exceptions.
             </returns>
             <remarks>
-            Calling this method additional times will have no effect (any specified environment is ignored) and return the same Task as the first call.
-            Calling this method after initialization has been implicitly triggered by setting the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property will have no effect (any specified environment is ignored) and simply return a Task representing that initialization already in progress.
+            Unless previous initialization has already failed, calling this method additional times with the same parameter will have no effect (any specified environment is ignored) and return the same Task as the first call.
+            Unless previous initialization has already failed, calling this method after initialization has been implicitly triggered by setting the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property will have no effect if no environment is given
+            and simply return a Task representing that initialization already in progress.
+            Unless previous initialization has already failed, calling this method with a different environment after initialization has begun will result in an <see cref="T:System.ArgumentException"/>. For example, this can happen if you begin initialization
+            by setting the <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.Source"/> property and then call this method with a new environment, if you begin initialization with <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CreationProperties"/> and then call this method with a new
+            environment, or if you begin initialization with one environment and then call this method with no environment specified.
+            When this method is called after previous initialization has failed, it will trigger initialization of the control's <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> again.
+            Note that even though this method is asynchronous and returns a Task, it still must be called on the UI thread like most public functionality of most UI controls.
             </remarks>
-            <exception cref="T:System.InvalidOperationException">Thrown when invoked from non-UI thread.</exception>
+            <exception cref="T:System.ArgumentException">
+            Thrown if this method is called with a different environment than when it was initialized. See Remarks for more info.
+            </exception>
+            <exception cref="T:System.InvalidOperationException">
+            Thrown if this instance of <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> is already disposed, or if the calling thread isn't the thread which created this object (usually the UI thread). See <see cref="P:System.Windows.Forms.Control.InvokeRequired"/> for more info.
+            May also be thrown if the browser process has crashed unexpectedly and left the control in an invalid state. We are considering throwing a different type of exception for this case in the future.
+            </exception>
         </member>
-        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.InitCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment)">
+        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.InitCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)">
             <summary>
             This is the private function which implements the actual background initialization task.
             Cannot be called if the control is already initialized or has been disposed.
@@ -154,6 +189,10 @@
             <param name="environment">
             The environment to use to create the <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Controller"/>.
             If that is null then a default environment is created with <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2Environment.CreateAsync(System.String,System.String,Microsoft.Web.WebView2.Core.CoreWebView2EnvironmentOptions)"/> and its default parameters.
+            </param>
+            <param name="controllerOptions">
+            The controllerOptions to use to create the <see cref="T:Microsoft.Web.WebView2.Core.CoreWebView2Controller"/>.
+            If that is null then a default controllerOptions is created with its default parameters.
             </param>
             <returns>A task representing the background initialization process.</returns>
             <remarks>All the event handlers added here need to be removed in <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.Dispose(System.Boolean)"/>.</remarks>
@@ -168,19 +207,24 @@
             Protected VisibilityChanged handler.
             </summary>
         </member>
-        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.ProcessCmdKey(System.Windows.Forms.Message@,System.Windows.Forms.Keys)">
-            <summary>
-            Protected command key handler.
-            </summary>
-        </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.OnSizeChanged(System.EventArgs)">
             <summary>
             Protected SizeChanged handler.
             </summary>
         </member>
+        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.Select(System.Boolean,System.Boolean)">
+            <summary>
+            Protected Select method: override this to capture tab direction when WebView control is activated
+            </summary>
+        </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.OnGotFocus(System.EventArgs)">
             <summary>
             Protected OnGotFocus handler.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.OnParentChanged(System.EventArgs)">
+            <summary>
+            Protected OnParentChanged handler.
             </summary>
         </member>
         <member name="P:Microsoft.Web.WebView2.WinForms.WebView2.IsInitialized">
@@ -198,13 +242,20 @@
         <member name="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2">
             <summary>
             The underlying CoreWebView2. Use this property to perform more operations on the WebView2 content than is exposed
-            on the WebView2. This value is <c>null</c> until it is initialized. You can force the underlying CoreWebView2 to
-            initialize via the InitializeAsync method.
+            on the WebView2. This value is null until it is initialized and the object itself has undefined behaviour once the control is disposed.
+            You can force the underlying CoreWebView2 to
+            initialize via the <see cref="M:Microsoft.Web.WebView2.WinForms.WebView2.EnsureCoreWebView2Async(Microsoft.Web.WebView2.Core.CoreWebView2Environment,Microsoft.Web.WebView2.Core.CoreWebView2ControllerOptions)"/> method.
             </summary>
+            <exception cref="T:System.InvalidOperationException">Thrown if the calling thread isn't the thread which created this object (usually the UI thread). See <see cref="P:System.Windows.Forms.Control.InvokeRequired"/> for more info.</exception>
         </member>
         <member name="P:Microsoft.Web.WebView2.WinForms.WebView2.ZoomFactor">
             <summary>
             The zoom factor for the WebView.
+            </summary>
+        </member>
+        <member name="P:Microsoft.Web.WebView2.WinForms.WebView2.AllowExternalDrop">
+            <summary>
+            Enable/disable external drop.
             </summary>
         </member>
         <member name="P:Microsoft.Web.WebView2.WinForms.WebView2.Source">
@@ -247,6 +298,7 @@
             This is equivalent to <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.ExecuteScriptAsync(System.String)"/>.
             </summary>
             <exception cref="T:System.InvalidOperationException">The underlying <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> is not yet initialized.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown when browser process has unexpectedly and left this control in an invalid state. We are considering throwing a different type of exception for this case in the future.</exception>
             <seealso cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.ExecuteScriptAsync(System.String)"/>
         </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.Reload">
@@ -255,6 +307,7 @@
             This is equivalent to <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.Reload"/>.
             </summary>
             <exception cref="T:System.InvalidOperationException">The underlying <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> is not yet initialized.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown when browser process has unexpectedly and left this control in an invalid state. We are considering throwing a different type of exception for this case in the future.</exception>
             <seealso cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.Reload"/>
         </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.GoForward">
@@ -279,6 +332,8 @@
             This is equivalent to <see cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.NavigateToString(System.String)"/>.
             </summary>
             <exception cref="T:System.InvalidOperationException">The underlying <see cref="P:Microsoft.Web.WebView2.WinForms.WebView2.CoreWebView2"/> is not yet initialized.</exception>
+            <exception cref="T:System.InvalidOperationException">Thrown when browser process has unexpectedly and left this control in an invalid state. We are considering throwing a different type of exception for this case in the future.</exception>
+            <remarks>The <c>htmlContent</c> parameter may not be larger than 2 MB (2 * 1024 * 1024 bytes) in total size. The origin of the new page is <c>about:blank</c>.</remarks>
             <seealso cref="M:Microsoft.Web.WebView2.Core.CoreWebView2.NavigateToString(System.String)"/>
         </member>
         <member name="M:Microsoft.Web.WebView2.WinForms.WebView2.Stop">
