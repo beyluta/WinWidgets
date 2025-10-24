@@ -4,13 +4,18 @@
 #include <WebView2.h>
 #include <consoleapi.h>
 #include <limits.h>
+#include <minwindef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stringapiset.h>
 #include <windows.h>
 #include <json.h>
 #include <winerror.h>
+#include <winnls.h>
 #include <winnt.h>
+#include <winscard.h>
+#include <mmc.h>
 
 constexpr char CLASS_NAME[] = "WidgetClass";
 constexpr char TAG_APP_NAME[] = "applicationTitle";
@@ -36,7 +41,7 @@ constexpr uint16_t DEF_RADIUS = 0;
 constexpr bool DEF_CHILD = true;
 constexpr bool DEF_TOPMOST = false;
 
-typedef enum : int
+typedef enum : uint8_t
 {
         EVT_OPEN_DEFAULT_DIR,
         EVT_GET_WGT_FILENAMES,
@@ -95,6 +100,7 @@ HandlerInvoke(IUnknown *this, HRESULT errorCode, ICoreWebView2Controller *arg);
 
 static HRESULT
 WebView2ContextMenuRequestEventHandlerInvoke(
+        ICoreWebView2ContextMenuRequestedEventHandler *this,
         ICoreWebView2 *sender,
         ICoreWebView2ContextMenuRequestedEventArgs *args);
 
@@ -103,6 +109,10 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *handler,
         ICoreWebView2 *webview,
         ICoreWebView2WebMessageReceivedEventArgs *args);
+
+static HRESULT
+OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *sender,
+                               IUnknown *args);
 
 static bool
 OpenDefaultDirectory();
@@ -173,12 +183,101 @@ static ICoreWebView2ContextMenuRequestedEventHandlerVtbl contextMenuVtbl = {
 static ICoreWebView2ContextMenuRequestedEventHandler contextMenu = {
         .lpVtbl = &contextMenuVtbl};
 
+static ICoreWebView2CustomItemSelectedEventHandlerVtbl
+        closeMenuSelectedHandlerVtbl = {
+                .AddRef = (void *)HandlerAddRef,
+                .Release = (void *)HandlerRelease,
+                .QueryInterface = (void *)HandlerQueryInterface,
+                .Invoke = (void *)OnCloseContextItemMenuSelected};
+
+static ICoreWebView2CustomItemSelectedEventHandler closeMenuSelectedHandler = {
+        .lpVtbl = &closeMenuSelectedHandlerVtbl};
+
+/*
+ * @brief Triggers when the close menu item is selected
+ * @param sender Object that triggered the event
+ * @param args Arguments of the event
+ */
+static HRESULT
+OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *sender,
+                               IUnknown *args)
+{
+        return S_OK;
+}
+
+/**
+ * @brief Gets called whenver the Context Menu opens
+ * @param this Reference to the event handler
+ * @param sender Webview2 core object
+ * @param args Arguments of the caller
+ * @returns 0 if successful, else any other value
+ */
 static HRESULT
 WebView2ContextMenuRequestEventHandlerInvoke(
+        ICoreWebView2ContextMenuRequestedEventHandler *this,
         ICoreWebView2 *sender,
         ICoreWebView2ContextMenuRequestedEventArgs *args)
 {
-        return S_OK;
+        HRESULT status = S_OK;
+        ICoreWebView2ContextMenuItemCollection *items = nullptr;
+        if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
+        {
+                fprintf(stderr, "Failed to get menu items\n");
+                return 1;
+        }
+
+        UINT32 itemsCount;
+        if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
+        {
+                fprintf(stderr, "Failed to get items count\n");
+                status = 1;
+                goto cleanup;
+        }
+
+        ICoreWebView2Environment10 *environment =
+                (ICoreWebView2Environment10 *)g_env;
+
+        ICoreWebView2ContextMenuItem *newMenuItem = nullptr;
+        if (environment->lpVtbl->CreateContextMenuItem(
+                    environment,
+                    L"Close",
+                    nullptr,
+                    COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
+                    &newMenuItem) != S_OK)
+        {
+                fprintf(stderr, "Failed to add close menu item\n");
+                status = 1;
+                goto cleanup;
+        }
+
+        if (newMenuItem->lpVtbl->add_CustomItemSelected(
+                    newMenuItem, &closeMenuSelectedHandler, nullptr) != S_OK)
+        {
+                fprintf(stderr, "Failed to add event handler for close\n");
+                status = 1;
+                goto cleanup;
+        }
+
+        if (items->lpVtbl->InsertValueAtIndex(items, itemsCount, newMenuItem) !=
+            S_OK)
+        {
+                fprintf(stderr, "Failed to insert close item to list\n");
+                status = 1;
+                goto cleanup;
+        }
+
+cleanup:
+        if (newMenuItem != nullptr)
+        {
+                newMenuItem->lpVtbl->Release(newMenuItem);
+        }
+
+        if (items != nullptr)
+        {
+                items->lpVtbl->Release(items);
+        }
+
+        return status;
 }
 
 /**
@@ -448,25 +547,21 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         string_json_t dataString;
         if (ConvertStringToJson(cMessage, &dataString) != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Error converting \"%s\" to JSON\n", cMessage);
+                fprintf(stderr, "Error converting to JSON\n");
                 return EXIT_REASON_MEM_FAILURE;
         }
 
         string_json_t eventIdStr;
         if (GetProperty(dataString, &eventIdStr, "eventId") != FUNC_SUCCESS)
         {
-                fprintf(stderr,
-                        "Event ID could not be found in \"%s\"\n",
-                        cMessage);
+                fprintf(stderr, "Event ID could not be found\n");
                 return EXIT_REASON_MEM_FAILURE;
         }
 
         string_json_t argsStr;
         if (GetProperty(dataString, &argsStr, "args") != FUNC_SUCCESS)
         {
-                fprintf(stderr,
-                        "Event arguments could not be found in \"%s\"\n",
-                        cMessage);
+                fprintf(stderr, "Event arguments could not be found\n");
                 return EXIT_REASON_MEM_FAILURE;
         }
 
@@ -599,7 +694,7 @@ AppendWidgetToBrowserList(ICoreWebView2 *const webview)
         char widgets[MAX_WIDGETS][BUFFSIZE];
         if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
         {
-                fprintf(stderr, "Failed to read directory %s\n", app_dir);
+                fprintf(stderr, "Failed to read directory\n");
                 return false;
         }
 
@@ -665,7 +760,7 @@ OpenDefaultDirectory()
 
         if (ww_open_folder(dir) == true)
         {
-                fprintf(stderr, "Failed to open folder to directory %s\n", dir);
+                fprintf(stderr, "Failed to open folder to directory\n");
                 return false;
         }
 
