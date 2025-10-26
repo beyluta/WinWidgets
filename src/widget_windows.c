@@ -27,6 +27,8 @@ static constexpr char TAG_WIN_PREV[] = "previewSize";
 static constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
 static constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 
+static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
+
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
 static constexpr uint8_t HASH_PRIME = 31;
 static constexpr uint8_t HANDLE_PREFIX_OFFSET = 7;
@@ -64,6 +66,7 @@ typedef enum : uint8_t
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
+static EventRegistrationToken g_lastRegisteredToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 static ICoreWebView2Controller *g_controllers[MAX_WIDGETS] = {};
 static ICoreWebView2 *g_windows[MAX_WIDGETS] = {};
@@ -339,7 +342,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuItem *newMenuItem = nullptr;
         if (environment->lpVtbl->CreateContextMenuItem(
                     environment,
-                    L"Close",
+                    LBL_CTX_MENU_CLOSE,
                     nullptr,
                     COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
                     &newMenuItem) != S_OK)
@@ -349,8 +352,18 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 goto cleanup;
         }
 
+        if (newMenuItem->lpVtbl->remove_CustomItemSelected(
+                    newMenuItem, g_lastRegisteredToken) != S_OK)
+        {
+                fprintf(stderr, "Failed to unsubscribe from event\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
         if (newMenuItem->lpVtbl->add_CustomItemSelected(
-                    newMenuItem, &closeMenuSelectedHandler, nullptr) != S_OK)
+                    newMenuItem,
+                    &closeMenuSelectedHandler,
+                    &g_lastRegisteredToken) != S_OK)
         {
                 fprintf(stderr, "Failed to add event handler for close\n");
                 status = S_FALSE;
