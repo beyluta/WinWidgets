@@ -61,7 +61,7 @@ Download the latest version of WinWidgets through the [release page](https://git
 
 #### The settings panel will show you the version of the app and its settings
    <br><img src="Assets/Images/settings-widget.gif">
-   
+
 #### Develop your own widgets easily. Find out more by navigating to the development panel
    <br><img src="Assets/Images/dev-widget.gif">
 
@@ -76,6 +76,12 @@ If you want to make your own installers for distribution: There is a script call
 - InnoSetup (Optional - for generating the installer)
 
 *Note: I will not accept installer files. Make your PRs and I will personally compile it for distribution.*
+
+<!-- TROUBLESHOOTING -->
+
+## Troubleshooting
+
+Refer to [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 <!-- CONTRIBUTING -->
 
