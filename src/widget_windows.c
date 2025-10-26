@@ -1021,6 +1021,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 g_hWnds[indexHwnd] = g_hWnds[g_widgets];
                 g_controllers[indexHwnd] = g_controllers[g_widgets];
                 g_windows[indexHwnd] = g_windows[g_widgets];
+                g_hWndTable[g_hWndSelectedHash] = nullptr;
 
                 if (g_widgets-- > 0 && indexHwnd != 0)
                 {
@@ -1140,24 +1141,42 @@ static bool
 create_widget_window(ww_window_ctx *const context)
 {
         bool status = true;
-        size_t bufLen = 0;
-        if ((bufLen = strlen(context->title)) >= BUFFSIZE)
+
+        if (context->child)
+        {
+                TrimStart(context->filename,
+                          context->filename,
+                          HANDLE_PREFIX_OFFSET);
+        }
+
+        ReplaceChars(context->filename, widget_char_slash, widget_char_b_slash);
+        const size_t hash = GetHashFromString(context->filename);
+        if (g_hWndTable[hash] != nullptr)
+        {
+                fprintf(stderr, "Warning: Only one widget type once\n");
+                status = true;
+                goto cleanup;
+        }
+
+        const size_t titleLen = strlen(context->title);
+        if (titleLen >= BUFFSIZE)
         {
                 fprintf(stderr, "Window name was bigger than expectd\n");
                 status = false;
                 goto cleanup;
         }
-        memcpy(g_tmplName, context->title, bufLen);
-        g_tmplName[bufLen] = '\0';
+        memcpy(g_tmplName, context->title, titleLen);
+        g_tmplName[titleLen] = '\0';
 
-        if ((bufLen = strlen(context->filename)) >= BUFFSIZE)
+        const size_t filenameLen = strlen(context->filename);
+        if (filenameLen >= BUFFSIZE)
         {
                 fprintf(stderr, "Path to the file location was too large\n");
                 status = false;
                 goto cleanup;
         }
-        memcpy(g_tmplPath, context->filename, bufLen);
-        g_tmplPath[bufLen] = '\0';
+        memcpy(g_tmplPath, context->filename, filenameLen);
+        g_tmplPath[filenameLen] = '\0';
 
         WNDCLASS wc = {};
         wc.lpfnWndProc = WindowProc;
@@ -1189,17 +1208,7 @@ create_widget_window(ww_window_ctx *const context)
                 goto cleanup;
         }
 
-        if (context->child)
-        {
-                TrimStart(context->filename,
-                          context->filename,
-                          HANDLE_PREFIX_OFFSET);
-        }
-
-        ReplaceChars(context->filename, widget_char_slash, widget_char_b_slash);
-        const size_t hash = GetHashFromString(context->filename);
         g_hWndTable[hash] = *handle;
-
         ShowWindow(*handle, g_nCmdShow);
 
         if (!SetWindowBorderRadius(*handle, context))
