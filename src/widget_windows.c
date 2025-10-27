@@ -27,6 +27,7 @@ static constexpr char TAG_WIN_PREV[] = "previewSize";
 static constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
 static constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 
+static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Toggle move";
 static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
 
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
@@ -43,6 +44,7 @@ static constexpr uint16_t DEF_X = 0;
 static constexpr uint16_t DEF_Y = 0;
 static constexpr uint16_t DEF_OPACITY = 1;
 static constexpr uint16_t DEF_RADIUS = 0;
+static constexpr uint16_t KEY_STATE_HELD = SHRT_MAX + 1;
 
 static constexpr bool DEF_CHILD = true;
 static constexpr bool DEF_TOPMOST = false;
@@ -66,7 +68,8 @@ typedef enum : uint8_t
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
-static EventRegistrationToken g_lastRegisteredToken = {};
+static EventRegistrationToken g_closeEventHandlerToken = {};
+static EventRegistrationToken g_moveEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 static ICoreWebView2Controller *g_controllers[MAX_WIDGETS] = {};
 static ICoreWebView2 *g_windows[MAX_WIDGETS] = {};
@@ -128,6 +131,9 @@ static HRESULT
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                IUnknown *const args);
 
+static HRESULT
+OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
+                              IUnknown *const args);
 static bool
 OpenDefaultDirectory();
 
@@ -208,6 +214,16 @@ static ICoreWebView2CustomItemSelectedEventHandlerVtbl
 static ICoreWebView2CustomItemSelectedEventHandler closeMenuSelectedHandler = {
         .lpVtbl = &closeMenuSelectedHandlerVtbl};
 
+static ICoreWebView2CustomItemSelectedEventHandlerVtbl
+        moveMenuSelectedHandlerVtbl = {
+                .AddRef = (void *)HandlerAddRef,
+                .Release = (void *)HandlerRelease,
+                .QueryInterface = (void *)HandlerQueryInterface,
+                .Invoke = (void *)OnMoveContextItemMenuSelected};
+
+static ICoreWebView2CustomItemSelectedEventHandler moveMenuSelectedHandler = {
+        .lpVtbl = &moveMenuSelectedHandlerVtbl};
+
 /**
  * @brief Hashes the given string into a number
  * @param src String to be hashed
@@ -278,6 +294,98 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         return S_OK;
 }
 
+/*
+ * @brief Triggers when the move menu item is selected. Its purpose is to track
+ * the position of the user cursor and move the window accordingly.
+ *
+ * @param sender Object that triggered the event
+ * @param args Arguments of the event
+ * @returns 0 if successful, else some other number
+ */
+static HRESULT
+OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
+                              IUnknown *const args)
+{
+        const HWND handle = g_hWndTable[g_hWndSelectedHash];
+        POINT position;
+        while (!(KEY_STATE_HELD & GetAsyncKeyState(VK_LBUTTON)))
+        {
+                if (!GetCursorPos(&position))
+                {
+                        fprintf(stderr, "Failed to get cursor position\n");
+                        return S_FALSE;
+                }
+
+                if (!SetWindowPos(handle,
+                                  0,
+                                  position.x,
+                                  position.y,
+                                  0,
+                                  0,
+                                  SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
+                {
+                        fprintf(stderr, "Failed to move window\n");
+                        return S_FALSE;
+                }
+        }
+        return S_OK;
+}
+
+/**
+ * @brief Adds a new item to the Context Menu
+ * @param environment Default WebView2 Environment
+ * @param items Pointer to the items object
+ * @param itemsCount Pointer to the count of items
+ * @param token Pointer to the registration token
+ * @param label Name of the context menu item
+ * @param eventHandler Pointer to the event handler function
+ * @returns A pointer to the new context menu item, or nullptr on failure
+ */
+static ICoreWebView2ContextMenuItem *
+AddContextMenuItem(
+        ICoreWebView2Environment10 *const environment,
+        ICoreWebView2ContextMenuItemCollection *const items,
+        UINT32 *const itemsCount,
+        EventRegistrationToken *const token,
+        ICoreWebView2CustomItemSelectedEventHandler *const eventHandler,
+        const wchar_t *const label)
+{
+        ICoreWebView2ContextMenuItem *menuItem = nullptr;
+        if (environment->lpVtbl->CreateContextMenuItem(
+                    environment,
+                    label,
+                    nullptr,
+                    COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
+                    &menuItem) != S_OK)
+        {
+                fprintf(stderr, "Failed to add menu item\n");
+                return nullptr;
+        }
+
+        if (menuItem->lpVtbl->remove_CustomItemSelected(menuItem, *token) !=
+            S_OK)
+        {
+                fprintf(stderr, "Failed to unsubscribe from event\n");
+                return nullptr;
+        }
+
+        if (menuItem->lpVtbl->add_CustomItemSelected(
+                    menuItem, eventHandler, token) != S_OK)
+        {
+                fprintf(stderr, "Failed to add event handler\n");
+                return nullptr;
+        }
+
+        if (items->lpVtbl->InsertValueAtIndex(items, *itemsCount, menuItem) !=
+            S_OK)
+        {
+                fprintf(stderr, "Failed to insert item to list\n");
+                return nullptr;
+        }
+
+        return menuItem;
+}
+
 /**
  * @brief Gets called whenver the Context Menu opens
  * @param this Reference to the event handler
@@ -307,9 +415,6 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 goto cleanup;
         }
 
-        ICoreWebView2Environment10 *environment =
-                (ICoreWebView2Environment10 *)g_env;
-
         WCHAR pathWcharPtr[BUFFSIZE];
         LPWSTR pathPtr = pathWcharPtr;
         if (sender->lpVtbl->get_Source(sender, &pathPtr) != S_OK)
@@ -338,50 +443,46 @@ WebView2ContextMenuRequestEventHandlerInvoke(
 
         const size_t hash = GetHashFromString(out);
         g_hWndSelectedHash = hash;
+        ICoreWebView2Environment10 *environment =
+                (ICoreWebView2Environment10 *)g_env;
 
-        ICoreWebView2ContextMenuItem *newMenuItem = nullptr;
-        if (environment->lpVtbl->CreateContextMenuItem(
-                    environment,
-                    LBL_CTX_MENU_CLOSE,
-                    nullptr,
-                    COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
-                    &newMenuItem) != S_OK)
+        ICoreWebView2ContextMenuItem *moveBtnMenuItem = nullptr;
+        if ((moveBtnMenuItem = AddContextMenuItem(environment,
+                                                  items,
+                                                  &itemsCount,
+                                                  &g_moveEventHandlerToken,
+                                                  &moveMenuSelectedHandler,
+                                                  LBL_CTX_MENU_MOVE)) ==
+            nullptr)
+        {
+                fprintf(stderr, "Failed to add move menu item\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
+        ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
+        if ((closeBtnMenuItem = AddContextMenuItem(environment,
+                                                   items,
+                                                   &itemsCount,
+                                                   &g_closeEventHandlerToken,
+                                                   &closeMenuSelectedHandler,
+                                                   LBL_CTX_MENU_CLOSE)) ==
+            nullptr)
         {
                 fprintf(stderr, "Failed to add close menu item\n");
                 status = S_FALSE;
                 goto cleanup;
         }
 
-        if (newMenuItem->lpVtbl->remove_CustomItemSelected(
-                    newMenuItem, g_lastRegisteredToken) != S_OK)
-        {
-                fprintf(stderr, "Failed to unsubscribe from event\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
-
-        if (newMenuItem->lpVtbl->add_CustomItemSelected(
-                    newMenuItem,
-                    &closeMenuSelectedHandler,
-                    &g_lastRegisteredToken) != S_OK)
-        {
-                fprintf(stderr, "Failed to add event handler for close\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
-
-        if (items->lpVtbl->InsertValueAtIndex(items, itemsCount, newMenuItem) !=
-            S_OK)
-        {
-                fprintf(stderr, "Failed to insert close item to list\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
-
 cleanup:
-        if (newMenuItem != nullptr)
+        if (closeBtnMenuItem != nullptr)
         {
-                newMenuItem->lpVtbl->Release(newMenuItem);
+                closeBtnMenuItem->lpVtbl->Release(closeBtnMenuItem);
+        }
+
+        if (moveBtnMenuItem != nullptr)
+        {
+                moveBtnMenuItem->lpVtbl->Release(moveBtnMenuItem);
         }
 
         if (items != nullptr)
