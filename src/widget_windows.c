@@ -324,6 +324,14 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                               IUnknown *const args)
 {
         const HWND handle = g_hWndTable[g_hWndSelectedHash];
+
+        RECT rect;
+        if (!GetWindowRect(handle, &rect))
+        {
+                fprintf(stderr, "Failed to get window size\n");
+                return S_FALSE;
+        }
+
         POINT position;
         while (!(KEY_STATE_HELD & GetAsyncKeyState(VK_LBUTTON)))
         {
@@ -335,8 +343,8 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
 
                 if (!SetWindowPos(handle,
                                   0,
-                                  position.x,
-                                  position.y,
+                                  position.x - (rect.right - rect.left) / 2,
+                                  position.y - (rect.bottom - rect.top) / 2,
                                   0,
                                   0,
                                   SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
@@ -431,6 +439,79 @@ AddContextMenuItem(
 }
 
 /**
+ * @brief Removes all items from the default context menu
+ * @param args Arguments of the context menu event
+ * @returns 0 if successful, else some other number
+ */
+static HRESULT
+RemoveContextMenuItems(ICoreWebView2ContextMenuRequestedEventArgs *const args)
+{
+        HRESULT status = S_OK;
+
+        ICoreWebView2ContextMenuItemCollection *items = nullptr;
+        if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
+        {
+                fprintf(stderr, "Failed to get menu items\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
+        UINT32 itemsCount;
+        if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
+        {
+                fprintf(stderr, "Failed to get items count\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
+        ICoreWebView2ContextMenuTarget *target = nullptr;
+        if (args->lpVtbl->get_ContextMenuTarget(args, &target) != S_OK)
+        {
+                fprintf(stderr, "Failed to get context menu target\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
+        ICoreWebView2ContextMenuItem *current = nullptr;
+        for (UINT32 i = itemsCount - 1; i >= 0; i--)
+        {
+                if (items->lpVtbl->GetValueAtIndex(items, i, &current) != S_OK)
+                {
+                        fprintf(stderr, "Failed to get value at index\n");
+                        status = S_FALSE;
+                        goto cleanup;
+                }
+
+                if (items->lpVtbl->RemoveValueAtIndex(items, i) != S_OK)
+                {
+                        fprintf(stderr, "Failed to remove value at index\n");
+                        status = S_FALSE;
+                        goto cleanup;
+                }
+
+                current->lpVtbl->Release(current);
+                current = nullptr;
+        }
+
+cleanup:
+        if (current != nullptr)
+        {
+                current->lpVtbl->Release(current);
+        }
+
+        if (target != nullptr)
+        {
+                target->lpVtbl->Release(target);
+        }
+
+        if (items != nullptr)
+        {
+                items->lpVtbl->Release(items);
+        }
+        return S_OK;
+}
+
+/**
  * @brief Gets called whenver the Context Menu opens
  * @param this Reference to the event handler
  * @param sender Webview2 core object
@@ -444,11 +525,20 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuRequestedEventArgs *const args)
 {
         HRESULT status = S_OK;
+
+        if (RemoveContextMenuItems(args) != S_OK)
+        {
+                fprintf(stderr, "Failed to remove all context menu items\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
         {
                 fprintf(stderr, "Failed to get menu items\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         UINT32 itemsCount;
