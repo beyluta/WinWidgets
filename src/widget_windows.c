@@ -29,6 +29,7 @@ static constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 
 static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Toggle move";
 static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
+static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Toggle always on top";
 
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
 static constexpr uint8_t HASH_PRIME = 31;
@@ -70,6 +71,7 @@ typedef enum : uint8_t
 // ----------------------------------------------------------
 static EventRegistrationToken g_closeEventHandlerToken = {};
 static EventRegistrationToken g_moveEventHandlerToken = {};
+static EventRegistrationToken g_topMostEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 static ICoreWebView2Controller *g_controllers[MAX_WIDGETS] = {};
 static ICoreWebView2 *g_windows[MAX_WIDGETS] = {};
@@ -134,6 +136,11 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
 static HRESULT
 OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                               IUnknown *const args);
+
+static HRESULT
+OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
+                                 IUnknown *const args);
+
 static bool
 OpenDefaultDirectory();
 
@@ -223,6 +230,16 @@ static ICoreWebView2CustomItemSelectedEventHandlerVtbl
 
 static ICoreWebView2CustomItemSelectedEventHandler moveMenuSelectedHandler = {
         .lpVtbl = &moveMenuSelectedHandlerVtbl};
+
+static ICoreWebView2CustomItemSelectedEventHandlerVtbl
+        topMostMenuSelectedHandlerVtbl = {
+                .AddRef = (void *)HandlerAddRef,
+                .Release = (void *)HandlerRelease,
+                .QueryInterface = (void *)HandlerQueryInterface,
+                .Invoke = (void *)OnTopMostContextItemMenuSelected};
+
+static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
+        {.lpVtbl = &topMostMenuSelectedHandlerVtbl};
 
 /**
  * @brief Hashes the given string into a number
@@ -327,6 +344,33 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                         fprintf(stderr, "Failed to move window\n");
                         return S_FALSE;
                 }
+        }
+        return S_OK;
+}
+
+/*
+ * @brief Triggers when the close menu item is selected
+ * @param sender Object that triggered the event
+ * @param args Arguments of the event
+ */
+static HRESULT
+OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
+                                 IUnknown *const args)
+{
+        const HWND flags[] = {HWND_TOPMOST, HWND_NOTOPMOST};
+        const HWND handle = g_hWndTable[g_hWndSelectedHash];
+        const LONG_PTR style = GetWindowLongPtr(handle, GWL_EXSTYLE);
+        const bool topMost = style & WS_EX_TOPMOST;
+        if (!SetWindowPos(handle,
+                          flags[topMost],
+                          0,
+                          0,
+                          0,
+                          0,
+                          SWP_NOMOVE | SWP_NOSIZE))
+        {
+                fprintf(stderr, "Failed to set window to top most\n");
+                return S_FALSE;
         }
         return S_OK;
 }
@@ -460,6 +504,20 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 goto cleanup;
         }
 
+        ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
+        if ((topMostBtnMenuItem =
+                     AddContextMenuItem(environment,
+                                        items,
+                                        &itemsCount,
+                                        &g_topMostEventHandlerToken,
+                                        &topMostMenuSelectedHandler,
+                                        LBL_CTX_MENU_TOP_MOST)) == nullptr)
+        {
+                fprintf(stderr, "Failed to add top most menu item\n");
+                status = S_FALSE;
+                goto cleanup;
+        }
+
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
         if ((closeBtnMenuItem = AddContextMenuItem(environment,
                                                    items,
@@ -478,6 +536,11 @@ cleanup:
         if (closeBtnMenuItem != nullptr)
         {
                 closeBtnMenuItem->lpVtbl->Release(closeBtnMenuItem);
+        }
+
+        if (topMostBtnMenuItem != nullptr)
+        {
+                topMostBtnMenuItem->lpVtbl->Release(topMostBtnMenuItem);
         }
 
         if (moveBtnMenuItem != nullptr)
