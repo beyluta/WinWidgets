@@ -66,6 +66,14 @@ typedef enum : uint8_t
         widget_char_gt = 62
 } widget_char_t;
 
+typedef struct
+{
+        ww_widget_ctx context;
+        ICoreWebView2Controller *controller;
+        ICoreWebView2 *window;
+        HWND hWnd;
+} webview_widget_t;
+
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
@@ -73,9 +81,8 @@ static EventRegistrationToken g_closeEventHandlerToken = {};
 static EventRegistrationToken g_moveEventHandlerToken = {};
 static EventRegistrationToken g_topMostEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
-static ICoreWebView2Controller *g_controllers[MAX_WIDGETS] = {};
-static ICoreWebView2 *g_windows[MAX_WIDGETS] = {};
-static HWND g_hWnds[MAX_WIDGETS] = {};
+
+static webview_widget_t g_webWidgets[MAX_WIDGETS] = {};
 static HWND g_hWndTable[MAX_WIDGETS] = {};
 
 static size_t g_hWndSelectedHash = {};
@@ -1016,6 +1023,10 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 {
                         fprintf(stderr, "Failed to create child widget\n");
                 }
+
+                memcpy(&g_webWidgets[g_widgets].context,
+                       &context,
+                       sizeof(ww_widget_ctx));
                 break;
         }
 
@@ -1130,7 +1141,7 @@ HandlerInvoke(const IUnknown *const this,
                 g_envCreated = true;
                 g_env = (ICoreWebView2Environment *)arg;
 
-                const HWND handle = g_hWnds[g_widgets];
+                const HWND handle = g_webWidgets[g_widgets].hWnd;
                 if (g_env->lpVtbl->CreateCoreWebView2Controller(
                             g_env, handle, &completedHandler) != S_OK)
                 {
@@ -1140,12 +1151,14 @@ HandlerInvoke(const IUnknown *const this,
                 return S_FALSE;
         }
 
-        g_controllers[g_widgets] = (ICoreWebView2Controller *)arg;
-        ICoreWebView2Controller *controller = g_controllers[g_widgets];
+        g_webWidgets[g_widgets].controller = (ICoreWebView2Controller *)arg;
+        ICoreWebView2Controller *controller =
+                g_webWidgets[g_widgets].controller;
         if (controller != nullptr)
         {
                 if (controller->lpVtbl->get_CoreWebView2(
-                            controller, &g_windows[g_widgets]) != S_OK)
+                            controller, &g_webWidgets[g_widgets].window) !=
+                    S_OK)
                 {
                         fprintf(stderr, "Failed to get webview core\n");
                         return S_FALSE;
@@ -1156,7 +1169,8 @@ HandlerInvoke(const IUnknown *const this,
 
         // Browser settings
         ICoreWebView2Settings *settings;
-        ICoreWebView2_11 *window = (ICoreWebView2_11 *)g_windows[g_widgets];
+        ICoreWebView2_11 *window =
+                (ICoreWebView2_11 *)g_webWidgets[g_widgets].window;
         if (window->lpVtbl->get_Settings(window, &settings) != S_OK)
         {
                 fprintf(stderr, "Failed to get settings\n");
@@ -1201,7 +1215,7 @@ HandlerInvoke(const IUnknown *const this,
                 return S_FALSE;
         }
 
-        const HWND hWnd = g_hWnds[g_widgets];
+        const HWND hWnd = g_webWidgets[g_widgets].hWnd;
         RECT bounds;
         if (!GetClientRect(hWnd, &bounds))
         {
@@ -1262,7 +1276,7 @@ FindHwnd(const HWND target)
 {
         for (size_t i = 0; i < MAX_WIDGETS; i++)
         {
-                if (target == g_hWnds[i])
+                if (target == g_webWidgets[i].hWnd)
                 {
                         return i;
                 }
@@ -1285,9 +1299,6 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case WM_DESTROY:
                 const ssize_t indexHwnd = FindHwnd(hwnd);
-                g_hWnds[indexHwnd] = g_hWnds[g_widgets];
-                g_controllers[indexHwnd] = g_controllers[g_widgets];
-                g_windows[indexHwnd] = g_windows[g_widgets];
                 g_hWndTable[g_hWndSelectedHash] = nullptr;
 
                 if (g_widgets-- > 0 && indexHwnd != 0)
@@ -1298,12 +1309,12 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(S_FALSE);
                 return S_FALSE;
         case WM_SIZE:
-                if (g_controllers[g_widgets] != nullptr)
+                if (g_webWidgets[g_widgets].controller != nullptr)
                 {
                         RECT bounds;
-                        GetClientRect(g_hWnds[g_widgets], &bounds);
-                        g_controllers[g_widgets]->lpVtbl->put_Bounds(
-                                g_controllers[g_widgets], bounds);
+                        GetClientRect(g_webWidgets[g_widgets].hWnd, &bounds);
+                        g_webWidgets[g_widgets].controller->lpVtbl->put_Bounds(
+                                g_webWidgets[g_widgets].controller, bounds);
                 }
                 return S_FALSE;
         }
@@ -1455,7 +1466,7 @@ create_widget_window(ww_window_ctx *const context)
                 fprintf(stderr, "Failed to register class\n");
         }
 
-        HWND *const handle = &g_hWnds[g_widgets];
+        HWND *const handle = &g_webWidgets[g_widgets].hWnd;
         const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
         if ((*handle = CreateWindowEx(WS_EX_LAYERED,
                                       CLASS_NAME,
