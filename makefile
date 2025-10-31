@@ -14,7 +14,7 @@ ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-isystem lib/WebView2/build/native/include \
-				-O1 \
+				-O3 \
 				-xc \
 				-std=c23
 LDFLAGS := -lole32 \

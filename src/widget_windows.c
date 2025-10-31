@@ -122,9 +122,14 @@ Debug(const char *const message)
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
 static HRESULT
-CompletedHandlerInvoke(const IUnknown *const this,
-                       const HRESULT errorCode,
-                       const ICoreWebView2Controller *const arg);
+EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
+                                  const HRESULT errorCode,
+                                  const ICoreWebView2Environment *const arg);
+
+static HRESULT
+ControllerCompletedHandlerInvoke(const IUnknown *const this,
+                                 const HRESULT errorCode,
+                                 const ICoreWebView2Controller *const arg);
 
 static HRESULT
 WebView2ContextMenuRequestEventHandlerInvoke(
@@ -187,22 +192,26 @@ static ICoreWebView2WebMessageReceivedEventHandler messageReceivedEventHandler =
         {.lpVtbl = &messageReceivedEventHandlerVtbl};
 
 static ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl
-        completedHandlerVtbl = {.AddRef = (void *)HandlerAddRef,
-                                .Release = (void *)HandlerRelease,
-                                .QueryInterface = (void *)HandlerQueryInterface,
-                                .Invoke = (void *)CompletedHandlerInvoke};
+        controllerCompletedHandlerVtbl = {
+                .AddRef = (void *)HandlerAddRef,
+                .Release = (void *)HandlerRelease,
+                .QueryInterface = (void *)HandlerQueryInterface,
+                .Invoke = (void *)ControllerCompletedHandlerInvoke};
 
 static ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
-        completedHandler = {.lpVtbl = &completedHandlerVtbl};
+        controllerCompletedHandler = {.lpVtbl =
+                                              &controllerCompletedHandlerVtbl};
 
 static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl
-        envHandlerVtbl = {.AddRef = (void *)HandlerAddRef,
-                          .Release = (void *)HandlerRelease,
-                          .QueryInterface = (void *)HandlerQueryInterface,
-                          .Invoke = (void *)CompletedHandlerInvoke};
+        environmentCompletedHandlerVtbl = {
+                .AddRef = (void *)HandlerAddRef,
+                .Release = (void *)HandlerRelease,
+                .QueryInterface = (void *)HandlerQueryInterface,
+                .Invoke = (void *)EnvironmentCompletedHandlerInvoke};
 
-static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
-        .lpVtbl = &envHandlerVtbl};
+static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler
+        environmentCompletedHandler = {
+                .lpVtbl = &environmentCompletedHandlerVtbl};
 
 static ICoreWebView2ContextMenuRequestedEventHandlerVtbl
         contextMenuEventHandlerVtbl = {
@@ -1207,6 +1216,32 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         return S_FALSE;
 }
 
+/*
+ * @brief Called when the environment finishes being created
+ * @param this Pointer to itself
+ * @param errorCode status of the operation
+ * @param arg Argument of the event
+ * @returns S_OK on success, else S_FALSE on failure
+ */
+static HRESULT
+EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
+                                  const HRESULT errorCode,
+                                  const ICoreWebView2Environment *const arg)
+{
+        g_envCreated = true;
+        g_env = (ICoreWebView2Environment *)arg;
+
+        const HWND hWnd = g_widgets[g_widgetCount].hWnd;
+        if (g_env->lpVtbl->CreateCoreWebView2Controller(
+                    g_env, hWnd, &controllerCompletedHandler) != S_OK)
+        {
+                fprintf(stderr, "Failed to create controller\n");
+                return S_FALSE;
+        }
+
+        return S_OK;
+}
+
 /**
  * @brief Is called when the webview context is ready
  * @param IUnknown Interface invoked
@@ -1214,28 +1249,11 @@ WebView2WebMessageReceivedEventHandlerInvoke(
  * @param arg WebView2 Controller
  */
 static HRESULT
-CompletedHandlerInvoke(const IUnknown *const this,
-                       const HRESULT errorCode,
-                       const ICoreWebView2Controller *const arg)
+ControllerCompletedHandlerInvoke(const IUnknown *const this,
+                                 const HRESULT errorCode,
+                                 const ICoreWebView2Controller *const arg)
 {
         HRESULT status = S_OK;
-
-        // Initializing the environment if it isn't already initialized
-        if (!g_envCreated)
-        {
-                g_envCreated = true;
-                g_env = (ICoreWebView2Environment *)arg;
-
-                const HWND handle = g_widgets[g_widgetCount].hWnd;
-                if (g_env->lpVtbl->CreateCoreWebView2Controller(
-                            g_env, handle, &completedHandler) != S_OK)
-                {
-                        fprintf(stderr, "Failed to create controller\n");
-                        status = S_FALSE;
-                        goto cleanup;
-                }
-                return S_FALSE;
-        }
 
         g_widgets[g_widgetCount].controller = (ICoreWebView2Controller *)arg;
         ICoreWebView2Controller *controller =
@@ -1422,13 +1440,30 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(S_FALSE);
                 return S_FALSE;
         case WM_SIZE:
-                if (g_widgets[g_widgetCount].controller != nullptr)
+                for (size_t i = 0; i < g_widgetCount; i++)
                 {
+                        const HWND hWnd = g_widgets[i].hWnd;
+                        ICoreWebView2Controller *controller =
+                                g_widgets[i].controller;
+
                         RECT bounds;
-                        GetClientRect(g_widgets[g_widgetCount].hWnd, &bounds);
-                        g_widgets[g_widgetCount].controller->lpVtbl->put_Bounds(
-                                g_widgets[g_widgetCount].controller, bounds);
+                        if (!GetClientRect(hWnd, &bounds))
+                        {
+                                fprintf(stderr,
+                                        "Failed to get bounds of hWnd\n");
+                                return S_FALSE;
+                        }
+
+                        if (controller->lpVtbl->put_Bounds(controller,
+                                                           bounds) != S_OK)
+                        {
+                                fprintf(stderr,
+                                        "Failed to put controller into "
+                                        "bounds\n");
+                                return S_FALSE;
+                        }
                 }
+
                 return S_FALSE;
         }
         return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -1631,7 +1666,10 @@ create_widget_window(ww_window_ctx *const context)
         if (!g_envCreated)
         {
                 if (CreateCoreWebView2EnvironmentWithOptions(
-                            nullptr, nullptr, nullptr, &envHandler) != S_OK)
+                            nullptr,
+                            nullptr,
+                            nullptr,
+                            &environmentCompletedHandler) != S_OK)
                 {
                         fprintf(stderr, "Failed to create environment\n");
                         status = false;
@@ -1641,7 +1679,7 @@ create_widget_window(ww_window_ctx *const context)
         }
 
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
-                    g_env, *hWnd, &completedHandler) != S_OK)
+                    g_env, *hWnd, &controllerCompletedHandler) != S_OK)
         {
                 fprintf(stderr, "Failed to create controller\n");
                 status = false;
