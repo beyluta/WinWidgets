@@ -1349,6 +1349,9 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
          *  2- Event handler to detect when the context menu opens
          */
         EventRegistrationToken token;
+        const webview_widget_t widget = g_widgets[g_widgetCount];
+        const ww_window_ctx windowCtx = widget.context;
+
         if (window->lpVtbl->add_WebMessageReceived(
                     window, &messageReceivedEventHandler, &token) != S_OK)
         {
@@ -1357,17 +1360,21 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                 goto cleanup;
         }
 
-        if (window->lpVtbl->add_ContextMenuRequested(
-                    window, &contextMenuEventHandler, &token) != S_OK)
+        // Only children should have the context menu
+        if (windowCtx.child == true)
         {
-                fprintf(stderr, "Failed to addcontext menu event handler\n");
-                status = S_FALSE;
-                goto cleanup;
+                if (window->lpVtbl->add_ContextMenuRequested(
+                            window, &contextMenuEventHandler, &token) != S_OK)
+                {
+                        fprintf(stderr,
+                                "Failed to add context menu requested\n");
+                        status = S_FALSE;
+                        goto cleanup;
+                }
         }
 
         // Converting the URI to a widestr so that we can pass to Navigate(...)
         wchar_t path[BUFFSIZE];
-        const ww_window_ctx windowCtx = g_widgets[g_widgetCount].context;
         const size_t pathLen = strlen(windowCtx.filename);
         mbstowcs(path, windowCtx.filename, pathLen);
         path[pathLen] = '\0';
