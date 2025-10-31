@@ -80,4 +80,12 @@ ww_write_to_file(const char *src, const char *content, const size_t mode);
 bool
 ww_open_folder(const char *src);
 
+/**
+ * @brief Gets whether a specific folder exists
+ * @param src Full path to the folder
+ * @param true if successful, else false is returned
+ */
+bool
+ww_folder_exists(const char *const src);
+
 #endif

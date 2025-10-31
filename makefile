@@ -7,13 +7,14 @@ BUILDDIR = build
 OUT = $(BUILDDIR)/output
 SRC = main.c \
 			src/filesystem.c \
+			src/utils.c \
 			lib/minimal-json-c-parser/src/json.c
 
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-isystem lib/WebView2/build/native/include \
-				-O2 \
+				-O1 \
 				-xc \
 				-std=c23
 LDFLAGS := -lole32 \

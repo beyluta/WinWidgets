@@ -1,8 +1,10 @@
 #include "filesystem.h"
 #include "global.h"
 #include "widget.h"
+#include "utils.h"
 #include <WebView2.h>
 #include <consoleapi.h>
+#include <io.h>
 #include <limits.h>
 #include <minwindef.h>
 #include <stdint.h>
@@ -10,6 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stringapiset.h>
+#include <unistd.h>
+#include <wchar.h>
 #include <windows.h>
 #include <json.h>
 #include <winerror.h>
@@ -17,8 +21,11 @@
 #include <winnt.h>
 #include <winscard.h>
 #include <mmc.h>
+#include <pthread.h>
 
+static constexpr char INTERN_PROG_SEM_VER[] = "2.0.0";
 static constexpr char CLASS_NAME[] = "WidgetClass";
+static constexpr char CONFIG_NAME[] = "\\config.json";
 static constexpr char TAG_APP_NAME[] = "applicationTitle";
 static constexpr char TAG_APP_TOPMOST[] = "topMost";
 static constexpr char TAG_WIN_SIZE[] = "windowSize";
@@ -57,22 +64,19 @@ typedef enum : uint8_t
         EVT_OPEN_WGT_FILENAME
 } widget_events_t;
 
-typedef enum : uint8_t
-{
-        widget_char_space = 32,
-        widget_char_quote = 34,
-        widget_char_slash = 47,
-        widget_char_b_slash = 92,
-        widget_char_gt = 62
-} widget_char_t;
-
 typedef struct
 {
-        ww_widget_ctx context;
+        ww_window_ctx context;
         ICoreWebView2Controller *controller;
         ICoreWebView2 *window;
         HWND hWnd;
 } webview_widget_t;
+
+typedef struct
+{
+        const size_t x, y;
+        char filename[BUFFSIZE];
+} stack_item_t;
 
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
@@ -82,22 +86,19 @@ static EventRegistrationToken g_moveEventHandlerToken = {};
 static EventRegistrationToken g_topMostEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 
-static webview_widget_t g_webWidgets[MAX_WIDGETS] = {};
+static webview_widget_t g_widgets[MAX_WIDGETS] = {};
 static HWND g_hWndTable[MAX_WIDGETS] = {};
 
 static size_t g_hWndSelectedHash = {};
 static size_t g_nCmdShow = {};
-static size_t g_widgets = 0;
+static size_t g_widgetCount = 0;
 
 static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
 static bool g_envCreated = false;
 
-// ----------------------------------------------------------------
-// Global variables to control the state of current opened widget |
-// ----------------------------------------------------------------
-static char g_tmplName[BUFFSIZE] = {};
-static char g_tmplPath[BUFFSIZE] = {};
+static stack_item_t g_stack[MAX_WIDGETS];
+static volatile ssize_t g_stackHeight = 0;
 
 // TODO: Enable this only for the development build later
 /**
@@ -120,9 +121,9 @@ Debug(const char *const message)
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
 static HRESULT
-HandlerInvoke(const IUnknown *const this,
-              const HRESULT errorCode,
-              const ICoreWebView2Controller *const arg);
+CompletedHandlerInvoke(const IUnknown *const this,
+                       const HRESULT errorCode,
+                       const ICoreWebView2Controller *const arg);
 
 static HRESULT
 WebView2ContextMenuRequestEventHandlerInvoke(
@@ -147,12 +148,6 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
 static HRESULT
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                  IUnknown *const args);
-
-static bool
-OpenDefaultDirectory();
-
-static bool
-AppendWidgetToBrowserList(ICoreWebView2 *const webview);
 
 static bool
 create_widget_window(ww_window_ctx *const context);
@@ -194,7 +189,7 @@ static ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl
         completedHandlerVtbl = {.AddRef = (void *)HandlerAddRef,
                                 .Release = (void *)HandlerRelease,
                                 .QueryInterface = (void *)HandlerQueryInterface,
-                                .Invoke = (void *)HandlerInvoke};
+                                .Invoke = (void *)CompletedHandlerInvoke};
 
 static ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
         completedHandler = {.lpVtbl = &completedHandlerVtbl};
@@ -203,7 +198,7 @@ static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl
         envHandlerVtbl = {.AddRef = (void *)HandlerAddRef,
                           .Release = (void *)HandlerRelease,
                           .QueryInterface = (void *)HandlerQueryInterface,
-                          .Invoke = (void *)HandlerInvoke};
+                          .Invoke = (void *)CompletedHandlerInvoke};
 
 static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler envHandler = {
         .lpVtbl = &envHandlerVtbl};
@@ -249,54 +244,371 @@ static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
         {.lpVtbl = &topMostMenuSelectedHandlerVtbl};
 
 /**
- * @brief Hashes the given string into a number
- * @param src String to be hashed
- * @returns The hashed string
- */
-static size_t
-GetHashFromString(const char *const src)
-{
-        size_t hash = HASH_PRIME;
-        const size_t length = strlen(src);
-        for (size_t i = 0; i < length; i++)
-        {
-                hash = ((hash << 5) + hash) + src[i];
-        }
-        return hash % MAX_WIDGETS;
-}
-
-/**
- * @brief Search and replaces all chars in a string
- * @param srcDest Source string to be edited
- * @param target Delimiter to search for
- * @param replace Char to replace the delimiter
- */
-static void
-ReplaceChars(char *const srcDest, const char target, const char replace)
-{
-        const size_t len = strlen(srcDest);
-        for (size_t i = 0; i < len; i++)
-        {
-                srcDest[i] = srcDest[i] == target ? replace : srcDest[i];
-        }
-}
-
-/**
- * @brief Trimps the start of a string by a specified offset
- * @param src Original string to edit
- * @param dest Where the output will be saved to
- * @param offset offset to trimp up to
- * @returns True if successful, else false
+ * @brief Opens the default directory where the widgets are located
+ * @returns `true` if successful `false` if failed
  */
 static bool
-TrimStart(const char *const src, char *const dest, const size_t offset)
+OpenDefaultDirectory()
 {
-        const size_t len = strlen(src);
-        if (snprintf(dest, (len - offset) + 1, "%s", &src[offset]) < 0)
+        char dir[BUFFSIZE];
+        if (ww_default_widgets_dir(dir) == true)
         {
-                fprintf(stderr, "Failed to copy string into buffer\n");
+                fprintf(stderr,
+                        "Failed to create the default widgets directory\n");
                 return false;
         }
+
+        if (ww_open_folder(dir) == true)
+        {
+                fprintf(stderr, "Failed to open folder to directory\n");
+                return false;
+        }
+
+        return true;
+}
+
+/**
+ * @brief Opens a Widget by its absolute path
+ * @param path Full absolute path to where the widget is
+ * @param x Pointer to the X position; may be nullptr in which case it's default
+ * @param y Pointer to the Y position; may be nullptr in which case it's default
+ * @returns true if successful, else false on failure
+ */
+static bool
+OpenWidgetByFilename(const char *const path,
+                     const size_t *const x,
+                     const size_t *const y,
+                     char *const content)
+{
+        ww_window_ctx context = {.width = DEF_WIDTH,
+                                 .height = DEF_HEIGHT,
+                                 .prevWidth = DEF_PREV_WIDTH,
+                                 .prevHeight = DEF_PREV_HEIGHT,
+                                 .x = x == nullptr ? DEF_X : *x,
+                                 .y = y == nullptr ? DEF_HEIGHT : *y,
+                                 .child = DEF_CHILD,
+                                 .top_most = DEF_TOPMOST,
+                                 .opacity = DEF_OPACITY,
+                                 .radius = DEF_RADIUS};
+
+        const size_t pathLength = strlen(path);
+        memcpy(context.filename, path, pathLength);
+        context.filename[pathLength] = '\0';
+
+        char trimStr[BUFFSIZE];
+        if (!TrimStart(path, trimStr, HANDLE_PREFIX_OFFSET))
+        {
+                fprintf(stderr, "Failed to strip the prefix from filename\n");
+                return false;
+        }
+
+        if (ww_get_file_content(trimStr, content, BUFFSIZE) == true)
+        {
+                fprintf(stderr, "Failed to get contents of HTML file\n");
+                return false;
+        }
+
+        char buf[BUFFSIZE] = {};
+        if (GetMetaTagValue(content, TAG_APP_NAME, buf, BUFFSIZE))
+        {
+                memcpy(context.title, buf, BUFFSIZE);
+                context.title[BUFFSIZE - 1] = '\0';
+        }
+
+        if (GetMetaTagValue(content, TAG_WIN_SIZE, buf, BUFFSIZE))
+        {
+                size_t width, height;
+                const bool isSet = Get2DValue(buf, &width, &height);
+                context.width = isSet ? width : DEF_WIDTH;
+                context.height = isSet ? height : DEF_HEIGHT;
+        }
+
+        if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, BUFFSIZE) &&
+            x == nullptr && y == nullptr)
+        {
+                size_t x, y;
+                const bool isSet = Get2DValue(buf, &x, &y);
+                context.x = isSet ? x : DEF_X;
+                context.y = isSet ? y : DEF_Y;
+        }
+
+        if (GetMetaTagValue(content, TAG_WIN_PREV, buf, BUFFSIZE))
+        {
+                size_t width, height;
+                const bool isSet = Get2DValue(buf, &width, &height);
+                context.prevWidth = isSet ? width : DEF_X;
+                context.prevHeight = isSet ? height : DEF_Y;
+        }
+
+        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, BUFFSIZE))
+        {
+                context.top_most = strcmp(buf, "true") == 0;
+        }
+
+        if (GetMetaTagValue(content, TAG_WIN_OPACITY, buf, BUFFSIZE))
+        {
+                const double opacity = strtod(buf, nullptr);
+                context.opacity = opacity;
+        }
+
+        if (GetMetaTagValue(content, TAG_WIN_BORD_RAD, buf, BUFFSIZE))
+        {
+                const double radius = strtod(buf, nullptr);
+                context.radius = radius;
+        }
+
+        g_widgetCount++;
+
+        if (!create_widget_window(&context))
+        {
+                fprintf(stderr, "Failed to create child widget\n");
+                return false;
+        }
+
+        memcpy(&g_widgets[g_widgetCount].context,
+               &context,
+               sizeof(ww_window_ctx));
+
+        return true;
+}
+
+/**
+ * @brief Places an item in the stack
+ * @param item Item to be stacked
+ */
+static void
+Push(stack_item_t item)
+{
+        memcpy(&g_stack[g_stackHeight++], &item, sizeof(stack_item_t));
+}
+
+/**
+ * @brief Pops the last elements in the queue
+ */
+static void
+Pop()
+{
+        stack_item_t item = g_stack[--g_stackHeight];
+        char content[USHRT_MAX];
+        OpenWidgetByFilename(item.filename, &item.x, &item.y, content);
+}
+
+/**
+ * @brief Loads all configurations from the JSON file. Opens widgets that were
+ * previously opened and apply settings from the last session.
+ *
+ * @returns true if successful, otherwise false is returned
+ */
+static bool
+LoadConfigurationFromFile()
+{
+        char absolutePath[BUFFSIZE];
+        if (ww_default_widgets_dir(absolutePath))
+        {
+                fprintf(stderr, "Failed to get default widgets directory\n");
+                return false;
+        }
+        ReplaceChars(absolutePath, widget_char_slash, widget_char_b_slash);
+        strcat(absolutePath, CONFIG_NAME);
+
+        if (access(absolutePath, F_OK) != 0)
+        {
+                fprintf(stderr, "File %s does not exist\n", absolutePath);
+                return false;
+        }
+
+        char fileContent[JSONBUFFSIZE];
+        if (ww_get_file_content(absolutePath, fileContent, JSONBUFFSIZE))
+        {
+                fprintf(stderr, "Failed to get file content\n");
+                return false;
+        }
+
+        string_json_t jsonContent;
+        if (ConvertStringToJson(fileContent, &jsonContent) != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to convert string to json\n");
+                return false;
+        }
+
+        string_json_t lastSessionWidgets;
+        if (GetProperty(jsonContent,
+                        &lastSessionWidgets,
+                        "lastSessionWidgets") != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to get last widgets property\n");
+                return false;
+        }
+
+        size_t start = 0;
+        for (size_t i = 0; i < lastSessionWidgets.length; i++)
+        {
+                if (lastSessionWidgets.str[i] == '{' && start == 0)
+                {
+                        start = i;
+                }
+
+                if (lastSessionWidgets.str[i] == '}')
+                {
+                        char obj[JSONBUFFSIZE];
+                        GetSubstring(lastSessionWidgets.str, obj, start, i);
+
+                        string_json_t jsonObj;
+                        if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to convert obj to json\n");
+                        }
+
+                        string_json_t jsonPath;
+                        if (GetProperty(jsonObj, &jsonPath, "path") !=
+                            FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to get path property\n");
+                                return false;
+                        }
+
+                        char path[BUFFSIZE];
+                        if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to convert path to string\n");
+                                return false;
+                        }
+
+                        string_json_t jsonPosition;
+                        if (GetProperty(jsonObj, &jsonPosition, "position") !=
+                            FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to get position property\n");
+                                return false;
+                        }
+
+                        char position[BUFFSIZE];
+                        if (ConvertJsonToString(jsonPosition, position) !=
+                            FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to convert position to "
+                                        "string\n");
+                                return false;
+                        }
+
+                        const char *const prefix = "file:\\\\%s";
+                        if (strlen(path) + strlen(prefix) >= BUFFSIZE)
+                        {
+                                fprintf(stderr,
+                                        "Path with prefix is too large\n");
+                                return false;
+                        }
+
+                        char prefixPath[BUFFSIZE];
+                        if (snprintf(prefixPath, BUFFSIZE, prefix, path) < 0)
+                        {
+                                fprintf(stderr, "Failed append file prefix\n");
+                                return false;
+                        }
+
+                        size_t x, y;
+                        if (!Get2DValue(position, &x, &y))
+                        {
+                                fprintf(stderr, "Failed to convert coords\n");
+                                return false;
+                        }
+
+                        stack_item_t item = {.x = x, .y = y};
+                        memcpy(item.filename, prefixPath, strlen(prefixPath));
+                        item.filename[strlen(prefixPath)] = '\0';
+                        Push(item);
+
+                        start = 0;
+                }
+        }
+
+        return true;
+}
+
+/**
+ * @brief Creates a json context in-memory and saves to a json file
+ * @returns true if successful, else false on failure
+ */
+static bool
+SaveConfigurationToFile()
+{
+        size_t bytesWritten = 0;
+        char session[JSONBUFFSIZE];
+        for (size_t i = 1; i < g_widgetCount + 1; i++)
+        {
+                const ww_window_ctx window = g_widgets[i].context;
+                const HWND hWnd = g_widgets[i].hWnd;
+                const size_t pathLength = strlen(window.filename);
+
+                if (pathLength >= BUFFSIZE)
+                {
+                        fprintf(stderr, "Str won't fit: %s\n", window.filename);
+                        return false;
+                }
+
+                char filename[BUFFSIZE];
+                if (snprintf(filename, BUFFSIZE, "%s", window.filename) < 0)
+                {
+                        fprintf(stderr, "Failed to copy string to buffer\n");
+                        return false;
+                }
+
+                RECT rect;
+                if (!GetWindowRect(hWnd, &rect))
+                {
+                        fprintf(stderr, "Failed to get window dimensions\n");
+                        return false;
+                }
+
+                int16_t x = rect.left, y = rect.top;
+                if ((bytesWritten +=
+                     snprintf(&session[bytesWritten],
+                              JSONBUFFSIZE,
+                              "{\"path\":\"%s\",\"position\":\"%hd, "
+                              "%hd\",\"alwaysOnTop\":%s},",
+                              filename,
+                              x,
+                              y,
+                              window.top_most == true ? "true" : "false")) >=
+                    JSONBUFFSIZE)
+                {
+                        fprintf(stderr, "Couldn't build last session widget\n");
+                        return false;
+                }
+        }
+        session[strlen(session) - 1] = '\0';
+
+        const char *const format =
+                "{\"version\":\"%s\",\"lastSessionWidgets\": [%s]}";
+        char json[strlen(format) + strlen(INTERN_PROG_SEM_VER) + bytesWritten];
+        if (snprintf(json, JSONBUFFSIZE, format, INTERN_PROG_SEM_VER, session) <
+            0)
+        {
+                fprintf(stderr, "Failed to build json string\n");
+                return false;
+        }
+
+        char directory[BUFFSIZE];
+        if (ww_default_widgets_dir(directory))
+        {
+                fprintf(stderr, "Failed to get default widgets directory\n");
+                return false;
+        }
+        strncat(directory,
+                CONFIG_NAME,
+                strlen(directory) + strlen(CONFIG_NAME));
+
+        if (!ww_write_to_file(directory, json, WRITE_OVERWRITE))
+        {
+                fprintf(stderr, "Failed to write configuration to json file\n");
+                return false;
+        }
+
         return true;
 }
 
@@ -313,6 +625,12 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         if (DestroyWindow(handle) == 0)
         {
                 fprintf(stderr, "Failed to destroy window\n");
+                return S_FALSE;
+        }
+
+        if (!SaveConfigurationToFile())
+        {
+                fprintf(stderr, "Failed to save configuration file\n");
                 return S_FALSE;
         }
         return S_OK;
@@ -360,6 +678,12 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                         return S_FALSE;
                 }
         }
+
+        if (!SaveConfigurationToFile())
+        {
+                fprintf(stderr, "Failed to save configuration file\n");
+                return S_FALSE;
+        }
         return S_OK;
 }
 
@@ -385,6 +709,12 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                           SWP_NOMOVE | SWP_NOSIZE))
         {
                 fprintf(stderr, "Failed to set window to top most\n");
+                return S_FALSE;
+        }
+
+        if (!SaveConfigurationToFile())
+        {
+                fprintf(stderr, "Failed to save configuration file\n");
                 return S_FALSE;
         }
         return S_OK;
@@ -582,7 +912,8 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 goto cleanup;
         }
 
-        const size_t hash = GetHashFromString(out);
+        const size_t hash = GetHashFromString(out, HASH_PRIME, MAX_WIDGETS);
+
         g_hWndSelectedHash = hash;
         ICoreWebView2Environment10 *environment =
                 (ICoreWebView2Environment10 *)g_env;
@@ -654,212 +985,67 @@ cleanup:
 }
 
 /**
- * @brief Gets the value of a meta tag as a string
- * @param filenaem Path to the file
- * @param src Name of the tag to search for
- * @param dest Destination string to save the result to
- * @returns Whether the function was successful or not
+ * @brief Appends the widget to the global list of browsers.
+ * @param webview Webview component
+ * @returns true if successful, else false on failure
  */
 static bool
-GetMetaTagValue(const char *const filename,
-                const char *const src,
-                char *const dest,
-                const size_t destLen)
+AppendWidgetToBrowserList(ICoreWebView2 *const webview)
 {
-        char path[destLen];
-        if (!TrimStart(filename, path, HANDLE_PREFIX_OFFSET))
+        char app_dir[BUFFSIZE];
+        if (ww_default_widgets_dir(app_dir) == true)
         {
-                fprintf(stderr, "Failed to strip the prefix from filename\n");
+                fprintf(stderr, "Failed to get default app directory\n");
                 return false;
         }
 
-        char content[destLen];
-        if (ww_get_file_content(path, content, destLen) == true)
+        size_t count = 0;
+        char widgets[MAX_WIDGETS][BUFFSIZE];
+        if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
         {
-                fprintf(stderr, "Failed to get contents of HTML file\n");
+                fprintf(stderr, "Failed to read directory\n");
                 return false;
         }
 
-        const size_t len = strlen(content);
-        bool isTarget = false;
-        bool isMeta = false;
-        bool isName = false;
-        bool isValue = false;
-        ssize_t start = -1, end = -1;
-        const char *const metaTag = "<meta";
-        const char *const nameAttr = "name=";
-        const char *const valueAttr = "value=";
-        const size_t metaTagLen = strlen(metaTag);
-        const size_t nameAttrLen = strlen(nameAttr);
-        const size_t valueAttrLen = strlen(valueAttr);
-        for (size_t i = 0, j = 0; i < len; i++)
+        size_t bytes = 0;
+        const uint8_t offset = 3;
+        const size_t maxLength = (MAX_WIDGETS * BUFFSIZE) +
+                                 (MAX_WIDGETS * (BUFFSIZE + offset)) -
+                                 (MAX_WIDGETS * BUFFSIZE);
+
+        char files[maxLength];
+        for (size_t i = 0; i < count; i++)
         {
-                const char c = content[i];
-
-                // Put values between start and end inside this variable
-                char value[destLen];
-                size_t valueLen = 0;
-                if (start > -1 && end > -1)
+                const size_t filenameLen = strlen(widgets[i]);
+                if (filenameLen >= BUFFSIZE - offset)
                 {
-                        valueLen = end - start;
-                        memcpy(value, &content[start], valueLen);
-                        value[valueLen] = '\0';
+                        fprintf(stderr, "Buffer is too small to host string\n");
+                        return false;
                 }
 
-                // Searching for the Meta tag
-                if (c == metaTag[j] && !isMeta)
-                {
-                        j++;
-                }
+                bytes += snprintf(&files[bytes], BUFFSIZE, "'%s',", widgets[i]);
+        }
+        files[bytes - 1] = '\0';
 
-                if (j >= metaTagLen && !isMeta)
-                {
-                        j = 0;
-                        isMeta = true;
-                        continue;
-                }
-
-                if (!isMeta)
-                {
-                        continue;
-                }
-
-                // Searching for meta close tag then resetting all flags
-                if (c == widget_char_gt)
-                {
-                        isTarget = false;
-                        isMeta = false;
-                        isName = false;
-                        isValue = false;
-                        start = -1;
-                        end = -1;
-                        continue;
-                }
-
-                // Searching for the name attribute
-                if (c == nameAttr[j] && !isName)
-                {
-                        j++;
-                }
-
-                if (j >= nameAttrLen && !isName)
-                {
-                        j = 0;
-                        isName = true;
-                        continue;
-                }
-
-                if (!isName)
-                {
-                        continue;
-                }
-
-                // Getting the value of name between quotes
-                if (c == widget_char_quote && start < 0 && !isTarget)
-                {
-                        start = i + 1;
-                        continue;
-                }
-
-                if (c == widget_char_quote && end < 0 && !isTarget)
-                {
-                        end = i;
-                        continue;
-                }
-
-                if ((start < 0 || end < 0) && !isTarget)
-                {
-                        continue;
-                }
-
-                if (valueLen > 0 && !isTarget)
-                {
-                        isTarget = strcmp(value, src) == 0;
-                        j = 0;
-                        start = -1;
-                        end = -1;
-                        valueLen = 0;
-                        continue;
-                }
-
-                // Searching for the value attribute
-                if (c == valueAttr[j] && !isValue)
-                {
-                        j++;
-                }
-
-                if (j >= valueAttrLen && !isValue)
-                {
-                        j = 0;
-                        isValue = true;
-                        continue;
-                }
-
-                if (!isValue)
-                {
-                        continue;
-                }
-
-                // Getting the value of the attribute "value" between quotes
-                if (c == widget_char_quote && start < 0)
-                {
-                        start = i + 1;
-                        continue;
-                }
-
-                if (c == widget_char_quote && end < 0)
-                {
-                        end = i;
-                        continue;
-                }
-
-                if (valueLen <= 0)
-                {
-                        continue;
-                }
-
-                memcpy(dest, value, destLen);
-                dest[destLen] = '\0';
-
-                return true;
+        if (bytes >= maxLength)
+        {
+                fprintf(stderr, "Bytes are too large to process\n");
+                return false;
         }
 
-        return false;
-}
-
-/**
- * @brief Gets a set of values separated by a whitespace from a string
- * @param src Source containing the numeric values
- * @param a First numeric value
- * @param b Second numeric value
- * @retuns true if successful, else false
- */
-static bool
-Get2DValue(const char *const src, size_t *const a, size_t *const b)
-{
-        char substrA[512], substrB[512];
-        const size_t size = strlen(src);
-        size_t spaceIndex = 0;
-        for (size_t i = 0; i < size; i++)
+        const char *const funcDef = "addWidgets(\"[%s]\")";
+        char command[maxLength + strlen(funcDef)];
+        if ((bytes = snprintf(command, maxLength, funcDef, files)) < 0)
         {
-                const char c = src[i];
-                if (c == widget_char_space)
-                {
-                        memcpy(substrA, src, i);
-                        substrA[i] = '\0';
-
-                        const size_t substrBLen = size - i - 1;
-                        memcpy(substrB, &src[i + 1], substrBLen);
-                        substrB[substrBLen] = '\0';
-
-                        *a = strtol(substrA, nullptr, 10);
-                        *b = strtol(substrB, nullptr, 10);
-
-                        return true;
-                }
+                fprintf(stderr, "Failed to write bytes to command buffer\n");
+                return false;
         }
 
-        return false;
+        wchar_t wideBuffCommand[maxLength];
+        mbstowcs(wideBuffCommand, command, bytes);
+        webview->lpVtbl->ExecuteScript(webview, wideBuffCommand, nullptr);
+
+        return true;
 }
 
 /**
@@ -950,178 +1136,25 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 if (!AppendWidgetToBrowserList(webview))
                 {
                         fprintf(stderr,
-                                "Could not add local widgets to the web "
-                                "list\n");
+                                "Could not add local widgets to list\n");
                         return EXIT_REASON_IO_FAILURE;
                 }
                 break;
         case EVT_OPEN_WGT_FILENAME:
-                g_widgets++;
+                char filename[BUFFSIZE];
+                memcpy(filename, path, argsStr.length);
+                filename[argsStr.length] = '\0';
 
-                ww_window_ctx context = {.width = DEF_WIDTH,
-                                         .height = DEF_HEIGHT,
-                                         .prevWidth = DEF_PREV_WIDTH,
-                                         .prevHeight = DEF_PREV_HEIGHT,
-                                         .x = DEF_X,
-                                         .y = DEF_HEIGHT,
-                                         .child = DEF_CHILD,
-                                         .top_most = DEF_TOPMOST,
-                                         .opacity = DEF_OPACITY,
-                                         .radius = DEF_RADIUS};
-
-                memcpy(context.filename, path, argsStr.length);
-
-                char buf[BUFFSIZE] = {};
-                if (GetMetaTagValue(path, TAG_APP_NAME, buf, BUFFSIZE))
+                char content[USHRT_MAX];
+                if (!OpenWidgetByFilename(filename, nullptr, nullptr, content))
                 {
-                        memcpy(context.title, buf, BUFFSIZE);
-                        context.title[BUFFSIZE - 1] = '\0';
+                        fprintf(stderr, "Failed to open widget by filename\n");
+                        return EXIT_REASON_IO_FAILURE;
                 }
-
-                if (GetMetaTagValue(path, TAG_WIN_SIZE, buf, BUFFSIZE))
-                {
-                        size_t width, height;
-                        const bool isSet = Get2DValue(buf, &width, &height);
-                        context.width = isSet ? width : DEF_WIDTH;
-                        context.height = isSet ? height : DEF_HEIGHT;
-                }
-
-                if (GetMetaTagValue(path, TAG_WIN_LOCATION, buf, BUFFSIZE))
-                {
-                        size_t x, y;
-                        const bool isSet = Get2DValue(buf, &x, &y);
-                        context.x = isSet ? x : DEF_X;
-                        context.y = isSet ? y : DEF_Y;
-                }
-
-                if (GetMetaTagValue(path, TAG_WIN_PREV, buf, BUFFSIZE))
-                {
-                        size_t width, height;
-                        const bool isSet = Get2DValue(buf, &width, &height);
-                        context.prevWidth = isSet ? width : DEF_X;
-                        context.prevHeight = isSet ? height : DEF_Y;
-                }
-
-                if (GetMetaTagValue(path, TAG_APP_TOPMOST, buf, BUFFSIZE))
-                {
-                        context.top_most = strcmp(buf, "true") == 0;
-                }
-
-                if (GetMetaTagValue(path, TAG_WIN_OPACITY, buf, BUFFSIZE))
-                {
-                        const double opacity = strtod(buf, nullptr);
-                        context.opacity = opacity;
-                }
-
-                if (GetMetaTagValue(path, TAG_WIN_BORD_RAD, buf, BUFFSIZE))
-                {
-                        const double radius = strtod(buf, nullptr);
-                        context.radius = radius;
-                }
-
-                if (!create_widget_window(&context))
-                {
-                        fprintf(stderr, "Failed to create child widget\n");
-                }
-
-                memcpy(&g_webWidgets[g_widgets].context,
-                       &context,
-                       sizeof(ww_widget_ctx));
                 break;
         }
 
         return S_FALSE;
-}
-
-/**
- * @brief Appends the widget to the global list of browsers
- * @param webview Webview component
- */
-static bool
-AppendWidgetToBrowserList(ICoreWebView2 *const webview)
-{
-        char app_dir[BUFFSIZE];
-        if (ww_default_widgets_dir(app_dir) == true)
-        {
-                fprintf(stderr, "Failed to get default app directory\n");
-                return false;
-        }
-
-        size_t count = 0;
-        char widgets[MAX_WIDGETS][BUFFSIZE];
-        if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
-        {
-                fprintf(stderr, "Failed to read directory\n");
-                return false;
-        }
-
-        size_t j = 0;
-        const size_t len = (MAX_WIDGETS * BUFFSIZE) + (MAX_WIDGETS * 2) +
-                           (MAX_WIDGETS - 1) + 2;
-        char list[len];
-        for (size_t i = 0; i < count; i++)
-        {
-                const size_t offset = 3;
-                const size_t size = strlen(widgets[i]);
-                char temp[size + offset];
-                if (snprintf(temp, sizeof(temp) + 1, "'%s',", widgets[i]) < 0)
-                {
-                        fprintf(stderr, "Failed to put widget into list\n");
-                        return false;
-                }
-
-                memcpy(&list[j], temp, sizeof(temp));
-                j = j + sizeof(temp);
-        }
-        list[j - 1] = '\0';
-
-        const size_t offset = 4;
-        const size_t list_len = strlen(list) + offset;
-        char json[list_len];
-        if (snprintf(json, list_len + 1, "\"[%s]\"", list) < 0)
-        {
-                fprintf(stderr, "Failed to convert list to JSON object\n");
-                return false;
-        }
-        json[list_len] = '\0';
-
-        char command[EXTBUFFSIZE];
-        if (snprintf(command, EXTBUFFSIZE, "addWidgets(%s)", json) < 0)
-        {
-                fprintf(stderr, "Failed to build correct command string\n");
-                return false;
-        }
-
-        // Converting to wide characters from UTF-8
-        wchar_t wCommand[EXTBUFFSIZE];
-        MultiByteToWideChar(CP_ACP, 0, command, -1, wCommand, BUFFSIZE);
-        webview->lpVtbl->ExecuteScript(webview, wCommand, nullptr);
-
-        return true;
-}
-
-/**
- * @brief Opens the default directory where the widgets are located
- * @returns `true` if successful `false` if failed
- */
-static bool
-OpenDefaultDirectory()
-{
-        char dir[BUFFSIZE];
-        if (ww_default_widgets_dir(dir) == true)
-        {
-                fprintf(stderr,
-                        "Failed to create the default widgets directory\n");
-                return false;
-        }
-
-        if (ww_open_folder(dir) == true)
-        {
-                fprintf(stderr, "Failed to open folder to directory\n");
-                return false;
-        }
-
-        return true;
 }
 
 /**
@@ -1131,110 +1164,115 @@ OpenDefaultDirectory()
  * @param arg WebView2 Controller
  */
 static HRESULT
-HandlerInvoke(const IUnknown *const this,
-              const HRESULT errorCode,
-              const ICoreWebView2Controller *const arg)
+CompletedHandlerInvoke(const IUnknown *const this,
+                       const HRESULT errorCode,
+                       const ICoreWebView2Controller *const arg)
 {
+        HRESULT status = S_OK;
+
         // Initializing the environment if it isn't already initialized
         if (!g_envCreated)
         {
                 g_envCreated = true;
                 g_env = (ICoreWebView2Environment *)arg;
 
-                const HWND handle = g_webWidgets[g_widgets].hWnd;
+                const HWND handle = g_widgets[g_widgetCount].hWnd;
                 if (g_env->lpVtbl->CreateCoreWebView2Controller(
                             g_env, handle, &completedHandler) != S_OK)
                 {
                         fprintf(stderr, "Failed to create controller\n");
-                        return S_FALSE;
+                        status = S_FALSE;
+                        goto cleanup;
                 }
                 return S_FALSE;
         }
 
-        g_webWidgets[g_widgets].controller = (ICoreWebView2Controller *)arg;
+        g_widgets[g_widgetCount].controller = (ICoreWebView2Controller *)arg;
         ICoreWebView2Controller *controller =
-                g_webWidgets[g_widgets].controller;
+                g_widgets[g_widgetCount].controller;
         if (controller != nullptr)
         {
                 if (controller->lpVtbl->get_CoreWebView2(
-                            controller, &g_webWidgets[g_widgets].window) !=
+                            controller, &g_widgets[g_widgetCount].window) !=
                     S_OK)
                 {
                         fprintf(stderr, "Failed to get webview core\n");
-                        return S_FALSE;
+                        status = S_FALSE;
+                        goto cleanup;
                 }
 
                 controller->lpVtbl->AddRef(controller);
         }
 
         // Browser settings
-        ICoreWebView2Settings *settings;
+        ICoreWebView2Settings *settings = nullptr;
         ICoreWebView2_11 *window =
-                (ICoreWebView2_11 *)g_webWidgets[g_widgets].window;
+                (ICoreWebView2_11 *)g_widgets[g_widgetCount].window;
         if (window->lpVtbl->get_Settings(window, &settings) != S_OK)
         {
                 fprintf(stderr, "Failed to get settings\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsScriptEnabled(settings, true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable script\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultScriptDialogsEnabled(settings,
                                                                  true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable dialogs script\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsWebMessageEnabled(settings, true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable messages\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDevToolsEnabled(settings, true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable dev tools\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultContextMenusEnabled(settings,
                                                                 true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable context menu\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsStatusBarEnabled(settings, true) != S_OK)
         {
                 fprintf(stderr, "Failed to enable status bar\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
-        const HWND hWnd = g_webWidgets[g_widgets].hWnd;
+        const HWND hWnd = g_widgets[g_widgetCount].hWnd;
         RECT bounds;
         if (!GetClientRect(hWnd, &bounds))
         {
                 fprintf(stderr, "Failed to get client rect\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (controller->lpVtbl->put_Bounds(controller, bounds) != S_OK)
         {
                 fprintf(stderr, "Failed to put bounds\n");
-                return S_FALSE;
-        }
-
-        wchar_t wTpmlPath[BUFFSIZE];
-        if (MultiByteToWideChar(
-                    CP_ACP, 0, g_tmplPath, -1, wTpmlPath, BUFFSIZE) == 0)
-        {
-                fprintf(stderr, "Failed to convert char array to wide char\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         /**
@@ -1247,23 +1285,45 @@ HandlerInvoke(const IUnknown *const this,
                     window, &messageReceivedEventHandler, &token) != S_OK)
         {
                 fprintf(stderr, "Failed to add js message event handler\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
         if (window->lpVtbl->add_ContextMenuRequested(
                     window, &contextMenuEventHandler, &token) != S_OK)
         {
                 fprintf(stderr, "Failed to addcontext menu event handler\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
-        if (window->lpVtbl->Navigate(window, wTpmlPath) != S_OK)
+        // Converting the URI to a widestr so that we can pass to Navigate(...)
+        wchar_t path[BUFFSIZE];
+        const ww_window_ctx windowCtx = g_widgets[g_widgetCount].context;
+        const size_t pathLen = strlen(windowCtx.filename);
+        mbstowcs(path, windowCtx.filename, pathLen);
+        path[pathLen] = '\0';
+
+        if (window->lpVtbl->Navigate(window, path) != S_OK)
         {
                 fprintf(stderr, "Failed to navigate to the URI\n");
-                return S_FALSE;
+                status = S_FALSE;
+                goto cleanup;
         }
 
-        return S_FALSE;
+        // Pops widgets if there are any pending
+        if (g_stackHeight >= 0)
+        {
+                Pop();
+        }
+
+cleanup:
+        if (settings != nullptr)
+        {
+                settings->lpVtbl->Release(settings);
+        }
+
+        return status;
 }
 
 /**
@@ -1276,7 +1336,7 @@ FindHwnd(const HWND target)
 {
         for (size_t i = 0; i < MAX_WIDGETS; i++)
         {
-                if (target == g_webWidgets[i].hWnd)
+                if (target == g_widgets[i].hWnd)
                 {
                         return i;
                 }
@@ -1300,8 +1360,11 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         case WM_DESTROY:
                 const ssize_t indexHwnd = FindHwnd(hwnd);
                 g_hWndTable[g_hWndSelectedHash] = nullptr;
+                memcpy(&g_widgets[indexHwnd],
+                       &g_widgets[g_widgetCount],
+                       sizeof(webview_widget_t));
 
-                if (g_widgets-- > 0 && indexHwnd != 0)
+                if (g_widgetCount-- > 0 && indexHwnd != 0)
                 {
                         return S_FALSE;
                 }
@@ -1309,12 +1372,12 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(S_FALSE);
                 return S_FALSE;
         case WM_SIZE:
-                if (g_webWidgets[g_widgets].controller != nullptr)
+                if (g_widgets[g_widgetCount].controller != nullptr)
                 {
                         RECT bounds;
-                        GetClientRect(g_webWidgets[g_widgets].hWnd, &bounds);
-                        g_webWidgets[g_widgets].controller->lpVtbl->put_Bounds(
-                                g_webWidgets[g_widgets].controller, bounds);
+                        GetClientRect(g_widgets[g_widgetCount].hWnd, &bounds);
+                        g_widgets[g_widgetCount].controller->lpVtbl->put_Bounds(
+                                g_widgets[g_widgetCount].controller, bounds);
                 }
                 return S_FALSE;
         }
@@ -1420,6 +1483,7 @@ create_widget_window(ww_window_ctx *const context)
 {
         bool status = true;
 
+        // Children should not have prefixes
         if (context->child)
         {
                 TrimStart(context->filename,
@@ -1427,34 +1491,27 @@ create_widget_window(ww_window_ctx *const context)
                           HANDLE_PREFIX_OFFSET);
         }
 
+        // Saving the context of the main window to a global list
+        if (g_widgetCount == 0)
+        {
+                memcpy(&g_widgets[g_widgetCount].context,
+                       context,
+                       sizeof(ww_window_ctx));
+        }
+
+        // Replacing '/' with '\' as it is the standard for windows
         ReplaceChars(context->filename, widget_char_slash, widget_char_b_slash);
-        const size_t hash = GetHashFromString(context->filename);
+
+        const size_t hash =
+                GetHashFromString(context->filename, HASH_PRIME, MAX_WIDGETS);
+
         if (g_hWndTable[hash] != nullptr)
         {
+                g_widgetCount--;
                 fprintf(stderr, "Warning: Only one widget type once\n");
                 status = true;
                 goto cleanup;
         }
-
-        const size_t titleLen = strlen(context->title);
-        if (titleLen >= BUFFSIZE)
-        {
-                fprintf(stderr, "Window name was bigger than expectd\n");
-                status = false;
-                goto cleanup;
-        }
-        memcpy(g_tmplName, context->title, titleLen);
-        g_tmplName[titleLen] = '\0';
-
-        const size_t filenameLen = strlen(context->filename);
-        if (filenameLen >= BUFFSIZE)
-        {
-                fprintf(stderr, "Path to the file location was too large\n");
-                status = false;
-                goto cleanup;
-        }
-        memcpy(g_tmplPath, context->filename, filenameLen);
-        g_tmplPath[filenameLen] = '\0';
 
         WNDCLASS wc = {};
         wc.lpfnWndProc = WindowProc;
@@ -1466,11 +1523,11 @@ create_widget_window(ww_window_ctx *const context)
                 fprintf(stderr, "Failed to register class\n");
         }
 
-        HWND *const handle = &g_webWidgets[g_widgets].hWnd;
+        HWND *const handle = &g_widgets[g_widgetCount].hWnd;
         const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
         if ((*handle = CreateWindowEx(WS_EX_LAYERED,
                                       CLASS_NAME,
-                                      g_tmplName,
+                                      context->title,
                                       wsStyle,
                                       context->x,
                                       context->y,
@@ -1541,6 +1598,10 @@ cleanup:
 /*
  * @brief Initializing the main window of the application. It will be
  * responsible for spawning children widgets.
+ *
+ * @param hInstance instance of the application
+ * @param context Context of the main window
+ * @param widgets List of all widgets
  * @returns The status code of the function at its conclusion
  */
 bool
@@ -1562,6 +1623,11 @@ ww_init_main(HINSTANCE hInstance,
         {
                 fprintf(stderr, "WebView2 Failed to create a window\n");
                 return false;
+        }
+
+        if (!LoadConfigurationFromFile())
+        {
+                fprintf(stderr, "Warning: Cofnig file not present\n");
         }
 
         return event_loop();

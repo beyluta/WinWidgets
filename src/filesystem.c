@@ -1,6 +1,7 @@
 #include "filesystem.h"
 #include "global.h"
 #include <dirent.h>
+#include <io.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -383,5 +384,15 @@ ww_open_folder(const char *src)
 #elif _WIN32
         ShellExecute(nullptr, "open", src, nullptr, nullptr, SW_SHOWDEFAULT);
 #endif
+        return false;
+}
+
+bool
+ww_folder_exists(const char *const src)
+{
+        if (access(src, F_OK) == 0)
+        {
+                return true;
+        }
         return false;
 }
