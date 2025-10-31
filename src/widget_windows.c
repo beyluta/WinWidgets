@@ -1440,17 +1440,25 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(S_FALSE);
                 return S_FALSE;
         case WM_SIZE:
-                for (size_t i = 0; i < g_widgetCount; i++)
+                size_t i = 0;
+                do
                 {
                         const HWND hWnd = g_widgets[i].hWnd;
-                        ICoreWebView2Controller *controller =
-                                g_widgets[i].controller;
-
                         RECT bounds;
                         if (!GetClientRect(hWnd, &bounds))
                         {
                                 fprintf(stderr,
                                         "Failed to get bounds of hWnd\n");
+                                return S_FALSE;
+                        }
+
+                        ICoreWebView2Controller *controller =
+                                g_widgets[i].controller;
+                        if (controller == nullptr)
+                        {
+                                fprintf(stderr,
+                                        "Controller required but is "
+                                        "missing\n");
                                 return S_FALSE;
                         }
 
@@ -1462,7 +1470,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                                         "bounds\n");
                                 return S_FALSE;
                         }
-                }
+                } while (++i < g_widgetCount);
 
                 return S_FALSE;
         }
