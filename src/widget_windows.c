@@ -75,6 +75,7 @@ typedef struct
 typedef struct
 {
         const size_t x, y;
+        const bool topMost;
         char filename[BUFFSIZE];
 } stack_item_t;
 
@@ -278,18 +279,20 @@ static bool
 OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
+                     const bool *const topMost,
                      char *const content)
 {
-        ww_window_ctx context = {.width = DEF_WIDTH,
-                                 .height = DEF_HEIGHT,
-                                 .prevWidth = DEF_PREV_WIDTH,
-                                 .prevHeight = DEF_PREV_HEIGHT,
-                                 .x = x == nullptr ? DEF_X : *x,
-                                 .y = y == nullptr ? DEF_HEIGHT : *y,
-                                 .child = DEF_CHILD,
-                                 .top_most = DEF_TOPMOST,
-                                 .opacity = DEF_OPACITY,
-                                 .radius = DEF_RADIUS};
+        ww_window_ctx context = {
+                .width = DEF_WIDTH,
+                .height = DEF_HEIGHT,
+                .prevWidth = DEF_PREV_WIDTH,
+                .prevHeight = DEF_PREV_HEIGHT,
+                .x = x == nullptr ? DEF_X : *x,
+                .y = y == nullptr ? DEF_HEIGHT : *y,
+                .child = DEF_CHILD,
+                .top_most = topMost == nullptr ? DEF_TOPMOST : *topMost,
+                .opacity = DEF_OPACITY,
+                .radius = DEF_RADIUS};
 
         const size_t pathLength = strlen(path);
         memcpy(context.filename, path, pathLength);
@@ -340,7 +343,8 @@ OpenWidgetByFilename(const char *const path,
                 context.prevHeight = isSet ? height : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, BUFFSIZE))
+        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, BUFFSIZE) &&
+            topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
@@ -390,7 +394,8 @@ Pop()
 {
         stack_item_t item = g_stack[--g_stackHeight];
         char content[USHRT_MAX];
-        OpenWidgetByFilename(item.filename, &item.x, &item.y, content);
+        OpenWidgetByFilename(
+                item.filename, &item.x, &item.y, &item.topMost, content);
 }
 
 /**
@@ -518,7 +523,30 @@ LoadConfigurationFromFile()
                                 return false;
                         }
 
-                        stack_item_t item = {.x = x, .y = y};
+                        string_json_t jsonTopMost;
+                        if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
+                            FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to get alwaysOnTop property\n");
+                                return false;
+                        }
+
+                        char topMost[BUFFSIZE];
+                        if (ConvertJsonToString(jsonTopMost, topMost) !=
+                            FUNC_SUCCESS)
+                        {
+                                fprintf(stderr,
+                                        "Failed to convert alwaysOnTop to "
+                                        "string\n");
+                                return false;
+                        }
+
+                        // Loading each individual child into the stack
+                        stack_item_t item = {
+                                .x = x,
+                                .y = y,
+                                .topMost = strcmp(topMost, "true") == 0};
                         memcpy(item.filename, prefixPath, strlen(prefixPath));
                         item.filename[strlen(prefixPath)] = '\0';
                         Push(item);
@@ -528,6 +556,18 @@ LoadConfigurationFromFile()
         }
 
         return true;
+}
+
+/**
+ * @brief Gets whether a window is top most
+ * @param hWnd Handle to the window
+ * @returns true if topmost, else false if not
+ */
+static bool
+isWindowTopMost(const HWND hWnd)
+{
+        const LONG_PTR style = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+        return style & WS_EX_TOPMOST;
 }
 
 /**
@@ -574,7 +614,8 @@ SaveConfigurationToFile()
                               filename,
                               x,
                               y,
-                              window.top_most == true ? "true" : "false")) >=
+                              isWindowTopMost(hWnd) == true ? "true"
+                                                            : "false")) >=
                     JSONBUFFSIZE)
                 {
                         fprintf(stderr, "Couldn't build last session widget\n");
@@ -687,6 +728,22 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         return S_OK;
 }
 
+/**
+ * @brief Set the top most status of a window
+ */
+static bool
+SetWindowTopMost(const HWND hWnd, const bool src)
+{
+        const HWND flags[] = {HWND_TOPMOST, HWND_NOTOPMOST};
+        if (!SetWindowPos(
+                    hWnd, flags[src], 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
+        {
+                fprintf(stderr, "Failed to set window to top most\n");
+                return false;
+        }
+        return true;
+}
+
 /*
  * @brief Triggers when the close menu item is selected
  * @param sender Object that triggered the event
@@ -696,19 +753,11 @@ static HRESULT
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                  IUnknown *const args)
 {
-        const HWND flags[] = {HWND_TOPMOST, HWND_NOTOPMOST};
-        const HWND handle = g_hWndTable[g_hWndSelectedHash];
-        const LONG_PTR style = GetWindowLongPtr(handle, GWL_EXSTYLE);
-        const bool topMost = style & WS_EX_TOPMOST;
-        if (!SetWindowPos(handle,
-                          flags[topMost],
-                          0,
-                          0,
-                          0,
-                          0,
-                          SWP_NOMOVE | SWP_NOSIZE))
+        const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
+        const bool topMost = isWindowTopMost(hWnd);
+        if (!SetWindowTopMost(hWnd, topMost))
         {
-                fprintf(stderr, "Failed to set window to top most\n");
+                fprintf(stderr, "Failed to set %d to top most\n", topMost);
                 return S_FALSE;
         }
 
@@ -1146,7 +1195,8 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 filename[argsStr.length] = '\0';
 
                 char content[USHRT_MAX];
-                if (!OpenWidgetByFilename(filename, nullptr, nullptr, content))
+                if (!OpenWidgetByFilename(
+                            filename, nullptr, nullptr, nullptr, content))
                 {
                         fprintf(stderr, "Failed to open widget by filename\n");
                         return EXIT_REASON_IO_FAILURE;
@@ -1312,7 +1362,7 @@ CompletedHandlerInvoke(const IUnknown *const this,
         }
 
         // Pops widgets if there are any pending
-        if (g_stackHeight >= 0)
+        if (g_stackHeight > 0)
         {
                 Pop();
         }
@@ -1523,44 +1573,55 @@ create_widget_window(ww_window_ctx *const context)
                 fprintf(stderr, "Failed to register class\n");
         }
 
-        HWND *const handle = &g_widgets[g_widgetCount].hWnd;
+        HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
         const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
-        if ((*handle = CreateWindowEx(WS_EX_LAYERED,
-                                      CLASS_NAME,
-                                      context->title,
-                                      wsStyle,
-                                      context->x,
-                                      context->y,
-                                      context->width,
-                                      context->height,
-                                      nullptr,
-                                      nullptr,
-                                      g_hInstance,
-                                      nullptr)) == nullptr)
+        if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
+                                    CLASS_NAME,
+                                    context->title,
+                                    wsStyle,
+                                    context->x,
+                                    context->y,
+                                    context->width,
+                                    context->height,
+                                    nullptr,
+                                    nullptr,
+                                    g_hInstance,
+                                    nullptr)) == nullptr)
         {
                 fprintf(stderr, "Failed to create window\n");
                 status = false;
                 goto cleanup;
         }
 
-        g_hWndTable[hash] = *handle;
-        ShowWindow(*handle, g_nCmdShow);
+        g_hWndTable[hash] = *hWnd;
+        ShowWindow(*hWnd, g_nCmdShow);
 
-        if (!SetWindowBorderRadius(*handle, context))
+        if (!SetWindowBorderRadius(*hWnd, context))
         {
                 fprintf(stderr, "Failed to set window radius\n");
                 status = false;
                 goto cleanup;
         }
 
-        if (!SetWindowOpacity(*handle, context->opacity))
+        if (!SetWindowOpacity(*hWnd, context->opacity))
         {
                 fprintf(stderr, "Failed to set window opacity\n");
                 status = false;
                 goto cleanup;
         }
 
-        if (!UpdateWindow(*handle))
+        // Apply these visual changes only for children widgets
+        if (context->child == true)
+        {
+                if (!SetWindowTopMost(*hWnd, context->top_most == 0))
+                {
+                        fprintf(stderr, "Failed to set window top most\n");
+                        status = false;
+                        goto cleanup;
+                }
+        }
+
+        if (!UpdateWindow(*hWnd))
         {
                 fprintf(stderr, "Failed to update window\n");
                 status = false;
@@ -1580,7 +1641,7 @@ create_widget_window(ww_window_ctx *const context)
         }
 
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
-                    g_env, *handle, &completedHandler) != S_OK)
+                    g_env, *hWnd, &completedHandler) != S_OK)
         {
                 fprintf(stderr, "Failed to create controller\n");
                 status = false;
