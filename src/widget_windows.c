@@ -101,21 +101,48 @@ static bool g_envCreated = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-// TODO: Enable this only for the development build later
+// TODO: Enable this only for the debug build later
 /**
  * @brief Creates a console window and writes debug messages to it
  * @param message Text to print out
+ * @returns true on success, else false on failure
  */
-static void
+static bool
 Debug(const char *const message)
 {
-        AllocConsole();
-        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (stdOut != NULL && stdOut != INVALID_HANDLE_VALUE)
+        const size_t messageLen = strlen(message);
+        if (messageLen >= BUFFSIZE)
         {
-                DWORD written = 0;
-                WriteConsoleA(stdOut, message, strlen(message), &written, NULL);
+                return false;
         }
+
+        const size_t newMessageLen = BUFFSIZE + 1;
+        char newMessage[newMessageLen];
+        if (snprintf(newMessage, newMessageLen, "%s\n", message) < 0)
+        {
+                return false;
+        }
+
+        static bool consoleAlloced = false;
+        if (AllocConsole() == 0 && !consoleAlloced)
+        {
+                return false;
+        }
+        consoleAlloced = true;
+
+        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (stdOut == NULL || stdOut == INVALID_HANDLE_VALUE)
+        {
+                return false;
+        }
+
+        DWORD written = 0;
+        if (!WriteConsoleA(
+                    stdOut, newMessage, strlen(newMessage), &written, NULL))
+        {
+                return false;
+        }
+        return true;
 }
 
 // ---------------------------------------------------------------------
