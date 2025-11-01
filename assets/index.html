@@ -14,6 +14,7 @@
     <div class="icons interact">
       <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" onclick="openScene('widgets', 'block')" />
       <img class="interact" alt="Code Image" src="svgs/code.svg" onclick="openScene('development', 'block')" />
+      <img class="interact" alt="Gear Image" src="svgs/gear.svg" onclick="openScene('settings', 'grid')" />
     </div>
   </nav>
 
@@ -28,6 +29,16 @@
       <img class="interact" alt="Folder Logo" src="svgs/folder.svg" onclick="openDefaultDirectory()" />
     </div>
     <article class="list"><!-- Widgets are injected here --></article>
+  </main>
+
+  <main class="settings">
+    <h3>Application</h3>
+    <span>Run the application on startup</span>
+    <div id="isOpenAppOnStartupEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    <span>Hide Widgets when another application is in fullscreen</span>
+    <div id="isWidgetFullscreenHideEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    <span>Restore last session when the application loads</span>
+    <div id="isWidgetAutostartEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
   </main>
 
   <main class="development">

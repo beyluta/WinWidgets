@@ -61,7 +61,8 @@ typedef enum : uint8_t
 {
         EVT_OPEN_DEFAULT_DIR,
         EVT_GET_WGT_FILENAMES,
-        EVT_OPEN_WGT_FILENAME
+        EVT_OPEN_WGT_FILENAME,
+        EVT_TOGGLE_SETTING,
 } widget_events_t;
 
 typedef struct
@@ -79,6 +80,13 @@ typedef struct
         char filename[BUFFSIZE];
 } stack_item_t;
 
+typedef struct
+{
+        bool isWidgetAutostartEnabled;
+        bool isWidgetFullscreenHideEnabled;
+        bool isOpenAppOnStartupEnabled;
+} application_settings_t;
+
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
@@ -87,6 +95,7 @@ static EventRegistrationToken g_moveEventHandlerToken = {};
 static EventRegistrationToken g_topMostEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 
+static application_settings_t g_settings;
 static webview_widget_t g_widgets[MAX_WIDGETS] = {};
 static HWND g_hWndTable[MAX_WIDGETS] = {};
 
@@ -481,6 +490,70 @@ LoadConfigurationFromFile()
                 return false;
         }
 
+        string_json_t isWidgetAutostartEnabledJson;
+        if (GetProperty(jsonContent,
+                        &isWidgetAutostartEnabledJson,
+                        "isWidgetAutostartEnabled") != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to get widget auto start\n");
+                return false;
+        }
+
+        char isWidgetAutostartEnabled[JSONBUFFSIZE];
+        if (ConvertJsonToString(isWidgetAutostartEnabledJson,
+                                isWidgetAutostartEnabled) != FUNC_SUCCESS)
+        {
+                fprintf(stderr,
+                        "Failed to convert widget auto start to string\n");
+                return false;
+        }
+
+        string_json_t isOpenAppOnStartupEnabledJson;
+        if (GetProperty(jsonContent,
+                        &isOpenAppOnStartupEnabledJson,
+                        "isOpenAppOnStartupEnabled") != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to get auto start\n");
+                return false;
+        }
+
+        char isOpenAppOnStartupEnabled[JSONBUFFSIZE];
+        if (ConvertJsonToString(isOpenAppOnStartupEnabledJson,
+                                isOpenAppOnStartupEnabled) != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to convert auto start to string\n");
+                return false;
+        }
+
+        string_json_t isWidgetFullscreenHideEnabledJson;
+        if (GetProperty(jsonContent,
+                        &isWidgetFullscreenHideEnabledJson,
+                        "isWidgetFullscreenHideEnabled") != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to get fullscreen property\n");
+                return false;
+        }
+
+        char isWidgetFullscreenHideEnabled[JSONBUFFSIZE];
+        if (ConvertJsonToString(isWidgetFullscreenHideEnabledJson,
+                                isWidgetFullscreenHideEnabled) != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Failed to convert fullscren to string\n");
+                return false;
+        }
+
+        g_settings.isWidgetAutostartEnabled =
+                strcmp(isWidgetAutostartEnabled, "true") == 0;
+        g_settings.isOpenAppOnStartupEnabled =
+                strcmp(isOpenAppOnStartupEnabled, "true") == 0;
+        g_settings.isWidgetFullscreenHideEnabled =
+                strcmp(isWidgetFullscreenHideEnabled, "true") == 0;
+
+        if (!g_settings.isWidgetAutostartEnabled)
+        {
+                return true;
+        }
+
         size_t start = 0;
         for (size_t i = 0; i < lastSessionWidgets.length; i++)
         {
@@ -661,10 +734,20 @@ SaveConfigurationToFile()
         session[strlen(session) - 1] = '\0';
 
         const char *const format =
-                "{\"version\":\"%s\",\"lastSessionWidgets\": [%s]}";
+                "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
+                "\"isWidgetFullscreenHideEnabled\":%s,"
+                "\"isOpenAppOnStartupEnabled\":%s,"
+                "\"lastSessionWidgets\":[%s]}";
         char json[strlen(format) + strlen(INTERN_PROG_SEM_VER) + bytesWritten];
-        if (snprintf(json, JSONBUFFSIZE, format, INTERN_PROG_SEM_VER, session) <
-            0)
+        if (snprintf(
+                    json,
+                    JSONBUFFSIZE,
+                    format,
+                    INTERN_PROG_SEM_VER,
+                    g_settings.isWidgetAutostartEnabled ? "true" : "false",
+                    g_settings.isWidgetFullscreenHideEnabled ? "true" : "false",
+                    g_settings.isOpenAppOnStartupEnabled ? "true" : "false",
+                    session) < 0)
         {
                 fprintf(stderr, "Failed to build json string\n");
                 return false;
@@ -1075,7 +1158,7 @@ cleanup:
  * @returns true if successful, else false on failure
  */
 static bool
-AppendWidgetToBrowserList(ICoreWebView2 *const webview)
+AppendWidgetsToDOM(ICoreWebView2 *const webview)
 {
         char app_dir[BUFFSIZE];
         if (ww_default_widgets_dir(app_dir) == true)
@@ -1134,6 +1217,64 @@ AppendWidgetToBrowserList(ICoreWebView2 *const webview)
 }
 
 /**
+ * @brief Loads the settings in-memory into the DOM
+ * @param webview Webview core object
+ * @returns true if successful, else false on failure
+ */
+static bool
+AppendSettingsToDOM(ICoreWebView2 *const webview)
+{
+        char settings[BUFFSIZE];
+        snprintf(settings,
+                 BUFFSIZE,
+                 "toggleSettings({\"isWidgetAutostartEnabled\":%s,"
+                 "\"isWidgetFullscreenHideEnabled\":%s,"
+                 "\"isOpenAppOnStartupEnabled\":%s})",
+                 g_settings.isWidgetAutostartEnabled ? "true" : "false",
+                 g_settings.isWidgetFullscreenHideEnabled ? "true" : "false",
+                 g_settings.isOpenAppOnStartupEnabled ? "true" : "false");
+
+        wchar_t command[BUFFSIZE];
+        mbstowcs(command, settings, strlen(settings));
+        webview->lpVtbl->ExecuteScript(webview, command, nullptr);
+        return true;
+}
+
+/**
+ * @brief Flips the internal flag of a setting by name
+ * @param src Name of the flag to flip
+ * @returns true if successful, else false on failure
+ */
+static bool
+ToggleSettingByName(const char *const src)
+{
+        if (strcmp(src, "isOpenAppOnStartupEnabled") == 0)
+        {
+                g_settings.isOpenAppOnStartupEnabled =
+                        !g_settings.isOpenAppOnStartupEnabled;
+        }
+
+        if (strcmp(src, "isWidgetFullscreenHideEnabled") == 0)
+        {
+                g_settings.isWidgetFullscreenHideEnabled =
+                        !g_settings.isWidgetFullscreenHideEnabled;
+        }
+
+        if (strcmp(src, "isWidgetAutostartEnabled") == 0)
+        {
+                g_settings.isWidgetAutostartEnabled =
+                        !g_settings.isWidgetAutostartEnabled;
+        }
+
+        if (!SaveConfigurationToFile())
+        {
+                return false;
+        }
+
+        return true;
+}
+
+/**
  * @brief Handles incoming events from JavaScript
  * @param handler Received event handler
  * @param webview Context of the webview
@@ -1182,8 +1323,8 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 return S_FALSE;
         }
 
-        string_json_t argsStr;
-        if (GetProperty(dataString, &argsStr, "args") != FUNC_SUCCESS)
+        string_json_t argsJson;
+        if (GetProperty(dataString, &argsJson, "args") != FUNC_SUCCESS)
         {
                 fprintf(stderr, "Event arguments could not be found\n");
                 return S_FALSE;
@@ -1200,8 +1341,8 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 return S_FALSE;
         }
 
-        char path[BUFFSIZE];
-        if (ConvertJsonToStandardType(argsStr, JSON_CHAR_ARR, &path) !=
+        char argument[BUFFSIZE];
+        if (ConvertJsonToStandardType(argsJson, JSON_CHAR_ARR, &argument) !=
             FUNC_SUCCESS)
         {
                 fprintf(stderr, "Error converting JSON to char array type\n");
@@ -1218,23 +1359,42 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 }
                 break;
         case EVT_GET_WGT_FILENAMES:
-                if (!AppendWidgetToBrowserList(webview))
+                if (!AppendWidgetsToDOM(webview))
                 {
                         fprintf(stderr,
                                 "Could not add local widgets to list\n");
                         return EXIT_REASON_IO_FAILURE;
                 }
+
+                if (!AppendSettingsToDOM(webview))
+                {
+                        fprintf(stderr, "Failed to append settings to DOM\n");
+                        return EXIT_REASON_IO_FAILURE;
+                }
                 break;
         case EVT_OPEN_WGT_FILENAME:
                 char filename[BUFFSIZE];
-                memcpy(filename, path, argsStr.length);
-                filename[argsStr.length] = '\0';
+                memcpy(filename, argument, argsJson.length);
+                filename[argsJson.length] = '\0';
 
                 char content[USHRT_MAX];
                 if (!OpenWidgetByFilename(
                             filename, nullptr, nullptr, nullptr, content))
                 {
                         fprintf(stderr, "Failed to open widget by filename\n");
+                        return EXIT_REASON_IO_FAILURE;
+                }
+                break;
+        case EVT_TOGGLE_SETTING:
+                char setting[BUFFSIZE];
+                memcpy(setting, argument, argsJson.length);
+                setting[argsJson.length] = '\0';
+
+                if (!ToggleSettingByName(setting))
+                {
+                        fprintf(stderr,
+                                "Failed to toggle setting %s\n",
+                                setting);
                         return EXIT_REASON_IO_FAILURE;
                 }
                 break;
@@ -1760,15 +1920,15 @@ ww_init_main(HINSTANCE hInstance,
                 return true;
         }
 
+        if (!LoadConfigurationFromFile())
+        {
+                fprintf(stderr, "Warning: Cofnig file not present\n");
+        }
+
         if (!create_widget_window(context))
         {
                 fprintf(stderr, "WebView2 Failed to create a window\n");
                 return false;
-        }
-
-        if (!LoadConfigurationFromFile())
-        {
-                fprintf(stderr, "Warning: Cofnig file not present\n");
         }
 
         return event_loop();

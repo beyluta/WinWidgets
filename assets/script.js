@@ -4,7 +4,8 @@
 const EVENT_IDS = {
   "on_open_default_directory": "0",
   "on_get_widget_filenames": "1",
-  "on_open_widget_by_filename": "2"
+  "on_open_widget_by_filename": "2",
+  "on_toggle_setting": "3"
 };
 
 /**
@@ -16,6 +17,40 @@ function openScene(scene, mode) {
   hideScenes();
   const element = document.querySelector(`.${scene}`);
   element.style.display = mode;
+}
+
+/**
+ * Toggles all settings passed via object
+ * @param {object} - settings to toggle
+ */
+function toggleSettings(settings) {
+  for (const [key, value] of Object.entries(settings)) {
+    const setting = document.getElementById(key);
+    if (typeof value === 'boolean' && value === true)
+    {
+      toggleSetting(setting);
+    }
+  }
+}
+
+/**
+ * Toggles the selected setting
+ * @param {string} setting - HtmlElement to be modified
+ * @param {boolean} notifyParent - Whether C should be notified of this change
+ */
+function toggleSetting(setting, notifyParent = false) {
+  const id = setting.getAttribute('id');
+
+  const isEnabled = setting.classList.contains('enabled');
+  if (isEnabled) {
+    setting.classList.remove('enabled');
+  } else {
+    setting.classList.add('enabled');
+  }
+
+  if (notifyParent) {
+    postMessage('on_toggle_setting', id);
+  }
 }
 
 /**
