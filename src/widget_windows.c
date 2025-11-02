@@ -136,6 +136,7 @@ static ICoreWebView2Environment *g_env = nullptr;
 static application_settings_t g_settings;
 static webview_widget_t g_widgets[MAX_WIDGETS] = {};
 static HWND g_hWndTable[MAX_WIDGETS] = {};
+static HWND g_invisibleHwnd = nullptr;
 
 static size_t g_hWndSelectedHash = {};
 static size_t g_nCmdShow = {};
@@ -1673,6 +1674,23 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
 }
 
 /**
+ * @brief Hides the window from the taskbar
+ */
+static func_status_t
+HideWindowFromTaskbar(HWND hWnd)
+{
+        LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
+        if (SetWindowLong(hWnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW) == 0)
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        ShowWindow(hWnd, SW_SHOW);
+
+        return FUNC_STATUS_OK;
+}
+
+/**
  * @brief Creates a new window
  * @param context Context of the window with all options
  * @returns The status of the operation upon return
@@ -1711,6 +1729,33 @@ create_widget_window(ww_window_ctx *const context)
                 goto cleanup;
         }
 
+        // Trick for the main window so that it doesn't appear in the taskbar.
+        // Basically we create an invisible window and set it as the parent of
+        // the real window.
+        if (g_invisibleHwnd == nullptr)
+        {
+                WNDCLASS invisibleWc = {};
+                invisibleWc.lpfnWndProc = DefWindowProc;
+                invisibleWc.hInstance = g_hInstance;
+                invisibleWc.lpszClassName = CLASS_NAME;
+                RegisterClass(&invisibleWc);
+
+                g_invisibleHwnd = CreateWindowEx(0,
+                                                 CLASS_NAME,
+                                                 nullptr,
+                                                 WS_OVERLAPPED,
+                                                 CW_USEDEFAULT,
+                                                 CW_USEDEFAULT,
+                                                 1,
+                                                 1,
+                                                 nullptr,
+                                                 nullptr,
+                                                 g_hInstance,
+                                                 nullptr);
+                ShowWindow(g_invisibleHwnd, SW_HIDE);
+                UpdateWindow(g_invisibleHwnd);
+        }
+
         WNDCLASS wc = {};
         wc.lpfnWndProc = WindowProc;
         wc.hInstance = g_hInstance;
@@ -1718,7 +1763,9 @@ create_widget_window(ww_window_ctx *const context)
         RegisterClass(&wc);
 
         HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
-        const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+        const size_t wsStyle =
+                context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+        const HWND parentHwnd = context->child ? nullptr : g_invisibleHwnd;
         if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
                                     CLASS_NAME,
                                     context->title,
@@ -1727,7 +1774,7 @@ create_widget_window(ww_window_ctx *const context)
                                     context->y,
                                     context->width,
                                     context->height,
-                                    nullptr,
+                                    parentHwnd,
                                     nullptr,
                                     g_hInstance,
                                     nullptr)) == nullptr)
@@ -1746,6 +1793,7 @@ create_widget_window(ww_window_ctx *const context)
         if (context->child)
         {
                 EVALEXPR(SetWindowTopMost(*hWnd, context->top_most == 0));
+                EVALEXPR(HideWindowFromTaskbar(*hWnd));
         }
 
         if (!UpdateWindow(*hWnd))
