@@ -1735,7 +1735,7 @@ create_widget_window(ww_window_ctx *const context)
         if (g_invisibleHwnd == nullptr)
         {
                 WNDCLASS invisibleWc = {};
-                invisibleWc.lpfnWndProc = DefWindowProc;
+                invisibleWc.lpfnWndProc = WindowProc;
                 invisibleWc.hInstance = g_hInstance;
                 invisibleWc.lpszClassName = CLASS_NAME;
                 RegisterClass(&invisibleWc);
