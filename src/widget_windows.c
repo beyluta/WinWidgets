@@ -812,6 +812,28 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         return FUNC_STATUS_OK;
 }
 
+/**
+ * @brief Sets the position of a window by its HWND
+ * @param hWnd Handle to the window
+ * @param x Position on the x axis
+ * @param y Position on the y axis
+ */
+static func_status_t
+SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
+{
+        if (!SetWindowPos(hWnd,
+                          0,
+                          x,
+                          y,
+                          0,
+                          0,
+                          SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+        return FUNC_STATUS_OK;
+}
+
 /*
  * @brief Triggers when the move menu item is selected. Its purpose is to track
  * the position of the user cursor and move the window accordingly.
@@ -840,16 +862,10 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                         return FUNC_STATUS_ENV_ERR;
                 }
 
-                if (!SetWindowPos(handle,
-                                  0,
-                                  position.x - (rect.right - rect.left) / 2,
-                                  position.y - (rect.bottom - rect.top) / 2,
-                                  0,
-                                  0,
-                                  SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
-                {
-                        return FUNC_STATUS_ENV_ERR;
-                }
+                EVALEXPR(SetWindowPosition(
+                        handle,
+                        position.x - (rect.right - rect.left) / 2,
+                        position.y - (rect.bottom - rect.top) / 2));
         }
 
         EVALEXPR(SaveConfigurationToFile());
@@ -1558,6 +1574,22 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 PostQuitMessage(S_FALSE);
                 return S_FALSE;
         case WM_SIZE:
+                switch (wParam)
+                {
+                case SIZE_MINIMIZED:
+                        RECT desktop;
+                        const HWND hWndDesktop = GetDesktopWindow();
+                        if (!GetWindowRect(hWndDesktop, &desktop))
+                        {
+                                return S_FALSE;
+                        }
+
+                        const ssize_t width = desktop.right * -1;
+                        const ssize_t height = desktop.bottom * -1;
+                        EVALEXPR(SetWindowPosition(hwnd, width, height));
+                        break;
+                }
+
                 size_t i = 0;
                 do
                 {
@@ -1746,8 +1778,8 @@ create_widget_window(ww_window_ctx *const context)
                                                  WS_OVERLAPPED,
                                                  CW_USEDEFAULT,
                                                  CW_USEDEFAULT,
-                                                 1,
-                                                 1,
+                                                 CW_USEDEFAULT,
+                                                 CW_USEDEFAULT,
                                                  nullptr,
                                                  nullptr,
                                                  g_hInstance,
