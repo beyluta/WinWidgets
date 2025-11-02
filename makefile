@@ -1,4 +1,4 @@
-.PHONY: build run format
+.PHONY: init update build run format
 
 CC = gcc
 CFLAGS = `pgk-config --cflags --libs gtk+-3.0 webkit2gtk+-4.1`
@@ -9,6 +9,12 @@ SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
 			lib/minimal-json-c-parser/src/json.c
+
+
+init:
+	git submodule update --init --recursive
+update:
+	git submodule update --recursive --remote
 
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \

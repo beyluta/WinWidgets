@@ -52,6 +52,35 @@ run on operating systems or distributions not listed here but it isn't guarantee
 | Windows  | ✅           | Windows 11        |
 | MacOS    | ❌           | N/A               |
 
+## Building
+
+These are MakeFile commands that work for all supported platforms.
+Read them carefully to successfully compile the application.
+
+When building for the first time you must run the following command to fetch dependencies:
+
+```bash
+make init
+```
+
+(Optional) Consider running the following when pulling remote changes to update dependencies:
+
+```bash
+make update
+```
+
+Compile the binary with the following command (output can be found at `buid/output.exe`):
+
+```bash
+make build
+```
+
+Build and execute the program automatically with:
+
+```bash
+make run
+```
+
 ## Contributing
 
 1. Fork the Project
