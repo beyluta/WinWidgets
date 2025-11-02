@@ -58,7 +58,6 @@ main {
   grid-column: 2;
   padding: 1.5rem;
   height: calc(100vh - 8rem);
-  overflow: scroll;
 }
 
 main:not(main.widgets) {
@@ -122,6 +121,10 @@ main:not(main.widgets) {
   pointer-events: none;
 }
 
+.development {
+  overflow: scroll;
+}
+
 .development span {
   display: block;
   margin-top: 1rem;
@@ -152,6 +155,7 @@ main:not(main.widgets) {
   grid-template-columns: 1fr max-content;
   grid-template-rows: repeat(4, max-content);
   row-gap: 1rem;
+  overflow: scroll;
 }
 
 .settings .toggle {

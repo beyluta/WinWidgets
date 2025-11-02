@@ -65,6 +65,15 @@ typedef enum : uint8_t
         EVT_TOGGLE_SETTING,
 } widget_events_t;
 
+typedef enum : uint8_t
+{
+        FUNC_STATUS_OK,
+        FUNC_STATUS_USR_ERR,
+        FUNC_STATUS_WBV_ERR,
+        FUNC_STATUS_MEM_ERR,
+        FUNC_STATUS_ENV_ERR
+} func_status_t;
+
 typedef struct
 {
         ww_window_ctx context;
@@ -87,6 +96,35 @@ typedef struct
         bool isOpenAppOnStartupEnabled;
 } application_settings_t;
 
+/**
+ * @brief Evaluates the expression, quits and logs the error on failure.
+ */
+#define EVALEXPR(expression)                                                   \
+        do                                                                     \
+        {                                                                      \
+                auto ret = (expression);                                       \
+                if (ret > FUNC_STATUS_USR_ERR)                                 \
+                {                                                              \
+                        LogError(ret);                                         \
+                        exit(ret);                                             \
+                }                                                              \
+        } while (0)
+
+/**
+ * @brief Evaluates the result of a function, jumps to `cleanup` label on error
+ */
+#define EVALEXPRCLEANUP(expression)                                            \
+        do                                                                     \
+        {                                                                      \
+                auto ret = (expression);                                       \
+                if (ret > FUNC_STATUS_USR_ERR)                                 \
+                {                                                              \
+                        LogError(ret);                                         \
+                        status = ret;                                          \
+                        goto cleanup;                                          \
+                }                                                              \
+        } while (0)
+
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
 // ----------------------------------------------------------
@@ -106,6 +144,7 @@ static size_t g_widgetCount = 0;
 static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
 static bool g_envCreated = false;
+static HANDLE g_eventLog = nullptr;
 
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
@@ -157,41 +196,41 @@ Debug(const char *const message)
 // ---------------------------------------------------------------------
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
-static HRESULT
+static func_status_t
 EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
                                   const HRESULT errorCode,
                                   const ICoreWebView2Environment *const arg);
 
-static HRESULT
+static func_status_t
 ControllerCompletedHandlerInvoke(const IUnknown *const this,
                                  const HRESULT errorCode,
                                  const ICoreWebView2Controller *const arg);
 
-static HRESULT
+static func_status_t
 WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuRequestedEventHandler *const this,
         ICoreWebView2 *const sender,
         ICoreWebView2ContextMenuRequestedEventArgs *const args);
 
-static HRESULT
+static func_status_t
 WebView2WebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *const handler,
         ICoreWebView2 *const webview,
         ICoreWebView2WebMessageReceivedEventArgs *const args);
 
-static HRESULT
+static func_status_t
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                IUnknown *const args);
 
-static HRESULT
+static func_status_t
 OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                               IUnknown *const args);
 
-static HRESULT
+static func_status_t
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                  IUnknown *const args);
 
-static bool
+static func_status_t
 create_widget_window(ww_window_ctx *const context);
 
 // --------------------------------------------------
@@ -290,37 +329,62 @@ static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
         {.lpVtbl = &topMostMenuSelectedHandlerVtbl};
 
 /**
- * @brief Opens the default directory where the widgets are located
- * @returns `true` if successful `false` if failed
+ * @brief Writes an error to Window's event viewer
+ * @param errCode Code of the error
  */
-static bool
+static void
+LogError(const uint8_t errCode)
+{
+        char buffer[BUFFSIZE];
+        snprintf(buffer,
+                 BUFFSIZE,
+                 "Error code %d found on line %d\n",
+                 errCode,
+                 __LINE__);
+        ReportEvent(g_eventLog,
+                    EVENTLOG_WARNING_TYPE,
+                    0,
+                    0,
+                    nullptr,
+                    1,
+                    0,
+                    (LPCSTR *)&buffer,
+                    nullptr);
+}
+
+/**
+ * @brief Opens the default directory where the widgets are located
+ * @returns The status of the operation upon return
+ */
+static func_status_t
 OpenDefaultDirectory()
 {
         char dir[BUFFSIZE];
         if (ww_default_widgets_dir(dir) == true)
         {
-                fprintf(stderr,
-                        "Failed to create the default widgets directory\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         if (ww_open_folder(dir) == true)
         {
-                fprintf(stderr, "Failed to open folder to directory\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
- * @brief Opens a Widget by its absolute path
+ * @brief Opens a Widget by its absolute path. Arguments may be
+ * `nullptr`, those will be ignore.
+ *
  * @param path Full absolute path to where the widget is
- * @param x Pointer to the X position; may be nullptr in which case it's default
- * @param y Pointer to the Y position; may be nullptr in which case it's default
- * @returns true if successful, else false on failure
+ * @param x Pointer to the X position
+ * @param y Pointer to the Y position
+ * @param topMost Pointer to the top most state
+ * @param content Pointer to the widget content string
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
@@ -346,14 +410,12 @@ OpenWidgetByFilename(const char *const path,
         char trimStr[BUFFSIZE];
         if (!TrimStart(path, trimStr, HANDLE_PREFIX_OFFSET))
         {
-                fprintf(stderr, "Failed to strip the prefix from filename\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         if (ww_get_file_content(trimStr, content, BUFFSIZE) == true)
         {
-                fprintf(stderr, "Failed to get contents of HTML file\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char buf[BUFFSIZE] = {};
@@ -408,17 +470,13 @@ OpenWidgetByFilename(const char *const path,
 
         g_widgetCount++;
 
-        if (!create_widget_window(&context))
-        {
-                fprintf(stderr, "Failed to create child widget\n");
-                return false;
-        }
+        EVALEXPR(create_widget_window(&context));
 
         memcpy(&g_widgets[g_widgetCount].context,
                &context,
                sizeof(ww_window_ctx));
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -439,46 +497,42 @@ Pop()
 {
         stack_item_t item = g_stack[--g_stackHeight];
         char content[USHRT_MAX];
-        OpenWidgetByFilename(
-                item.filename, &item.x, &item.y, &item.topMost, content);
+        EVALEXPR(OpenWidgetByFilename(
+                item.filename, &item.x, &item.y, &item.topMost, content));
 }
 
 /**
  * @brief Loads all configurations from the JSON file. Opens widgets that were
  * previously opened and apply settings from the last session.
  *
- * @returns true if successful, otherwise false is returned
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 LoadConfigurationFromFile()
 {
         char absolutePath[BUFFSIZE];
         if (ww_default_widgets_dir(absolutePath))
         {
-                fprintf(stderr, "Failed to get default widgets directory\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
         ReplaceChars(absolutePath, widget_char_slash, widget_char_b_slash);
         strcat(absolutePath, CONFIG_NAME);
 
         if (access(absolutePath, F_OK) != 0)
         {
-                fprintf(stderr, "File %s does not exist\n", absolutePath);
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char fileContent[JSONBUFFSIZE];
         if (ww_get_file_content(absolutePath, fileContent, JSONBUFFSIZE))
         {
-                fprintf(stderr, "Failed to get file content\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t jsonContent;
         if (ConvertStringToJson(fileContent, &jsonContent) != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to convert string to json\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t lastSessionWidgets;
@@ -486,8 +540,7 @@ LoadConfigurationFromFile()
                         &lastSessionWidgets,
                         "lastSessionWidgets") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to get last widgets property\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t isWidgetAutostartEnabledJson;
@@ -495,17 +548,14 @@ LoadConfigurationFromFile()
                         &isWidgetAutostartEnabledJson,
                         "isWidgetAutostartEnabled") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to get widget auto start\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char isWidgetAutostartEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isWidgetAutostartEnabledJson,
                                 isWidgetAutostartEnabled) != FUNC_SUCCESS)
         {
-                fprintf(stderr,
-                        "Failed to convert widget auto start to string\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t isOpenAppOnStartupEnabledJson;
@@ -513,16 +563,14 @@ LoadConfigurationFromFile()
                         &isOpenAppOnStartupEnabledJson,
                         "isOpenAppOnStartupEnabled") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to get auto start\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char isOpenAppOnStartupEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isOpenAppOnStartupEnabledJson,
                                 isOpenAppOnStartupEnabled) != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to convert auto start to string\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t isWidgetFullscreenHideEnabledJson;
@@ -530,16 +578,14 @@ LoadConfigurationFromFile()
                         &isWidgetFullscreenHideEnabledJson,
                         "isWidgetFullscreenHideEnabled") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to get fullscreen property\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char isWidgetFullscreenHideEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isWidgetFullscreenHideEnabledJson,
                                 isWidgetFullscreenHideEnabled) != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Failed to convert fullscren to string\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         g_settings.isWidgetAutostartEnabled =
@@ -551,7 +597,7 @@ LoadConfigurationFromFile()
 
         if (!g_settings.isWidgetAutostartEnabled)
         {
-                return true;
+                return FUNC_STATUS_OK;
         }
 
         size_t start = 0;
@@ -570,85 +616,66 @@ LoadConfigurationFromFile()
                         string_json_t jsonObj;
                         if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to convert obj to json\n");
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         string_json_t jsonPath;
                         if (GetProperty(jsonObj, &jsonPath, "path") !=
                             FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to get path property\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         char path[BUFFSIZE];
                         if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to convert path to string\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         string_json_t jsonPosition;
                         if (GetProperty(jsonObj, &jsonPosition, "position") !=
                             FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to get position property\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         char position[BUFFSIZE];
                         if (ConvertJsonToString(jsonPosition, position) !=
                             FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to convert position to "
-                                        "string\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         const char *const prefix = "file:\\\\%s";
                         if (strlen(path) + strlen(prefix) >= BUFFSIZE)
                         {
-                                fprintf(stderr,
-                                        "Path with prefix is too large\n");
-                                return false;
+                                return FUNC_STATUS_MEM_ERR;
                         }
 
                         char prefixPath[BUFFSIZE];
                         if (snprintf(prefixPath, BUFFSIZE, prefix, path) < 0)
                         {
-                                fprintf(stderr, "Failed append file prefix\n");
-                                return false;
+                                return FUNC_STATUS_MEM_ERR;
                         }
 
                         size_t x, y;
                         if (!Get2DValue(position, &x, &y))
                         {
-                                fprintf(stderr, "Failed to convert coords\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         string_json_t jsonTopMost;
                         if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
                             FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to get alwaysOnTop property\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         char topMost[BUFFSIZE];
                         if (ConvertJsonToString(jsonTopMost, topMost) !=
                             FUNC_SUCCESS)
                         {
-                                fprintf(stderr,
-                                        "Failed to convert alwaysOnTop to "
-                                        "string\n");
-                                return false;
+                                return FUNC_STATUS_ENV_ERR;
                         }
 
                         // Loading each individual child into the stack
@@ -664,7 +691,7 @@ LoadConfigurationFromFile()
                 }
         }
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -681,9 +708,9 @@ isWindowTopMost(const HWND hWnd)
 
 /**
  * @brief Creates a json context in-memory and saves to a json file
- * @returns true if successful, else false on failure
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 SaveConfigurationToFile()
 {
         size_t bytesWritten = 0;
@@ -696,22 +723,19 @@ SaveConfigurationToFile()
 
                 if (pathLength >= BUFFSIZE)
                 {
-                        fprintf(stderr, "Str won't fit: %s\n", window.filename);
-                        return false;
+                        return FUNC_STATUS_MEM_ERR;
                 }
 
                 char filename[BUFFSIZE];
                 if (snprintf(filename, BUFFSIZE, "%s", window.filename) < 0)
                 {
-                        fprintf(stderr, "Failed to copy string to buffer\n");
-                        return false;
+                        return FUNC_STATUS_MEM_ERR;
                 }
 
                 RECT rect;
                 if (!GetWindowRect(hWnd, &rect))
                 {
-                        fprintf(stderr, "Failed to get window dimensions\n");
-                        return false;
+                        return FUNC_STATUS_ENV_ERR;
                 }
 
                 int16_t x = rect.left, y = rect.top;
@@ -727,8 +751,7 @@ SaveConfigurationToFile()
                                                             : "false")) >=
                     JSONBUFFSIZE)
                 {
-                        fprintf(stderr, "Couldn't build last session widget\n");
-                        return false;
+                        return FUNC_STATUS_MEM_ERR;
                 }
         }
         session[strlen(session) - 1] = '\0';
@@ -749,27 +772,24 @@ SaveConfigurationToFile()
                     g_settings.isOpenAppOnStartupEnabled ? "true" : "false",
                     session) < 0)
         {
-                fprintf(stderr, "Failed to build json string\n");
-                return false;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         char directory[BUFFSIZE];
         if (ww_default_widgets_dir(directory))
         {
-                fprintf(stderr, "Failed to get default widgets directory\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
         strncat(directory,
                 CONFIG_NAME,
                 strlen(directory) + strlen(CONFIG_NAME));
 
-        if (!ww_write_to_file(directory, json, WRITE_OVERWRITE))
+        if (ww_write_to_file(directory, json, WRITE_OVERWRITE))
         {
-                fprintf(stderr, "Failed to write configuration to json file\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /*
@@ -777,23 +797,18 @@ SaveConfigurationToFile()
  * @param sender Object that triggered the event
  * @param args Arguments of the event
  */
-static HRESULT
+static func_status_t
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                IUnknown *const args)
 {
         const HWND handle = g_hWndTable[g_hWndSelectedHash];
         if (DestroyWindow(handle) == 0)
         {
-                fprintf(stderr, "Failed to destroy window\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
-        if (!SaveConfigurationToFile())
-        {
-                fprintf(stderr, "Failed to save configuration file\n");
-                return S_FALSE;
-        }
-        return S_OK;
+        EVALEXPR(SaveConfigurationToFile());
+        return FUNC_STATUS_OK;
 }
 
 /*
@@ -804,7 +819,7 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
  * @param args Arguments of the event
  * @returns 0 if successful, else some other number
  */
-static HRESULT
+static func_status_t
 OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                               IUnknown *const args)
 {
@@ -813,8 +828,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         RECT rect;
         if (!GetWindowRect(handle, &rect))
         {
-                fprintf(stderr, "Failed to get window size\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         POINT position;
@@ -822,8 +836,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         {
                 if (!GetCursorPos(&position))
                 {
-                        fprintf(stderr, "Failed to get cursor position\n");
-                        return S_FALSE;
+                        return FUNC_STATUS_ENV_ERR;
                 }
 
                 if (!SetWindowPos(handle,
@@ -834,33 +847,31 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                   0,
                                   SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
                 {
-                        fprintf(stderr, "Failed to move window\n");
-                        return S_FALSE;
+                        return FUNC_STATUS_ENV_ERR;
                 }
         }
 
-        if (!SaveConfigurationToFile())
-        {
-                fprintf(stderr, "Failed to save configuration file\n");
-                return S_FALSE;
-        }
-        return S_OK;
+        EVALEXPR(SaveConfigurationToFile());
+
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Set the top most status of a window
+ * @param hWnd Handle to the window to be modified
+ * @param src Flag to set the top most state
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 SetWindowTopMost(const HWND hWnd, const bool src)
 {
         const HWND flags[] = {HWND_TOPMOST, HWND_NOTOPMOST};
         if (!SetWindowPos(
                     hWnd, flags[src], 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
         {
-                fprintf(stderr, "Failed to set window to top most\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /*
@@ -868,24 +879,15 @@ SetWindowTopMost(const HWND hWnd, const bool src)
  * @param sender Object that triggered the event
  * @param args Arguments of the event
  */
-static HRESULT
+static func_status_t
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                  IUnknown *const args)
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
         const bool topMost = isWindowTopMost(hWnd);
-        if (!SetWindowTopMost(hWnd, topMost))
-        {
-                fprintf(stderr, "Failed to set %d to top most\n", topMost);
-                return S_FALSE;
-        }
-
-        if (!SaveConfigurationToFile())
-        {
-                fprintf(stderr, "Failed to save configuration file\n");
-                return S_FALSE;
-        }
-        return S_OK;
+        EVALEXPR(SetWindowTopMost(hWnd, topMost));
+        EVALEXPR(SaveConfigurationToFile());
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -898,16 +900,16 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
  * @param eventHandler Pointer to the event handler function
  * @returns A pointer to the new context menu item, or nullptr on failure
  */
-static ICoreWebView2ContextMenuItem *
+static func_status_t
 AddContextMenuItem(
         ICoreWebView2Environment10 *const environment,
         ICoreWebView2ContextMenuItemCollection *const items,
         UINT32 *const itemsCount,
         EventRegistrationToken *const token,
         ICoreWebView2CustomItemSelectedEventHandler *const eventHandler,
-        const wchar_t *const label)
+        const wchar_t *const label,
+        ICoreWebView2ContextMenuItem *menuItem)
 {
-        ICoreWebView2ContextMenuItem *menuItem = nullptr;
         if (environment->lpVtbl->CreateContextMenuItem(
                     environment,
                     label,
@@ -915,32 +917,28 @@ AddContextMenuItem(
                     COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
                     &menuItem) != S_OK)
         {
-                fprintf(stderr, "Failed to add menu item\n");
-                return nullptr;
+                return FUNC_STATUS_WBV_ERR;
         }
 
         if (menuItem->lpVtbl->remove_CustomItemSelected(menuItem, *token) !=
             S_OK)
         {
-                fprintf(stderr, "Failed to unsubscribe from event\n");
-                return nullptr;
+                return FUNC_STATUS_WBV_ERR;
         }
 
         if (menuItem->lpVtbl->add_CustomItemSelected(
                     menuItem, eventHandler, token) != S_OK)
         {
-                fprintf(stderr, "Failed to add event handler\n");
-                return nullptr;
+                return FUNC_STATUS_WBV_ERR;
         }
 
         if (items->lpVtbl->InsertValueAtIndex(items, *itemsCount, menuItem) !=
             S_OK)
         {
-                fprintf(stderr, "Failed to insert item to list\n");
-                return nullptr;
+                return FUNC_STATUS_WBV_ERR;
         }
 
-        return menuItem;
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -948,32 +946,29 @@ AddContextMenuItem(
  * @param args Arguments of the context menu event
  * @returns 0 if successful, else some other number
  */
-static HRESULT
+static func_status_t
 RemoveContextMenuItems(ICoreWebView2ContextMenuRequestedEventArgs *const args)
 {
-        HRESULT status = S_OK;
+        HRESULT status = FUNC_STATUS_OK;
 
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
         {
-                fprintf(stderr, "Failed to get menu items\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
         UINT32 itemsCount;
         if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
         {
-                fprintf(stderr, "Failed to get items count\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
         ICoreWebView2ContextMenuTarget *target = nullptr;
         if (args->lpVtbl->get_ContextMenuTarget(args, &target) != S_OK)
         {
-                fprintf(stderr, "Failed to get context menu target\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
@@ -982,15 +977,13 @@ RemoveContextMenuItems(ICoreWebView2ContextMenuRequestedEventArgs *const args)
         {
                 if (items->lpVtbl->GetValueAtIndex(items, i, &current) != S_OK)
                 {
-                        fprintf(stderr, "Failed to get value at index\n");
-                        status = S_FALSE;
+                        status = FUNC_STATUS_WBV_ERR;
                         goto cleanup;
                 }
 
                 if (items->lpVtbl->RemoveValueAtIndex(items, i) != S_OK)
                 {
-                        fprintf(stderr, "Failed to remove value at index\n");
-                        status = S_FALSE;
+                        status = FUNC_STATUS_WBV_ERR;
                         goto cleanup;
                 }
 
@@ -1013,7 +1006,7 @@ cleanup:
         {
                 items->lpVtbl->Release(items);
         }
-        return S_OK;
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -1023,34 +1016,27 @@ cleanup:
  * @param args Arguments of the caller
  * @returns 0 if successful, else any other value
  */
-static HRESULT
+static func_status_t
 WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuRequestedEventHandler *const this,
         ICoreWebView2 *const sender,
         ICoreWebView2ContextMenuRequestedEventArgs *const args)
 {
-        HRESULT status = S_OK;
+        HRESULT status = FUNC_STATUS_OK;
 
-        if (RemoveContextMenuItems(args) != S_OK)
-        {
-                fprintf(stderr, "Failed to remove all context menu items\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
+        EVALEXPRCLEANUP(RemoveContextMenuItems(args));
 
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
         {
-                fprintf(stderr, "Failed to get menu items\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         UINT32 itemsCount;
         if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
         {
-                fprintf(stderr, "Failed to get items count\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1058,16 +1044,14 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         LPWSTR pathPtr = pathWcharPtr;
         if (sender->lpVtbl->get_Source(sender, &pathPtr) != S_OK)
         {
-                fprintf(stderr, "Failed to get path to HTML file\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         char pathCharPtr[BUFFSIZE];
         if (wcstombs(pathCharPtr, pathPtr, BUFFSIZE) < 0)
         {
-                fprintf(stderr, "Failed to convert wide to normal char\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1075,8 +1059,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         char out[BUFFSIZE];
         if (!TrimStart(pathCharPtr, out, FILE_PREFIX_OFFSET))
         {
-                fprintf(stderr, "Failed to trim start of the path\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1087,46 +1070,31 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 (ICoreWebView2Environment10 *)g_env;
 
         ICoreWebView2ContextMenuItem *moveBtnMenuItem = nullptr;
-        if ((moveBtnMenuItem = AddContextMenuItem(environment,
-                                                  items,
-                                                  &itemsCount,
-                                                  &g_moveEventHandlerToken,
-                                                  &moveMenuSelectedHandler,
-                                                  LBL_CTX_MENU_MOVE)) ==
-            nullptr)
-        {
-                fprintf(stderr, "Failed to add move menu item\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
+        EVALEXPRCLEANUP(AddContextMenuItem(environment,
+                                           items,
+                                           &itemsCount,
+                                           &g_moveEventHandlerToken,
+                                           &moveMenuSelectedHandler,
+                                           LBL_CTX_MENU_MOVE,
+                                           moveBtnMenuItem));
 
         ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
-        if ((topMostBtnMenuItem =
-                     AddContextMenuItem(environment,
-                                        items,
-                                        &itemsCount,
-                                        &g_topMostEventHandlerToken,
-                                        &topMostMenuSelectedHandler,
-                                        LBL_CTX_MENU_TOP_MOST)) == nullptr)
-        {
-                fprintf(stderr, "Failed to add top most menu item\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
+        EVALEXPRCLEANUP(AddContextMenuItem(environment,
+                                           items,
+                                           &itemsCount,
+                                           &g_topMostEventHandlerToken,
+                                           &topMostMenuSelectedHandler,
+                                           LBL_CTX_MENU_TOP_MOST,
+                                           topMostBtnMenuItem));
 
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
-        if ((closeBtnMenuItem = AddContextMenuItem(environment,
-                                                   items,
-                                                   &itemsCount,
-                                                   &g_closeEventHandlerToken,
-                                                   &closeMenuSelectedHandler,
-                                                   LBL_CTX_MENU_CLOSE)) ==
-            nullptr)
-        {
-                fprintf(stderr, "Failed to add close menu item\n");
-                status = S_FALSE;
-                goto cleanup;
-        }
+        EVALEXPRCLEANUP(AddContextMenuItem(environment,
+                                           items,
+                                           &itemsCount,
+                                           &g_closeEventHandlerToken,
+                                           &closeMenuSelectedHandler,
+                                           LBL_CTX_MENU_CLOSE,
+                                           closeBtnMenuItem));
 
 cleanup:
         if (closeBtnMenuItem != nullptr)
@@ -1155,24 +1123,22 @@ cleanup:
 /**
  * @brief Appends the widget to the global list of browsers.
  * @param webview Webview component
- * @returns true if successful, else false on failure
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 AppendWidgetsToDOM(ICoreWebView2 *const webview)
 {
         char app_dir[BUFFSIZE];
-        if (ww_default_widgets_dir(app_dir) == true)
+        if (ww_default_widgets_dir(app_dir))
         {
-                fprintf(stderr, "Failed to get default app directory\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         size_t count = 0;
         char widgets[MAX_WIDGETS][BUFFSIZE];
         if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
         {
-                fprintf(stderr, "Failed to read directory\n");
-                return false;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         size_t bytes = 0;
@@ -1187,8 +1153,7 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 const size_t filenameLen = strlen(widgets[i]);
                 if (filenameLen >= BUFFSIZE - offset)
                 {
-                        fprintf(stderr, "Buffer is too small to host string\n");
-                        return false;
+                        return FUNC_STATUS_MEM_ERR;
                 }
 
                 bytes += snprintf(&files[bytes], BUFFSIZE, "'%s',", widgets[i]);
@@ -1197,31 +1162,29 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
 
         if (bytes >= maxLength)
         {
-                fprintf(stderr, "Bytes are too large to process\n");
-                return false;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         const char *const funcDef = "addWidgets(\"[%s]\")";
         char command[maxLength + strlen(funcDef)];
         if ((bytes = snprintf(command, maxLength, funcDef, files)) < 0)
         {
-                fprintf(stderr, "Failed to write bytes to command buffer\n");
-                return false;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         wchar_t wideBuffCommand[maxLength];
         mbstowcs(wideBuffCommand, command, bytes);
         webview->lpVtbl->ExecuteScript(webview, wideBuffCommand, nullptr);
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Loads the settings in-memory into the DOM
  * @param webview Webview core object
- * @returns true if successful, else false on failure
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 AppendSettingsToDOM(ICoreWebView2 *const webview)
 {
         char settings[BUFFSIZE];
@@ -1235,17 +1198,24 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
                  g_settings.isOpenAppOnStartupEnabled ? "true" : "false");
 
         wchar_t command[BUFFSIZE];
-        mbstowcs(command, settings, strlen(settings));
-        webview->lpVtbl->ExecuteScript(webview, command, nullptr);
-        return true;
+        if (mbstowcs(command, settings, strlen(settings)) < 0)
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+
+        if (webview->lpVtbl->ExecuteScript(webview, command, nullptr) != S_OK)
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Flips the internal flag of a setting by name
  * @param src Name of the flag to flip
- * @returns true if successful, else false on failure
  */
-static bool
+static void
 ToggleSettingByName(const char *const src)
 {
         if (strcmp(src, "isOpenAppOnStartupEnabled") == 0)
@@ -1266,12 +1236,7 @@ ToggleSettingByName(const char *const src)
                         !g_settings.isWidgetAutostartEnabled;
         }
 
-        if (!SaveConfigurationToFile())
-        {
-                return false;
-        }
-
-        return true;
+        EVALEXPR(SaveConfigurationToFile());
 }
 
 /**
@@ -1279,8 +1244,9 @@ ToggleSettingByName(const char *const src)
  * @param handler Received event handler
  * @param webview Context of the webview
  * @param args Arguments of the event handler
+ * @returns The status of the operation upon return
  */
-static HRESULT
+static func_status_t
 WebView2WebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *const handler,
         ICoreWebView2 *const webview,
@@ -1295,8 +1261,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 CP_UTF8, 0, wMessage, -1, nullptr, 0, nullptr, nullptr);
         if (ret == 0)
         {
-                fprintf(stderr, "Error getting default size for utf8 string\n");
-                return S_FALSE;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         char cMessage[BUFFSIZE];
@@ -1304,30 +1269,26 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 CP_UTF8, 0, wMessage, -1, cMessage, ret, nullptr, nullptr);
         if (ret == 0)
         {
-                fprintf(stderr, "Failed to convert string to UTF-8\n");
-                return S_FALSE;
+                return FUNC_STATUS_MEM_ERR;
         }
 
         // The result is returned as a JSON string, parse the string here
         string_json_t dataString;
         if (ConvertStringToJson(cMessage, &dataString) != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Error converting to JSON\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t eventIdStr;
         if (GetProperty(dataString, &eventIdStr, "eventId") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Event ID could not be found\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         string_json_t argsJson;
         if (GetProperty(dataString, &argsJson, "args") != FUNC_SUCCESS)
         {
-                fprintf(stderr, "Event arguments could not be found\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         // Each event has an associated id to trigger default functions. Some
@@ -1337,40 +1298,24 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         if (ConvertJsonToStandardType(eventIdStr, JSON_INT, &eventId) !=
             FUNC_SUCCESS)
         {
-                fprintf(stderr, "Error converting JSON to Integer type\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         char argument[BUFFSIZE];
         if (ConvertJsonToStandardType(argsJson, JSON_CHAR_ARR, &argument) !=
             FUNC_SUCCESS)
         {
-                fprintf(stderr, "Error converting JSON to char array type\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         switch (eventId)
         {
         case EVT_OPEN_DEFAULT_DIR:
-                if (!OpenDefaultDirectory())
-                {
-                        fprintf(stderr, "Failed to open default directory\n");
-                        return EXIT_REASON_IO_FAILURE;
-                }
+                EVALEXPR(OpenDefaultDirectory());
                 break;
         case EVT_GET_WGT_FILENAMES:
-                if (!AppendWidgetsToDOM(webview))
-                {
-                        fprintf(stderr,
-                                "Could not add local widgets to list\n");
-                        return EXIT_REASON_IO_FAILURE;
-                }
-
-                if (!AppendSettingsToDOM(webview))
-                {
-                        fprintf(stderr, "Failed to append settings to DOM\n");
-                        return EXIT_REASON_IO_FAILURE;
-                }
+                EVALEXPR(AppendWidgetsToDOM(webview));
+                EVALEXPR(AppendSettingsToDOM(webview));
                 break;
         case EVT_OPEN_WGT_FILENAME:
                 char filename[BUFFSIZE];
@@ -1378,25 +1323,14 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 filename[argsJson.length] = '\0';
 
                 char content[USHRT_MAX];
-                if (!OpenWidgetByFilename(
-                            filename, nullptr, nullptr, nullptr, content))
-                {
-                        fprintf(stderr, "Failed to open widget by filename\n");
-                        return EXIT_REASON_IO_FAILURE;
-                }
+                EVALEXPR(OpenWidgetByFilename(
+                        filename, nullptr, nullptr, nullptr, content));
                 break;
         case EVT_TOGGLE_SETTING:
                 char setting[BUFFSIZE];
                 memcpy(setting, argument, argsJson.length);
                 setting[argsJson.length] = '\0';
-
-                if (!ToggleSettingByName(setting))
-                {
-                        fprintf(stderr,
-                                "Failed to toggle setting %s\n",
-                                setting);
-                        return EXIT_REASON_IO_FAILURE;
-                }
+                ToggleSettingByName(setting);
                 break;
         }
 
@@ -1410,7 +1344,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
  * @param arg Argument of the event
  * @returns S_OK on success, else S_FALSE on failure
  */
-static HRESULT
+static func_status_t
 EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
                                   const HRESULT errorCode,
                                   const ICoreWebView2Environment *const arg)
@@ -1422,11 +1356,10 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
                     g_env, hWnd, &controllerCompletedHandler) != S_OK)
         {
-                fprintf(stderr, "Failed to create controller\n");
-                return S_FALSE;
+                return FUNC_STATUS_ENV_ERR;
         }
 
-        return S_OK;
+        return FUNC_STATUS_OK;
 }
 
 /**
@@ -1435,12 +1368,12 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
  * @param erroCode Status code
  * @param arg WebView2 Controller
  */
-static HRESULT
+static func_status_t
 ControllerCompletedHandlerInvoke(const IUnknown *const this,
                                  const HRESULT errorCode,
                                  const ICoreWebView2Controller *const arg)
 {
-        HRESULT status = S_OK;
+        HRESULT status = FUNC_STATUS_OK;
 
         g_widgets[g_widgetCount].controller = (ICoreWebView2Controller *)arg;
         ICoreWebView2Controller *controller =
@@ -1451,8 +1384,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                             controller, &g_widgets[g_widgetCount].window) !=
                     S_OK)
                 {
-                        fprintf(stderr, "Failed to get webview core\n");
-                        status = S_FALSE;
+                        status = FUNC_STATUS_ENV_ERR;
                         goto cleanup;
                 }
 
@@ -1465,52 +1397,45 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                 (ICoreWebView2_11 *)g_widgets[g_widgetCount].window;
         if (window->lpVtbl->get_Settings(window, &settings) != S_OK)
         {
-                fprintf(stderr, "Failed to get settings\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsScriptEnabled(settings, true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable script\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultScriptDialogsEnabled(settings,
                                                                  true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable dialogs script\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsWebMessageEnabled(settings, true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable messages\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDevToolsEnabled(settings, true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable dev tools\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultContextMenusEnabled(settings,
                                                                 true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable context menu\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsStatusBarEnabled(settings, true) != S_OK)
         {
-                fprintf(stderr, "Failed to enable status bar\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1518,15 +1443,13 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         RECT bounds;
         if (!GetClientRect(hWnd, &bounds))
         {
-                fprintf(stderr, "Failed to get client rect\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         if (controller->lpVtbl->put_Bounds(controller, bounds) != S_OK)
         {
-                fprintf(stderr, "Failed to put bounds\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1542,8 +1465,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         if (window->lpVtbl->add_WebMessageReceived(
                     window, &messageReceivedEventHandler, &token) != S_OK)
         {
-                fprintf(stderr, "Failed to add js message event handler\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1553,9 +1475,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                 if (window->lpVtbl->add_ContextMenuRequested(
                             window, &contextMenuEventHandler, &token) != S_OK)
                 {
-                        fprintf(stderr,
-                                "Failed to add context menu requested\n");
-                        status = S_FALSE;
+                        status = FUNC_STATUS_ENV_ERR;
                         goto cleanup;
                 }
         }
@@ -1563,13 +1483,16 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         // Converting the URI to a widestr so that we can pass to Navigate(...)
         wchar_t path[BUFFSIZE];
         const size_t pathLen = strlen(windowCtx.filename);
-        mbstowcs(path, windowCtx.filename, pathLen);
+        if (mbstowcs(path, windowCtx.filename, pathLen) < 0)
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
+        }
         path[pathLen] = '\0';
 
         if (window->lpVtbl->Navigate(window, path) != S_OK)
         {
-                fprintf(stderr, "Failed to navigate to the URI\n");
-                status = S_FALSE;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1641,8 +1564,6 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         RECT bounds;
                         if (!GetClientRect(hWnd, &bounds))
                         {
-                                fprintf(stderr,
-                                        "Failed to get bounds of hWnd\n");
                                 return S_FALSE;
                         }
 
@@ -1650,18 +1571,12 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 g_widgets[i].controller;
                         if (controller == nullptr)
                         {
-                                fprintf(stderr,
-                                        "Controller required but is "
-                                        "missing\n");
                                 return S_FALSE;
                         }
 
                         if (controller->lpVtbl->put_Bounds(controller,
                                                            bounds) != S_OK)
                         {
-                                fprintf(stderr,
-                                        "Failed to put controller into "
-                                        "bounds\n");
                                 return S_FALSE;
                         }
                 } while (++i < g_widgetCount);
@@ -1700,8 +1615,9 @@ event_loop()
  * @brief Sets the transparency of the window
  * @param hWnd Handle to the window
  * @param alpha Value between 0 to 1 for opacity
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 SetWindowOpacity(const HWND hWnd, const double alpha)
 {
         LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
@@ -1709,27 +1625,25 @@ SetWindowOpacity(const HWND hWnd, const double alpha)
 
         if (SetWindowLong(hWnd, GWL_EXSTYLE, style) == 0)
         {
-                fprintf(stderr, "Failed to change the window attribute\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         const byte byteAlpha = alpha * MAX_ALPHA;
         if (SetLayeredWindowAttributes(hWnd, 0, byteAlpha, LWA_ALPHA) == 0)
         {
-                fprintf(stderr, "Failed to set window attributes\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Set the border radius for the corners of the window
  * @param hWnd Handle to the window
  * @param context Window context of the widget
- * @returns True if successful, else false
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
 {
         const size_t width = context->width;
@@ -1738,37 +1652,35 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
         const bool child = context->child;
         if (radius <= 0 || !child)
         {
-                return true;
+                return FUNC_STATUS_OK;
         }
 
         const HRGN hRgn =
                 CreateRoundRectRgn(0, 0, width, height, radius, radius);
         if (hRgn == nullptr)
         {
-                fprintf(stderr, "Faield to create round rect\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         if (SetWindowRgn(hWnd, hRgn, true) == 0)
         {
-                fprintf(stderr, "Failed to set the window region\n");
-                return false;
+                return FUNC_STATUS_ENV_ERR;
         }
 
         DeleteObject(hRgn);
 
-        return true;
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Creates a new window
  * @param context Context of the window with all options
- * @returns true if successful, else false on failure
+ * @returns The status of the operation upon return
  */
-static bool
+static func_status_t
 create_widget_window(ww_window_ctx *const context)
 {
-        bool status = true;
+        func_status_t status = FUNC_STATUS_OK;
 
         // Children should not have prefixes
         if (context->child)
@@ -1795,8 +1707,7 @@ create_widget_window(ww_window_ctx *const context)
         if (g_hWndTable[hash] != nullptr)
         {
                 g_widgetCount--;
-                fprintf(stderr, "Warning: Only one widget type once\n");
-                status = true;
+                status = FUNC_STATUS_USR_ERR;
                 goto cleanup;
         }
 
@@ -1804,11 +1715,7 @@ create_widget_window(ww_window_ctx *const context)
         wc.lpfnWndProc = WindowProc;
         wc.hInstance = g_hInstance;
         wc.lpszClassName = CLASS_NAME;
-
-        if (RegisterClass(&wc) == 0)
-        {
-                fprintf(stderr, "Failed to register class\n");
-        }
+        RegisterClass(&wc);
 
         HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
         const size_t wsStyle = context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW;
@@ -1825,43 +1732,25 @@ create_widget_window(ww_window_ctx *const context)
                                     g_hInstance,
                                     nullptr)) == nullptr)
         {
-                fprintf(stderr, "Failed to create window\n");
-                status = false;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
         g_hWndTable[hash] = *hWnd;
         ShowWindow(*hWnd, g_nCmdShow);
 
-        if (!SetWindowBorderRadius(*hWnd, context))
-        {
-                fprintf(stderr, "Failed to set window radius\n");
-                status = false;
-                goto cleanup;
-        }
-
-        if (!SetWindowOpacity(*hWnd, context->opacity))
-        {
-                fprintf(stderr, "Failed to set window opacity\n");
-                status = false;
-                goto cleanup;
-        }
+        EVALEXPRCLEANUP(SetWindowBorderRadius(*hWnd, context));
+        EVALEXPRCLEANUP(SetWindowOpacity(*hWnd, context->opacity));
 
         // Apply these visual changes only for children widgets
-        if (context->child == true)
+        if (context->child)
         {
-                if (!SetWindowTopMost(*hWnd, context->top_most == 0))
-                {
-                        fprintf(stderr, "Failed to set window top most\n");
-                        status = false;
-                        goto cleanup;
-                }
+                EVALEXPR(SetWindowTopMost(*hWnd, context->top_most == 0));
         }
 
         if (!UpdateWindow(*hWnd))
         {
-                fprintf(stderr, "Failed to update window\n");
-                status = false;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
@@ -1873,8 +1762,7 @@ create_widget_window(ww_window_ctx *const context)
                             nullptr,
                             &environmentCompletedHandler) != S_OK)
                 {
-                        fprintf(stderr, "Failed to create environment\n");
-                        status = false;
+                        status = FUNC_STATUS_ENV_ERR;
                         goto cleanup;
                 }
                 return true;
@@ -1883,13 +1771,12 @@ create_widget_window(ww_window_ctx *const context)
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
                     g_env, *hWnd, &controllerCompletedHandler) != S_OK)
         {
-                fprintf(stderr, "Failed to create controller\n");
-                status = false;
+                status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
         }
 
 cleanup:
-        if (!status)
+        if (status > FUNC_STATUS_USR_ERR)
         {
                 CoUninitialize();
         }
@@ -1914,22 +1801,21 @@ ww_init_main(HINSTANCE hInstance,
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
 
+        if ((g_eventLog = RegisterEventSourceA(nullptr, "WinWidgets")) ==
+            nullptr)
+        {
+                fprintf(stderr, "Could not register event\n");
+                return true;
+        }
+
         if (FAILED(CoInitialize(nullptr)))
         {
                 fprintf(stderr, "COM Failed to initialize\n");
                 return true;
         }
 
-        if (!LoadConfigurationFromFile())
-        {
-                fprintf(stderr, "Warning: Cofnig file not present\n");
-        }
-
-        if (!create_widget_window(context))
-        {
-                fprintf(stderr, "WebView2 Failed to create a window\n");
-                return false;
-        }
+        EVALEXPR(LoadConfigurationFromFile());
+        EVALEXPR(create_widget_window(context));
 
         return event_loop();
 }
