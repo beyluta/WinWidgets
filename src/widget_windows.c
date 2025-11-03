@@ -6,12 +6,12 @@
 #include <consoleapi.h>
 #include <io.h>
 #include <limits.h>
-#include <minwindef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stringapiset.h>
+#include <shellapi.h>
 #include <unistd.h>
 #include <wchar.h>
 #include <windows.h>
@@ -23,9 +23,11 @@
 #include <mmc.h>
 #include <pthread.h>
 
+static constexpr char PROG_NAME[] = "WinWidgets";
 static constexpr char INTERN_PROG_SEM_VER[] = "2.0.0";
-static constexpr char CLASS_NAME[] = "WidgetClass";
 static constexpr char CONFIG_NAME[] = "\\config.json";
+static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
+
 static constexpr char TAG_APP_NAME[] = "applicationTitle";
 static constexpr char TAG_APP_TOPMOST[] = "topMost";
 static constexpr char TAG_WIN_SIZE[] = "windowSize";
@@ -42,6 +44,8 @@ static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
 static constexpr uint8_t HASH_PRIME = 31;
 static constexpr uint8_t HANDLE_PREFIX_OFFSET = 7;
 static constexpr uint8_t FILE_PREFIX_OFFSET = 8;
+static constexpr uint8_t PROG_NAME_SIZE =
+        sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
 
 static constexpr uint16_t BUFFSIZ = USHRT_MAX;
 static constexpr uint16_t DEF_WIDTH = 500;
@@ -1613,6 +1617,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 return S_FALSE;
                         }
                 } while (++i < g_widgetCount);
+                break;
 
                 return S_FALSE;
         }
@@ -1707,9 +1712,11 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
 
 /**
  * @brief Hides the window from the taskbar
+ * @param hWnd Handle to the window
+ * @returns The status of the operation upon return
  */
 static func_status_t
-HideWindowFromTaskbar(HWND hWnd)
+HideWindowFromTaskbar(const HWND hWnd)
 {
         LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
         if (SetWindowLong(hWnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW) == 0)
@@ -1719,6 +1726,36 @@ HideWindowFromTaskbar(HWND hWnd)
 
         ShowWindow(hWnd, SW_SHOW);
 
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Set window icon
+ * @param hWnd Handle to the window
+ * @param src Resource ico to set the icon to
+ * @param hIcon Handle to the icon
+ * @returns The status of the operation upon return
+ */
+static func_status_t
+SetWindowIcon(const HWND hWnd, const char *const src, HANDLE *hIcon)
+{
+        if ((*hIcon = LoadImage(0,
+                                src,
+                                IMAGE_ICON,
+                                0,
+                                0,
+                                LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED |
+                                        LR_DEFAULTCOLOR)) == nullptr)
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        const LPARAM icon = (LPARAM)*hIcon;
+        const HWND hWndParent = GetWindow(hWnd, GW_OWNER);
+        SendMessage(hWnd, WM_SETICON, ICON_SMALL, icon);
+        SendMessage(hWnd, WM_SETICON, ICON_BIG, icon);
+        SendMessage(hWndParent, WM_SETICON, ICON_SMALL, icon);
+        SendMessage(hWndParent, WM_SETICON, ICON_BIG, icon);
         return FUNC_STATUS_OK;
 }
 
@@ -1769,11 +1806,11 @@ create_widget_window(ww_window_ctx *const context)
                 WNDCLASS invisibleWc = {};
                 invisibleWc.lpfnWndProc = WindowProc;
                 invisibleWc.hInstance = g_hInstance;
-                invisibleWc.lpszClassName = CLASS_NAME;
+                invisibleWc.lpszClassName = PROG_NAME;
                 RegisterClass(&invisibleWc);
 
                 g_invisibleHwnd = CreateWindowEx(0,
-                                                 CLASS_NAME,
+                                                 PROG_NAME,
                                                  nullptr,
                                                  WS_OVERLAPPED,
                                                  CW_USEDEFAULT,
@@ -1784,14 +1821,34 @@ create_widget_window(ww_window_ctx *const context)
                                                  nullptr,
                                                  g_hInstance,
                                                  nullptr);
+
+                // Setting the ICON of the invisible window
                 ShowWindow(g_invisibleHwnd, SW_HIDE);
                 UpdateWindow(g_invisibleHwnd);
+
+                HANDLE hIcon;
+                EVALEXPRCLEANUP(
+                        SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hIcon));
+
+                // Creating the systemtray icon for this invisible window
+                NOTIFYICONDATA nId;
+                nId.cbSize = sizeof(nId);
+                nId.hWnd = g_invisibleHwnd;
+                nId.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+                nId.uID = 0;
+                nId.uCallbackMessage = 0;
+                nId.hIcon = hIcon;
+                nId.uVersion = NOTIFYICON_VERSION_4;
+
+                memcpy(nId.szTip, PROG_NAME, PROG_NAME_SIZE);
+
+                Shell_NotifyIcon(NIM_ADD, &nId);
         }
 
         WNDCLASS wc = {};
         wc.lpfnWndProc = WindowProc;
         wc.hInstance = g_hInstance;
-        wc.lpszClassName = CLASS_NAME;
+        wc.lpszClassName = PROG_NAME;
         RegisterClass(&wc);
 
         HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
@@ -1799,7 +1856,7 @@ create_widget_window(ww_window_ctx *const context)
                 context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW | WS_VISIBLE;
         const HWND parentHwnd = context->child ? nullptr : g_invisibleHwnd;
         if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
-                                    CLASS_NAME,
+                                    PROG_NAME,
                                     context->title,
                                     wsStyle,
                                     context->x,
@@ -1818,14 +1875,17 @@ create_widget_window(ww_window_ctx *const context)
         g_hWndTable[hash] = *hWnd;
         ShowWindow(*hWnd, g_nCmdShow);
 
+        HANDLE hIcon;
+        EVALEXPRCLEANUP(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon));
         EVALEXPRCLEANUP(SetWindowBorderRadius(*hWnd, context));
         EVALEXPRCLEANUP(SetWindowOpacity(*hWnd, context->opacity));
 
         // Apply these visual changes only for children widgets
         if (context->child)
         {
-                EVALEXPR(SetWindowTopMost(*hWnd, context->top_most == 0));
-                EVALEXPR(HideWindowFromTaskbar(*hWnd));
+                const bool topMost = context->top_most == 0;
+                EVALEXPRCLEANUP(SetWindowTopMost(*hWnd, topMost));
+                EVALEXPRCLEANUP(HideWindowFromTaskbar(*hWnd));
         }
 
         if (!UpdateWindow(*hWnd))
