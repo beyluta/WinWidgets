@@ -56,10 +56,16 @@ static constexpr uint16_t DEF_X = 0;
 static constexpr uint16_t DEF_Y = 0;
 static constexpr uint16_t DEF_OPACITY = 1;
 static constexpr uint16_t DEF_RADIUS = 0;
-static constexpr uint16_t KEY_STATE_HELD = SHRT_MAX + 1;
-
 static constexpr bool DEF_CHILD = true;
 static constexpr bool DEF_TOPMOST = false;
+
+static constexpr uint16_t KEY_STATE_HELD = SHRT_MAX + 1;
+static constexpr uint16_t PROG_WM_ICONNOTIFY = WM_APP + 1;
+
+static constexpr uint8_t UID_SYSTRAY_EXIT = 0;
+static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
+static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
+static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
 typedef enum : uint8_t
 {
@@ -389,7 +395,7 @@ OpenDefaultDirectory()
  * @param content Pointer to the widget content string
  * @returns The status of the operation upon return
  */
-static func_status_t
+static func_status_t __attribute__((optimize("01")))
 OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
@@ -797,6 +803,38 @@ SaveConfigurationToFile()
         return FUNC_STATUS_OK;
 }
 
+/**
+ * @brief Destroys a window by its HWND
+ * @param hWnd Handle to destroy
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+DestroyWidowByHWND(const HWND hWnd)
+{
+        if (DestroyWindow(hWnd) == 0)
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+        memset(&g_hWndTable, 0, sizeof(HWND) * MAX_WIDGETS);
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Destroys all open widget windows
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+DestroyWidgetWindows()
+{
+        const size_t total = g_widgetCount;
+        for (size_t i = 1; i <= total; i++)
+        {
+                const HWND hWnd = g_widgets[i].hWnd;
+                EVALEXPR(DestroyWidowByHWND(hWnd));
+        }
+        return FUNC_STATUS_OK;
+}
+
 /*
  * @brief Triggers when the close menu item is selected
  * @param sender Object that triggered the event
@@ -806,12 +844,8 @@ static func_status_t
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                IUnknown *const args)
 {
-        const HWND handle = g_hWndTable[g_hWndSelectedHash];
-        if (DestroyWindow(handle) == 0)
-        {
-                return FUNC_STATUS_ENV_ERR;
-        }
-
+        const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
+        EVALEXPR(DestroyWidowByHWND(hWnd));
         EVALEXPR(SaveConfigurationToFile());
         return FUNC_STATUS_OK;
 }
@@ -1323,8 +1357,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         }
 
         char argument[BUFFSIZE];
-        if (ConvertJsonToStandardType(argsJson, JSON_CHAR_ARR, &argument) !=
-            FUNC_SUCCESS)
+        if (ConvertJsonToString(argsJson, argument) != FUNC_SUCCESS)
         {
                 return FUNC_STATUS_ENV_ERR;
         }
@@ -1339,23 +1372,18 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 EVALEXPR(AppendSettingsToDOM(webview));
                 break;
         case EVT_OPEN_WGT_FILENAME:
-                char filename[BUFFSIZE];
-                memcpy(filename, argument, argsJson.length);
-                filename[argsJson.length] = '\0';
-
+        {
                 char content[USHRT_MAX];
                 EVALEXPR(OpenWidgetByFilename(
-                        filename, nullptr, nullptr, nullptr, content));
+                        argument, nullptr, nullptr, nullptr, content));
                 break;
+        }
         case EVT_TOGGLE_SETTING:
-                char setting[BUFFSIZE];
-                memcpy(setting, argument, argsJson.length);
-                setting[argsJson.length] = '\0';
-                ToggleSettingByName(setting);
+                ToggleSettingByName(argument);
                 break;
         }
 
-        return S_FALSE;
+        return FUNC_STATUS_OK;
 }
 
 /*
@@ -1363,7 +1391,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
  * @param this Pointer to itself
  * @param errorCode status of the operation
  * @param arg Argument of the event
- * @returns S_OK on success, else S_FALSE on failure
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
@@ -1388,6 +1416,7 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
  * @param IUnknown Interface invoked
  * @param erroCode Status code
  * @param arg WebView2 Controller
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 ControllerCompletedHandlerInvoke(const IUnknown *const this,
@@ -1551,20 +1580,41 @@ FindHwnd(const HWND target)
 }
 
 /**
- * @brief Callback function used by the window cration process of the
- * default messages
+ * @brief Adds a context menu item to the system tray
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+AddSystrayContextMenuItem(const HMENU hMenu,
+                          const uint8_t uID,
+                          const char *const label)
+{
+        if (!InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, uID, label))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Callback function function for various window messages/events
  * @param hwnd Default handle of th application
  * @param uMsg Code of the event triggered
  * @param WPARAM wParam
  * @param lParam lParam
  */
 LRESULT CALLBACK
-WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
         switch (uMsg)
         {
         case WM_DESTROY:
-                const ssize_t indexHwnd = FindHwnd(hwnd);
+        {
+                const ssize_t indexHwnd = FindHwnd(hWnd);
+                if (indexHwnd < 0)
+                {
+                        return S_FALSE;
+                }
+
                 g_hWndTable[g_hWndSelectedHash] = nullptr;
                 memcpy(&g_widgets[indexHwnd],
                        &g_widgets[g_widgetCount],
@@ -1576,8 +1626,10 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 }
 
                 PostQuitMessage(S_FALSE);
-                return S_FALSE;
+                return S_OK;
+        }
         case WM_SIZE:
+        {
                 switch (wParam)
                 {
                 case SIZE_MINIMIZED:
@@ -1590,7 +1642,7 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                         const ssize_t width = desktop.right * -1;
                         const ssize_t height = desktop.bottom * -1;
-                        EVALEXPR(SetWindowPosition(hwnd, width, height));
+                        EVALEXPR(SetWindowPosition(hWnd, width, height));
                         break;
                 }
 
@@ -1617,11 +1669,79 @@ WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 return S_FALSE;
                         }
                 } while (++i < g_widgetCount);
-                break;
 
-                return S_FALSE;
+                return S_OK;
         }
-        return DefWindowProc(hwnd, uMsg, wParam, lParam);
+        case PROG_WM_ICONNOTIFY:
+        {
+                switch (lParam)
+                {
+                case WM_RBUTTONUP:
+                {
+                        POINT point;
+                        if (!GetCursorPos(&point))
+                        {
+                                return S_FALSE;
+                        }
+
+                        const HMENU hMenu = CreatePopupMenu();
+                        if (hMenu == nullptr)
+                        {
+                                return S_FALSE;
+                        }
+
+                        EVALEXPR(AddSystrayContextMenuItem(
+                                hMenu, UID_SYSTRAY_EXIT, LBL_SYSTRAY_EXIT));
+                        EVALEXPR(AddSystrayContextMenuItem(
+                                hMenu, UID_SYSTRAY_CLOSE, LBL_SYSTRAY_CLOSE));
+
+                        if (!SetForegroundWindow(hWnd))
+                        {
+                                return S_FALSE;
+                        }
+
+                        if (!TrackPopupMenu(hMenu,
+                                            TPM_LEFTALIGN | TPM_LEFTBUTTON |
+                                                    TPM_BOTTOMALIGN,
+                                            point.x,
+                                            point.y,
+                                            0,
+                                            hWnd,
+                                            nullptr))
+                        {
+                                return S_FALSE;
+                        }
+
+                        if (!PostMessage(hWnd, WM_NULL, 0, 0))
+                        {
+                                return S_FALSE;
+                        }
+                        break;
+                }
+                }
+                return S_OK;
+        }
+        case WM_COMMAND:
+        {
+                switch (wParam)
+                {
+                case UID_SYSTRAY_EXIT:
+                {
+                        EVALEXPR(DestroyWidowByHWND(hWnd));
+                        break;
+                }
+                case UID_SYSTRAY_CLOSE:
+                {
+                        EVALEXPR(DestroyWidgetWindows());
+                        break;
+                }
+                }
+                break;
+        }
+
+                return S_OK;
+        }
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
 /**
@@ -1791,6 +1911,7 @@ create_widget_window(ww_window_ctx *const context)
         const size_t hash =
                 GetHashFromString(context->filename, HASH_PRIME, MAX_WIDGETS);
 
+        // Refuse to open duplicate widgets
         if (g_hWndTable[hash] != nullptr)
         {
                 g_widgetCount--;
@@ -1836,7 +1957,7 @@ create_widget_window(ww_window_ctx *const context)
                 nId.hWnd = g_invisibleHwnd;
                 nId.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
                 nId.uID = 0;
-                nId.uCallbackMessage = 0;
+                nId.uCallbackMessage = PROG_WM_ICONNOTIFY;
                 nId.hIcon = hIcon;
                 nId.uVersion = NOTIFYICON_VERSION_4;
 
