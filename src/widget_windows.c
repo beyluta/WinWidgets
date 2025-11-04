@@ -1738,6 +1738,7 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                 case WM_LBUTTONUP:
                 {
+                        ShowWindow(g_parentHwnd, SW_RESTORE);
                         SetForegroundWindow(g_parentHwnd);
                         break;
                 }
