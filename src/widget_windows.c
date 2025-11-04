@@ -145,6 +145,7 @@ static ICoreWebView2Environment *g_env = nullptr;
 
 static application_settings_t g_settings;
 static webview_widget_t g_widgets[MAX_WIDGETS] = {};
+static HWND g_parentHwnd = nullptr;
 static HWND g_hWndTable[MAX_WIDGETS] = {};
 static HWND g_invisibleHwnd = nullptr;
 
@@ -1676,6 +1677,11 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
                 switch (lParam)
                 {
+                case WM_LBUTTONUP:
+                {
+                        SetForegroundWindow(g_parentHwnd);
+                        break;
+                }
                 case WM_RBUTTONUP:
                 {
                         POINT point;
@@ -1991,6 +1997,11 @@ create_widget_window(ww_window_ctx *const context)
         {
                 status = FUNC_STATUS_ENV_ERR;
                 goto cleanup;
+        }
+
+        if (g_parentHwnd == nullptr)
+        {
+                g_parentHwnd = *hWnd;
         }
 
         g_hWndTable[hash] = *hWnd;
