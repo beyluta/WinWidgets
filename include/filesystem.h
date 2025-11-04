@@ -3,6 +3,7 @@
 
 #include "global.h"
 #include <stddef.h>
+#include <sys/types.h>
 
 constexpr unsigned char WRITE_APPEND = 0;
 constexpr unsigned char WRITE_OVERWRITE = 1;
@@ -87,5 +88,14 @@ ww_open_folder(const char *src);
  */
 bool
 ww_folder_exists(const char *const src);
+
+/**
+ * @brief Gets the path to the executable binary
+ * @param dest String where the result will be saved to
+ * @param max_len Max length of the destination string
+ * @returns 0 if successful, else some numeric error code on failure
+ */
+ssize_t
+ww_get_executable_path(char *const dest, const size_t max_len);
 
 #endif

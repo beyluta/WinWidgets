@@ -6,6 +6,7 @@
 #include <consoleapi.h>
 #include <io.h>
 #include <limits.h>
+#include <shlobj.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,12 +20,16 @@
 #include <winerror.h>
 #include <winnls.h>
 #include <winnt.h>
+#include <winreg.h>
 #include <winscard.h>
 #include <mmc.h>
 #include <pthread.h>
 
 static constexpr char PROG_NAME[] = "WinWidgets";
-static constexpr char INTERN_PROG_SEM_VER[] = "2.0.0";
+static constexpr char PROG_SEM_VER[] = "2.0.0";
+static constexpr char PROG_START_PATH[] =
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+
 static constexpr char CONFIG_NAME[] = "\\config.json";
 static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 
@@ -773,12 +778,12 @@ SaveConfigurationToFile()
                 "\"isWidgetFullscreenHideEnabled\":%s,"
                 "\"isOpenAppOnStartupEnabled\":%s,"
                 "\"lastSessionWidgets\":[%s]}";
-        char json[strlen(format) + strlen(INTERN_PROG_SEM_VER) + bytesWritten];
+        char json[strlen(format) + strlen(PROG_SEM_VER) + bytesWritten];
         if (snprintf(
                     json,
                     JSONBUFFSIZE,
                     format,
-                    INTERN_PROG_SEM_VER,
+                    PROG_SEM_VER,
                     g_settings.isWidgetAutostartEnabled ? "true" : "false",
                     g_settings.isWidgetFullscreenHideEnabled ? "true" : "false",
                     g_settings.isOpenAppOnStartupEnabled ? "true" : "false",
@@ -1268,6 +1273,59 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
 }
 
 /**
+ * @brief Modifies the app's autostart entry
+ * @param addEntry True to add, else false to remove the entry
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+ModifyAutostartEntry(const bool addEntry)
+{
+        func_status_t status = FUNC_STATUS_OK;
+        char binary[BUFFSIZE];
+        if (ww_get_executable_path(binary, BUFFSIZE))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
+
+        HKEY hKey = nullptr;
+        if (RegOpenKeyEx(
+                    HKEY_CURRENT_USER, PROG_START_PATH, 0, KEY_WRITE, &hKey))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
+
+        if (!addEntry)
+        {
+                if (RegDeleteValue(hKey, PROG_NAME))
+                {
+                        status = FUNC_STATUS_ENV_ERR;
+                }
+                goto cleanup;
+        }
+
+        if (RegSetValueEx(hKey,
+                          PROG_NAME,
+                          0,
+                          REG_SZ,
+                          (BYTE *)binary,
+                          (strlen(binary) + 1) * sizeof(wchar_t)))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
+
+cleanup:
+        if (hKey != nullptr)
+        {
+                RegCloseKey(hKey);
+        }
+
+        return status;
+}
+
+/**
  * @brief Flips the internal flag of a setting by name
  * @param src Name of the flag to flip
  */
@@ -1276,8 +1334,9 @@ ToggleSettingByName(const char *const src)
 {
         if (strcmp(src, "isOpenAppOnStartupEnabled") == 0)
         {
-                g_settings.isOpenAppOnStartupEnabled =
-                        !g_settings.isOpenAppOnStartupEnabled;
+                const bool status = !g_settings.isOpenAppOnStartupEnabled;
+                g_settings.isOpenAppOnStartupEnabled = status;
+                EVALEXPR(ModifyAutostartEntry(status));
         }
 
         if (strcmp(src, "isWidgetFullscreenHideEnabled") == 0)

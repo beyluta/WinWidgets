@@ -28,8 +28,8 @@ constexpr char DEFAULT_HTML_DIR[] = ".local/share/WinWidgets";
 constexpr char DEFAULT_HTML_DIR[] = "Widgets";
 #endif
 
-static ssize_t
-get_executable_path(char *dest, const size_t max_len)
+ssize_t
+ww_get_executable_path(char *const dest, const size_t max_len)
 {
 #if __linux__
         const ssize_t len = readlink("/proc/self/exe", dest, max_len - 1);
@@ -126,7 +126,7 @@ bool
 ww_default_index_html(char *dest)
 {
         char exec_path[BUFFSIZE];
-        const ssize_t status = get_executable_path(exec_path, BUFFSIZE);
+        const ssize_t status = ww_get_executable_path(exec_path, BUFFSIZE);
         if (status > EXIT_REASON_TERMINATED)
         {
                 fprintf(stderr, "Failed get path to the HTML file\n");
