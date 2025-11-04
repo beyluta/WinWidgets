@@ -4,6 +4,7 @@
 #include "utils.h"
 #include <WebView2.h>
 #include <consoleapi.h>
+#include <errhandlingapi.h>
 #include <io.h>
 #include <limits.h>
 #include <shlobj.h>
@@ -15,6 +16,7 @@
 #include <shellapi.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <windef.h>
 #include <windows.h>
 #include <json.h>
 #include <winerror.h>
@@ -72,6 +74,8 @@ static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
 static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
+static constexpr char ERR_GENERIC_UNKNOWN[] = "Unknown error";
+
 typedef enum : uint8_t
 {
         EVT_OPEN_DEFAULT_DIR,
@@ -114,31 +118,7 @@ typedef struct
 /**
  * @brief Evaluates the expression, quits and logs the error on failure.
  */
-#define EVALEXPR(expression)                                                   \
-        do                                                                     \
-        {                                                                      \
-                auto ret = (expression);                                       \
-                if (ret > FUNC_STATUS_USR_ERR)                                 \
-                {                                                              \
-                        LogError(ret);                                         \
-                        exit(ret);                                             \
-                }                                                              \
-        } while (0)
-
-/**
- * @brief Evaluates the result of a function, jumps to `cleanup` label on error
- */
-#define EVALEXPRCLEANUP(expression)                                            \
-        do                                                                     \
-        {                                                                      \
-                auto ret = (expression);                                       \
-                if (ret > FUNC_STATUS_USR_ERR)                                 \
-                {                                                              \
-                        LogError(ret);                                         \
-                        status = ret;                                          \
-                        goto cleanup;                                          \
-                }                                                              \
-        } while (0)
+#define BAD(expression) ((expression) != FUNC_STATUS_OK)
 
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
@@ -158,10 +138,13 @@ static size_t g_hWndSelectedHash = {};
 static size_t g_nCmdShow = {};
 static size_t g_widgetCount = 0;
 
+static size_t g_screenWidth;
+static size_t g_screenHeight;
+
+static HWINEVENTHOOK g_hook = nullptr;
 static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
 static bool g_envCreated = false;
-static HANDLE g_eventLog = nullptr;
 
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
@@ -346,30 +329,6 @@ static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
         {.lpVtbl = &topMostMenuSelectedHandlerVtbl};
 
 /**
- * @brief Writes an error to Window's event viewer
- * @param errCode Code of the error
- */
-static void
-LogError(const uint8_t errCode)
-{
-        char buffer[BUFFSIZE];
-        snprintf(buffer,
-                 BUFFSIZE,
-                 "Error code %d found on line %d\n",
-                 errCode,
-                 __LINE__);
-        ReportEvent(g_eventLog,
-                    EVENTLOG_WARNING_TYPE,
-                    0,
-                    0,
-                    nullptr,
-                    1,
-                    0,
-                    (LPCSTR *)&buffer,
-                    nullptr);
-}
-
-/**
  * @brief Opens the default directory where the widgets are located
  * @returns The status of the operation upon return
  */
@@ -487,7 +446,10 @@ OpenWidgetByFilename(const char *const path,
 
         g_widgetCount++;
 
-        EVALEXPR(create_widget_window(&context));
+        if (BAD(create_widget_window(&context)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
         memcpy(&g_widgets[g_widgetCount].context,
                &context,
@@ -514,8 +476,8 @@ Pop()
 {
         stack_item_t item = g_stack[--g_stackHeight];
         char content[USHRT_MAX];
-        EVALEXPR(OpenWidgetByFilename(
-                item.filename, &item.x, &item.y, &item.topMost, content));
+        OpenWidgetByFilename(
+                item.filename, &item.x, &item.y, &item.topMost, content);
 }
 
 /**
@@ -836,7 +798,10 @@ DestroyWidgetWindows()
         for (size_t i = 1; i <= total; i++)
         {
                 const HWND hWnd = g_widgets[i].hWnd;
-                EVALEXPR(DestroyWidowByHWND(hWnd));
+                if (BAD(DestroyWidowByHWND(hWnd)))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
         }
         return FUNC_STATUS_OK;
 }
@@ -851,8 +816,15 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                                IUnknown *const args)
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
-        EVALEXPR(DestroyWidowByHWND(hWnd));
-        EVALEXPR(SaveConfigurationToFile());
+        if (BAD(DestroyWidowByHWND(hWnd)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        if (BAD(SaveConfigurationToFile()))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
         return FUNC_STATUS_OK;
 }
 
@@ -906,13 +878,19 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                         return FUNC_STATUS_ENV_ERR;
                 }
 
-                EVALEXPR(SetWindowPosition(
-                        handle,
-                        position.x - (rect.right - rect.left) / 2,
-                        position.y - (rect.bottom - rect.top) / 2));
+                if (BAD(SetWindowPosition(
+                            handle,
+                            position.x - (rect.right - rect.left) / 2,
+                            position.y - (rect.bottom - rect.top) / 2)))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
         }
 
-        EVALEXPR(SaveConfigurationToFile());
+        if (BAD(SaveConfigurationToFile()))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
         return FUNC_STATUS_OK;
 }
@@ -946,8 +924,15 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
         const bool topMost = isWindowTopMost(hWnd);
-        EVALEXPR(SetWindowTopMost(hWnd, topMost));
-        EVALEXPR(SaveConfigurationToFile());
+        if (BAD(SetWindowTopMost(hWnd, topMost)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        if (BAD(SaveConfigurationToFile()))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
         return FUNC_STATUS_OK;
 }
 
@@ -1085,7 +1070,10 @@ WebView2ContextMenuRequestEventHandlerInvoke(
 {
         HRESULT status = FUNC_STATUS_OK;
 
-        EVALEXPRCLEANUP(RemoveContextMenuItems(args));
+        if (BAD(RemoveContextMenuItems(args)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
@@ -1131,31 +1119,40 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 (ICoreWebView2Environment10 *)g_env;
 
         ICoreWebView2ContextMenuItem *moveBtnMenuItem = nullptr;
-        EVALEXPRCLEANUP(AddContextMenuItem(environment,
-                                           items,
-                                           &itemsCount,
-                                           &g_moveEventHandlerToken,
-                                           &moveMenuSelectedHandler,
-                                           LBL_CTX_MENU_MOVE,
-                                           moveBtnMenuItem));
+        if (BAD(AddContextMenuItem(environment,
+                                   items,
+                                   &itemsCount,
+                                   &g_moveEventHandlerToken,
+                                   &moveMenuSelectedHandler,
+                                   LBL_CTX_MENU_MOVE,
+                                   moveBtnMenuItem)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
         ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
-        EVALEXPRCLEANUP(AddContextMenuItem(environment,
-                                           items,
-                                           &itemsCount,
-                                           &g_topMostEventHandlerToken,
-                                           &topMostMenuSelectedHandler,
-                                           LBL_CTX_MENU_TOP_MOST,
-                                           topMostBtnMenuItem));
+        if (BAD(AddContextMenuItem(environment,
+                                   items,
+                                   &itemsCount,
+                                   &g_topMostEventHandlerToken,
+                                   &topMostMenuSelectedHandler,
+                                   LBL_CTX_MENU_TOP_MOST,
+                                   topMostBtnMenuItem)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
-        EVALEXPRCLEANUP(AddContextMenuItem(environment,
-                                           items,
-                                           &itemsCount,
-                                           &g_closeEventHandlerToken,
-                                           &closeMenuSelectedHandler,
-                                           LBL_CTX_MENU_CLOSE,
-                                           closeBtnMenuItem));
+        if (BAD(AddContextMenuItem(environment,
+                                   items,
+                                   &itemsCount,
+                                   &g_closeEventHandlerToken,
+                                   &closeMenuSelectedHandler,
+                                   LBL_CTX_MENU_CLOSE,
+                                   closeBtnMenuItem)))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
 
 cleanup:
         if (closeBtnMenuItem != nullptr)
@@ -1336,7 +1333,7 @@ ToggleSettingByName(const char *const src)
         {
                 const bool status = !g_settings.isOpenAppOnStartupEnabled;
                 g_settings.isOpenAppOnStartupEnabled = status;
-                EVALEXPR(ModifyAutostartEntry(status));
+                ModifyAutostartEntry(status);
         }
 
         if (strcmp(src, "isWidgetFullscreenHideEnabled") == 0)
@@ -1351,7 +1348,7 @@ ToggleSettingByName(const char *const src)
                         !g_settings.isWidgetAutostartEnabled;
         }
 
-        EVALEXPR(SaveConfigurationToFile());
+        SaveConfigurationToFile();
 }
 
 /**
@@ -1425,17 +1422,30 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         switch (eventId)
         {
         case EVT_OPEN_DEFAULT_DIR:
-                EVALEXPR(OpenDefaultDirectory());
+                if (BAD(OpenDefaultDirectory()))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
                 break;
         case EVT_GET_WGT_FILENAMES:
-                EVALEXPR(AppendWidgetsToDOM(webview));
-                EVALEXPR(AppendSettingsToDOM(webview));
+                if (BAD(AppendWidgetsToDOM(webview)))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
+
+                if (BAD(AppendSettingsToDOM(webview)))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
                 break;
         case EVT_OPEN_WGT_FILENAME:
         {
                 char content[USHRT_MAX];
-                EVALEXPR(OpenWidgetByFilename(
-                        argument, nullptr, nullptr, nullptr, content));
+                if (BAD(OpenWidgetByFilename(
+                            argument, nullptr, nullptr, nullptr, content)))
+                {
+                        return FUNC_STATUS_ENV_ERR;
+                }
                 break;
         }
         case EVT_TOGGLE_SETTING:
@@ -1702,7 +1712,10 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                         const ssize_t width = desktop.right * -1;
                         const ssize_t height = desktop.bottom * -1;
-                        EVALEXPR(SetWindowPosition(hWnd, width, height));
+                        if (BAD(SetWindowPosition(hWnd, width, height)))
+                        {
+                                return S_FALSE;
+                        }
                         break;
                 }
 
@@ -1756,10 +1769,18 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                                 return S_FALSE;
                         }
 
-                        EVALEXPR(AddSystrayContextMenuItem(
-                                hMenu, UID_SYSTRAY_EXIT, LBL_SYSTRAY_EXIT));
-                        EVALEXPR(AddSystrayContextMenuItem(
-                                hMenu, UID_SYSTRAY_CLOSE, LBL_SYSTRAY_CLOSE));
+                        if (BAD(AddSystrayContextMenuItem(
+                                    hMenu, UID_SYSTRAY_EXIT, LBL_SYSTRAY_EXIT)))
+                        {
+                                return S_FALSE;
+                        }
+
+                        if (BAD(AddSystrayContextMenuItem(hMenu,
+                                                          UID_SYSTRAY_CLOSE,
+                                                          LBL_SYSTRAY_CLOSE)))
+                        {
+                                return S_FALSE;
+                        }
 
                         if (!SetForegroundWindow(hWnd))
                         {
@@ -1793,12 +1814,18 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 {
                 case UID_SYSTRAY_EXIT:
                 {
-                        EVALEXPR(DestroyWidowByHWND(hWnd));
+                        if (BAD(DestroyWidowByHWND(hWnd)))
+                        {
+                                return S_FALSE;
+                        }
                         break;
                 }
                 case UID_SYSTRAY_CLOSE:
                 {
-                        EVALEXPR(DestroyWidgetWindows());
+                        if (BAD(DestroyWidgetWindows()))
+                        {
+                                return S_FALSE;
+                        }
                         break;
                 }
                 }
@@ -1811,10 +1838,52 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 /**
- * @brief Default event loop of th application
- * @returns The state of the function at its conclusion
+ * Gets the dimensions of a window by its hWnd
+ * @param hWnd HWND of the window
  */
-static bool
+static func_status_t
+GetHwndDimensions(const HWND hWnd, size_t *const width, size_t *const height)
+{
+        RECT rect;
+        if (!GetWindowRect(hWnd, &rect))
+        {
+                return FUNC_STATUS_ENV_ERR;
+        }
+
+        *width = rect.right - rect.left;
+        *height = rect.bottom - rect.top;
+
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Triggers events for all processes in the entire system
+ */
+static void CALLBACK
+WinEventProc(HWINEVENTHOOK hWinEventHook,
+             DWORD event,
+             HWND hWnd,
+             LONG idObj,
+             LONG idChild,
+             DWORD dwEventThread,
+             DWORD dwEventTimeMs)
+{
+        size_t width, height;
+        if (BAD(GetHwndDimensions(hWnd, &width, &height)))
+        {
+                return;
+        }
+
+        if (width >= g_screenWidth && g_screenHeight >= height)
+        {
+                // TODO: Implement fullscreen widget closing/enabling
+        }
+}
+
+/**
+ * @brief Default event loop of th application
+ */
+static void
 event_loop()
 {
         MSG msg;
@@ -1832,7 +1901,6 @@ event_loop()
                         DispatchMessage(&msg);
                 }
         }
-        return false;
 }
 
 /**
@@ -2014,8 +2082,11 @@ create_widget_window(ww_window_ctx *const context)
                 UpdateWindow(g_invisibleHwnd);
 
                 HANDLE hIcon;
-                EVALEXPRCLEANUP(
-                        SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hIcon));
+                if (BAD(SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hIcon)))
+                {
+                        status = FUNC_STATUS_ENV_ERR;
+                        goto cleanup;
+                }
 
                 // Creating the systemtray icon for this invisible window
                 NOTIFYICONDATA nId;
@@ -2068,16 +2139,34 @@ create_widget_window(ww_window_ctx *const context)
         ShowWindow(*hWnd, g_nCmdShow);
 
         HANDLE hIcon;
-        EVALEXPRCLEANUP(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon));
-        EVALEXPRCLEANUP(SetWindowBorderRadius(*hWnd, context));
-        EVALEXPRCLEANUP(SetWindowOpacity(*hWnd, context->opacity));
+        if (BAD(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon)))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
+
+        if (BAD(SetWindowBorderRadius(*hWnd, context)))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
+
+        if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
+        {
+                status = FUNC_STATUS_ENV_ERR;
+                goto cleanup;
+        }
 
         // Apply these visual changes only for children widgets
         if (context->child)
         {
                 const bool topMost = context->top_most == 0;
-                EVALEXPRCLEANUP(SetWindowTopMost(*hWnd, topMost));
-                EVALEXPRCLEANUP(HideWindowFromTaskbar(*hWnd));
+                BAD(SetWindowTopMost(*hWnd, topMost));
+                if (BAD(HideWindowFromTaskbar(*hWnd)))
+                {
+                        status = FUNC_STATUS_ENV_ERR;
+                        goto cleanup;
+                }
         }
 
         if (!UpdateWindow(*hWnd))
@@ -2097,7 +2186,7 @@ create_widget_window(ww_window_ctx *const context)
                         status = FUNC_STATUS_ENV_ERR;
                         goto cleanup;
                 }
-                return true;
+                return FUNC_STATUS_OK;
         }
 
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
@@ -2122,7 +2211,7 @@ cleanup:
  * @param hInstance instance of the application
  * @param context Context of the main window
  * @param widgets List of all widgets
- * @returns The status code of the function at its conclusion
+ * @returns true if successful, else false on failure
  */
 bool
 ww_init_main(HINSTANCE hInstance,
@@ -2130,24 +2219,59 @@ ww_init_main(HINSTANCE hInstance,
              ww_window_ctx *const context,
              ww_widget_ctx *const widgets)
 {
+        bool comInitialized = true;
+
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
 
-        if ((g_eventLog = RegisterEventSourceA(nullptr, "WinWidgets")) ==
-            nullptr)
-        {
-                fprintf(stderr, "Could not register event\n");
-                return true;
-        }
-
         if (FAILED(CoInitialize(nullptr)))
         {
-                fprintf(stderr, "COM Failed to initialize\n");
-                return true;
+                comInitialized = false;
+                goto cleanup;
         }
 
-        EVALEXPR(LoadConfigurationFromFile());
-        EVALEXPR(create_widget_window(context));
+        const HWND hWndDesktop = GetDesktopWindow();
+        if (BAD(GetHwndDimensions(
+                    hWndDesktop, &g_screenWidth, &g_screenHeight)))
+        {
+                goto cleanup;
+        }
 
-        return event_loop();
+        if ((g_hook = SetWinEventHook(
+                     EVENT_SYSTEM_CAPTURESTART,
+                     EVENT_SYSTEM_CAPTUREEND,
+                     nullptr,
+                     WinEventProc,
+                     0,
+                     0,
+                     WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS)) ==
+            nullptr)
+        {
+                goto cleanup;
+        }
+
+        if (BAD(LoadConfigurationFromFile()))
+        {
+                goto cleanup;
+        }
+
+        if (BAD(create_widget_window(context)))
+        {
+                goto cleanup;
+        }
+
+        event_loop();
+
+cleanup:
+        if (comInitialized)
+        {
+                CoUninitialize();
+        }
+
+        if (g_hook != nullptr)
+        {
+                UnhookWinEvent(g_hook);
+        }
+
+        return false;
 }
