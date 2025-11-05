@@ -502,11 +502,13 @@ SaveConfigurationToFile()
  *
  * @param setting Setting to change
  * @param value Value to set the setting to
+ * @param save Save changes to config file
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 ChangeApplicationSetting(application_runtime_setting_t setting,
-                         const bool value)
+                         const bool value,
+                         const bool save)
 {
         switch (setting)
         {
@@ -555,7 +557,7 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
         }
         }
 
-        if (BAD(SaveConfigurationToFile()))
+        if (save && BAD(SaveConfigurationToFile()))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -794,21 +796,24 @@ LoadConfigurationFromFile()
 
         if (BAD(ChangeApplicationSetting(
                     APPLICATION_SETTING_START_WIDGETS,
-                    strcmp(isWidgetAutostartEnabled, "true") == 0)))
+                    strcmp(isWidgetAutostartEnabled, "true") == 0,
+                    false)))
         {
                 return FUNC_STATUS_ERR;
         }
 
         if (BAD(ChangeApplicationSetting(
                     APPLICATION_SETTING_AUTOSTART,
-                    strcmp(isOpenAppOnStartupEnabled, "true") == 0)))
+                    strcmp(isOpenAppOnStartupEnabled, "true") == 0,
+                    false)))
         {
                 return FUNC_STATUS_ERR;
         }
 
         if (BAD(ChangeApplicationSetting(
                     APPLICATION_SETTING_FULLSCREEN,
-                    strcmp(isWidgetFullscreenHideEnabled, "true") == 0)))
+                    strcmp(isWidgetFullscreenHideEnabled, "true") == 0,
+                    false)))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -1419,22 +1424,23 @@ ToggleSettingByName(const char *const src)
         if (strcmp(src, "isOpenAppOnStartupEnabled") == 0)
         {
                 const bool status = !g_settings.appAutostart;
-                ChangeApplicationSetting(APPLICATION_SETTING_AUTOSTART, status);
+                ChangeApplicationSetting(
+                        APPLICATION_SETTING_AUTOSTART, status, true);
         }
 
         if (strcmp(src, "isWidgetFullscreenHideEnabled") == 0)
         {
-                ChangeApplicationSetting(APPLICATION_SETTING_FULLSCREEN,
-                                         !g_settings.fullscreenHide);
+                const bool status = !g_settings.fullscreenHide;
+                ChangeApplicationSetting(
+                        APPLICATION_SETTING_FULLSCREEN, status, true);
         }
 
         if (strcmp(src, "isWidgetAutostartEnabled") == 0)
         {
-                ChangeApplicationSetting(APPLICATION_SETTING_START_WIDGETS,
-                                         !g_settings.widgetAutostart);
+                const bool status = !g_settings.widgetAutostart;
+                ChangeApplicationSetting(
+                        APPLICATION_SETTING_START_WIDGETS, status, true);
         }
-
-        SaveConfigurationToFile();
 }
 
 /**
