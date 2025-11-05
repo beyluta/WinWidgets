@@ -8,7 +8,6 @@ Get2DValue(const char *const src, size_t *const a, size_t *const b)
 {
         char substrA[512], substrB[512];
         const size_t size = strlen(src);
-        size_t spaceIndex = 0;
         for (size_t i = 0; i < size; i++)
         {
                 const char c = src[i];

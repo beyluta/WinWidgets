@@ -36,7 +36,6 @@ static constexpr uint8_t FILE_PREFIX_OFFSET = 8;
 static constexpr uint8_t PROG_NAME_SIZE =
         sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
 
-static constexpr uint16_t BUFFSIZ = USHRT_MAX;
 static constexpr uint16_t DEF_WIDTH = 500;
 static constexpr uint16_t DEF_HEIGHT = 500;
 static constexpr uint16_t DEF_PREV_WIDTH = DEF_WIDTH;
@@ -55,8 +54,6 @@ static constexpr uint8_t UID_SYSTRAY_EXIT = 0;
 static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
 static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
-
-static constexpr char ERR_GENERIC_UNKNOWN[] = "Unknown error";
 
 typedef enum : uint8_t
 {
@@ -138,7 +135,8 @@ static bool g_envCreated = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-// TODO: Enable this only for the debug build later
+#define DEBUG 0
+#if DEBUG
 /**
  * @brief Creates a console window and writes debug messages to it
  * @param message Text to print out
@@ -181,6 +179,7 @@ Debug(const char *const message)
         }
         return true;
 }
+#endif
 
 // ---------------------------------------------------------------------
 // Forward declaration of function definitions that will be used later |
@@ -247,7 +246,7 @@ HandlerRelease(IUnknown *)
 }
 
 static HRESULT
-HandlerQueryInterface(IUnknown *this, const IID *riid, void **ppvObject)
+HandlerQueryInterface(IUnknown *this, const IID *, void **ppvObject)
 {
         *ppvObject = this;
         HandlerAddRef(this);
@@ -509,11 +508,6 @@ static func_status_t
 ChangeApplicationSetting(application_runtime_setting_t setting,
                          const bool value)
 {
-        application_settings_t newSettings = {
-                .appAutostart = g_settings.appAutostart,
-                .fullscreenHide = g_settings.fullscreenHide,
-                .widgetAutostart = g_settings.widgetAutostart};
-
         switch (setting)
         {
         case APPLICATION_SETTING_FULLSCREEN:
@@ -960,8 +954,8 @@ DestroyWidgetWindows()
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                               IUnknown *const args)
+OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
+                               IUnknown *const)
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
         if (BAD(DestroyWidowByHWND(hWnd)))
@@ -1008,8 +1002,8 @@ SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                              IUnknown *const args)
+OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
+                              IUnknown *const)
 {
         const HWND handle = g_hWndTable[g_hWndSelectedHash];
 
@@ -1069,8 +1063,8 @@ SetWindowTopMost(const HWND hWnd, const bool src)
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                                 IUnknown *const args)
+OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
+                                 IUnknown *const)
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
         const bool topMost = isWindowTopMost(hWnd);
@@ -1146,41 +1140,35 @@ AddContextMenuItem(
 static func_status_t
 RemoveContextMenuItems(ICoreWebView2ContextMenuRequestedEventArgs *const args)
 {
-        HRESULT status = FUNC_STATUS_OK;
-
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
         UINT32 itemsCount;
         if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
         ICoreWebView2ContextMenuTarget *target = nullptr;
         if (args->lpVtbl->get_ContextMenuTarget(args, &target) != S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
                 goto cleanup;
         }
 
         ICoreWebView2ContextMenuItem *current = nullptr;
-        for (UINT32 i = itemsCount - 1; i >= 0; i--)
+        UINT32 i = itemsCount;
+        while (i-- > 0)
         {
                 if (items->lpVtbl->GetValueAtIndex(items, i, &current) != S_OK)
                 {
-                        status = FUNC_STATUS_WBV_ERR;
                         goto cleanup;
                 }
 
                 if (items->lpVtbl->RemoveValueAtIndex(items, i) != S_OK)
                 {
-                        status = FUNC_STATUS_WBV_ERR;
                         goto cleanup;
                 }
 
@@ -1203,6 +1191,7 @@ cleanup:
         {
                 items->lpVtbl->Release(items);
         }
+
         return FUNC_STATUS_OK;
 }
 
@@ -1215,7 +1204,7 @@ cleanup:
  */
 static func_status_t
 WebView2ContextMenuRequestEventHandlerInvoke(
-        ICoreWebView2ContextMenuRequestedEventHandler *const this,
+        ICoreWebView2ContextMenuRequestedEventHandler *const,
         ICoreWebView2 *const sender,
         ICoreWebView2ContextMenuRequestedEventArgs *const args)
 {
@@ -1249,7 +1238,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         }
 
         char pathCharPtr[BUFFSIZE];
-        if (wcstombs(pathCharPtr, pathPtr, BUFFSIZE) < 0)
+        if (wcstombs(pathCharPtr, pathPtr, BUFFSIZE) == (size_t)-1)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -1350,11 +1339,11 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 return FUNC_STATUS_MEM_ERR;
         }
 
-        size_t bytes = 0;
+        ssize_t bytes = 0;
         const uint8_t offset = 3;
-        const size_t maxLength = (MAX_WIDGETS * BUFFSIZE) +
-                                 (MAX_WIDGETS * (BUFFSIZE + offset)) -
-                                 (MAX_WIDGETS * BUFFSIZE);
+        const ssize_t maxLength = (MAX_WIDGETS * BUFFSIZE) +
+                                  (MAX_WIDGETS * (BUFFSIZE + offset)) -
+                                  (MAX_WIDGETS * BUFFSIZE);
 
         char files[maxLength];
         for (size_t i = 0; i < count; i++)
@@ -1407,7 +1396,7 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
                  g_settings.appAutostart ? "true" : "false");
 
         wchar_t command[BUFFSIZE];
-        if (mbstowcs(command, settings, strlen(settings)) < 0)
+        if (mbstowcs(command, settings, strlen(settings)) == (size_t)-1)
         {
                 return FUNC_STATUS_MEM_ERR;
         }
@@ -1457,7 +1446,7 @@ ToggleSettingByName(const char *const src)
  */
 static func_status_t
 WebView2WebMessageReceivedEventHandlerInvoke(
-        ICoreWebView2WebMessageReceivedEventHandler *const handler,
+        ICoreWebView2WebMessageReceivedEventHandler *const,
         ICoreWebView2 *const webview,
         ICoreWebView2WebMessageReceivedEventArgs *const args)
 {
@@ -1561,8 +1550,8 @@ WebView2WebMessageReceivedEventHandlerInvoke(
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
-                                  const HRESULT errorCode,
+EnvironmentCompletedHandlerInvoke(const IUnknown *const,
+                                  const HRESULT,
                                   const ICoreWebView2Environment *const arg)
 {
         g_envCreated = true;
@@ -1586,8 +1575,8 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-ControllerCompletedHandlerInvoke(const IUnknown *const this,
-                                 const HRESULT errorCode,
+ControllerCompletedHandlerInvoke(const IUnknown *const,
+                                 const HRESULT,
                                  const ICoreWebView2Controller *const arg)
 {
         HRESULT status = FUNC_STATUS_OK;
@@ -1700,7 +1689,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         // Converting the URI to a widestr so that we can pass to Navigate(...)
         wchar_t path[BUFFSIZE];
         const size_t pathLen = strlen(windowCtx.filename);
-        if (mbstowcs(path, windowCtx.filename, pathLen) < 0)
+        if (mbstowcs(path, windowCtx.filename, pathLen) == (size_t)-1)
         {
                 status = FUNC_STATUS_MEM_ERR;
                 goto cleanup;
@@ -2023,13 +2012,13 @@ cleanup:
  * @brief Triggers events for all processes in the entire system
  */
 static void CALLBACK
-WinEventProc(HWINEVENTHOOK hWinEventHook,
-             DWORD event,
+WinEventProc(HWINEVENTHOOK,
+             DWORD,
              HWND hWnd,
              LONG idObj,
              LONG idChild,
-             DWORD dwEventThread,
-             DWORD dwEventTimeMs)
+             DWORD,
+             DWORD)
 {
         const HWND hWndShell = GetShellWindow();
         const HWND hDefView =
@@ -2051,7 +2040,7 @@ WinEventProc(HWINEVENTHOOK hWinEventHook,
                 return;
         }
 
-        static size_t maxStackHeight = 0;
+        static ssize_t maxStackHeight = 0;
         if (hWnd != hFolderView && canRender)
         {
                 if (g_widgetCount == 0)
@@ -2381,7 +2370,12 @@ create_widget_window(ww_window_ctx *const context)
         if (context->child)
         {
                 const bool topMost = context->top_most == 0;
-                BAD(SetWindowTopMost(*hWnd, topMost));
+                if (BAD(SetWindowTopMost(*hWnd, topMost)))
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+
                 if (BAD(HideWindowFromTaskbar(*hWnd)))
                 {
                         status = FUNC_STATUS_ERR;
@@ -2437,7 +2431,7 @@ bool
 ww_init_main(HINSTANCE hInstance,
              int nCmdShow,
              ww_window_ctx *const context,
-             ww_widget_ctx *const widgets)
+             ww_widget_ctx *)
 {
         bool comInitialized = true;
 

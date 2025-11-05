@@ -21,8 +21,8 @@
 #endif
 
 constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
-constexpr char FILE_PREFIX[] = "file://";
 #if __linux__
+constexpr char FILE_PREFIX[] = "file://";
 constexpr char DEFAULT_HTML_DIR[] = ".local/share/WinWidgets";
 #elif _WIN32
 constexpr char DEFAULT_HTML_DIR[] = "Widgets";

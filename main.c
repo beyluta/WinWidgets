@@ -14,10 +14,7 @@ main(void)
 {
 #elif _WIN32
 int WINAPI
-WinMain(HINSTANCE hInstance,
-        HINSTANCE hPrevInstance,
-        PSTR lpCmdLine,
-        int nCmdShow)
+WinMain(HINSTANCE hInstance, HINSTANCE, PSTR, int nCmdShow)
 {
 #endif
         char temp[BUFFSIZE];
