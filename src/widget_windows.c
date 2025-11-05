@@ -1,31 +1,13 @@
 #include "filesystem.h"
 #include "global.h"
-#include "widget.h"
 #include "utils.h"
+#include "widget.h"
+#include "json.h"
+
 #include <WebView2.h>
-#include <consoleapi.h>
-#include <errhandlingapi.h>
-#include <io.h>
-#include <limits.h>
-#include <shlobj.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stringapiset.h>
-#include <shellapi.h>
 #include <unistd.h>
-#include <wchar.h>
-#include <windef.h>
-#include <windows.h>
-#include <json.h>
-#include <winerror.h>
-#include <winnls.h>
-#include <winnt.h>
-#include <winreg.h>
-#include <winscard.h>
-#include <mmc.h>
-#include <pthread.h>
+#include <ddraw.h>
 
 static constexpr char PROG_NAME[] = "WinWidgets";
 static constexpr char PROG_SEM_VER[] = "2.0.0";
@@ -90,8 +72,15 @@ typedef enum : uint8_t
         FUNC_STATUS_USR_ERR,
         FUNC_STATUS_WBV_ERR,
         FUNC_STATUS_MEM_ERR,
-        FUNC_STATUS_ENV_ERR
+        FUNC_STATUS_ERR
 } func_status_t;
+
+typedef enum : uint8_t
+{
+        APPLICATION_SETTING_FULLSCREEN,
+        APPLICATION_SETTING_AUTOSTART,
+        APPLICATION_SETTING_START_WIDGETS,
+} application_runtime_setting_t;
 
 typedef struct
 {
@@ -110,9 +99,9 @@ typedef struct
 
 typedef struct
 {
-        bool isWidgetAutostartEnabled;
-        bool isWidgetFullscreenHideEnabled;
-        bool isOpenAppOnStartupEnabled;
+        const bool widgetAutostart;
+        const bool fullscreenHide;
+        const bool appAutostart;
 } application_settings_t;
 
 /**
@@ -196,6 +185,15 @@ Debug(const char *const message)
 // ---------------------------------------------------------------------
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
+static void CALLBACK
+WinEventProc(HWINEVENTHOOK hWinEventHook,
+             DWORD event,
+             HWND hWnd,
+             LONG idObj,
+             LONG idChild,
+             DWORD dwEventThread,
+             DWORD dwEventTimeMs);
+
 static func_status_t
 EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
                                   const HRESULT errorCode,
@@ -330,7 +328,7 @@ static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
 
 /**
  * @brief Opens the default directory where the widgets are located
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 OpenDefaultDirectory()
@@ -338,12 +336,234 @@ OpenDefaultDirectory()
         char dir[BUFFSIZE];
         if (ww_default_widgets_dir(dir) == true)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         if (ww_open_folder(dir) == true)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
+        }
+
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Modifies the app's autostart entry
+ * @param addEntry True to add, else false to remove the entry
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+ModifyAutostartEntry(const bool addEntry)
+{
+        func_status_t status = FUNC_STATUS_OK;
+        char binary[BUFFSIZE];
+        if (ww_get_executable_path(binary, BUFFSIZE))
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
+        HKEY hKey = nullptr;
+        if (RegOpenKeyEx(
+                    HKEY_CURRENT_USER, PROG_START_PATH, 0, KEY_WRITE, &hKey))
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
+        if (!addEntry)
+        {
+                if (RegDeleteValue(hKey, PROG_NAME))
+                {
+                        status = FUNC_STATUS_ERR;
+                }
+                goto cleanup;
+        }
+
+        if (RegSetValueEx(hKey,
+                          PROG_NAME,
+                          0,
+                          REG_SZ,
+                          (BYTE *)binary,
+                          (strlen(binary) + 1) * sizeof(wchar_t)))
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
+cleanup:
+        if (hKey != nullptr)
+        {
+                RegCloseKey(hKey);
+        }
+
+        return status;
+}
+
+/**
+ * @brief Gets whether a window is top most
+ * @param hWnd Handle to the window
+ * @returns true if topmost, else false if not
+ */
+static bool
+isWindowTopMost(const HWND hWnd)
+{
+        const LONG_PTR style = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+        return style & WS_EX_TOPMOST;
+}
+
+/**
+ * @brief Creates a json context in-memory and saves to a json file
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+SaveConfigurationToFile()
+{
+        size_t bytesWritten = 0;
+        char session[JSONBUFFSIZE];
+        for (size_t i = 1; i < g_widgetCount + 1; i++)
+        {
+                const ww_window_ctx window = g_widgets[i].context;
+                const HWND hWnd = g_widgets[i].hWnd;
+                const size_t pathLength = strlen(window.filename);
+
+                if (pathLength >= BUFFSIZE)
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+
+                char filename[BUFFSIZE];
+                if (snprintf(filename, BUFFSIZE, "%s", window.filename) < 0)
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+
+                RECT rect;
+                if (!GetWindowRect(hWnd, &rect))
+                {
+                        return FUNC_STATUS_ERR;
+                }
+
+                int16_t x = rect.left, y = rect.top;
+                if ((bytesWritten +=
+                     snprintf(&session[bytesWritten],
+                              JSONBUFFSIZE,
+                              "{\"path\":\"%s\",\"position\":\"%hd, "
+                              "%hd\",\"alwaysOnTop\":%s},",
+                              filename,
+                              x,
+                              y,
+                              isWindowTopMost(hWnd) == true ? "true"
+                                                            : "false")) >=
+                    JSONBUFFSIZE)
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+        }
+        session[strlen(session) - 1] = '\0';
+
+        const char *const format =
+                "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
+                "\"isWidgetFullscreenHideEnabled\":%s,"
+                "\"isOpenAppOnStartupEnabled\":%s,"
+                "\"lastSessionWidgets\":[%s]}";
+        char json[strlen(format) + strlen(PROG_SEM_VER) + bytesWritten];
+        if (snprintf(json,
+                     JSONBUFFSIZE,
+                     format,
+                     PROG_SEM_VER,
+                     g_settings.widgetAutostart ? "true" : "false",
+                     g_settings.fullscreenHide ? "true" : "false",
+                     g_settings.appAutostart ? "true" : "false",
+                     session) < 0)
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+
+        char directory[BUFFSIZE];
+        if (ww_default_widgets_dir(directory))
+        {
+                return FUNC_STATUS_ERR;
+        }
+        strncat(directory,
+                CONFIG_NAME,
+                strlen(directory) + strlen(CONFIG_NAME));
+
+        if (ww_write_to_file(directory, json, WRITE_OVERWRITE))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        return FUNC_STATUS_OK;
+}
+/**
+ * @brief Changes some setting from the application settings. This function
+ * serves as a sort of getter-setter for the settings. Settings must only be
+ * changed in this function.
+ *
+ * @param setting Setting to change
+ * @param value Value to set the setting to
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+ChangeApplicationSetting(application_runtime_setting_t setting,
+                         const bool value)
+{
+        application_settings_t newSettings = {
+                .appAutostart = g_settings.appAutostart,
+                .fullscreenHide = g_settings.fullscreenHide,
+                .widgetAutostart = g_settings.widgetAutostart};
+
+        switch (setting)
+        {
+        case APPLICATION_SETTING_FULLSCREEN:
+        {
+                const bool *ptr = &g_settings.fullscreenHide;
+                memcpy((bool *)ptr, &value, sizeof(bool));
+
+                if (value && g_hook == nullptr)
+                {
+                        if ((g_hook = SetWinEventHook(
+                                     EVENT_SYSTEM_CAPTURESTART,
+                                     EVENT_SYSTEM_CAPTUREEND,
+                                     nullptr,
+                                     WinEventProc,
+                                     0,
+                                     0,
+                                     WINEVENT_OUTOFCONTEXT |
+                                             WINEVENT_SKIPOWNPROCESS)) ==
+                            nullptr)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+                        break;
+                }
+
+                if (g_hook != nullptr)
+                {
+                        UnhookWinEvent(g_hook);
+                        g_hook = nullptr;
+                }
+                break;
+        }
+        case APPLICATION_SETTING_AUTOSTART:
+        {
+                const bool *ptr = &g_settings.appAutostart;
+                memcpy((bool *)ptr, &value, sizeof(bool));
+                ModifyAutostartEntry(value);
+                break;
+        case APPLICATION_SETTING_START_WIDGETS:
+        {
+                const bool *ptr = &g_settings.widgetAutostart;
+                memcpy((bool *)ptr, &value, sizeof(bool));
+                break;
+        }
+        }
+        }
+
+        if (BAD(SaveConfigurationToFile()))
+        {
+                return FUNC_STATUS_ERR;
         }
 
         return FUNC_STATUS_OK;
@@ -358,7 +578,7 @@ OpenDefaultDirectory()
  * @param y Pointer to the Y position
  * @param topMost Pointer to the top most state
  * @param content Pointer to the widget content string
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t __attribute__((optimize("01")))
 OpenWidgetByFilename(const char *const path,
@@ -386,12 +606,12 @@ OpenWidgetByFilename(const char *const path,
         char trimStr[BUFFSIZE];
         if (!TrimStart(path, trimStr, HANDLE_PREFIX_OFFSET))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         if (ww_get_file_content(trimStr, content, BUFFSIZE) == true)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char buf[BUFFSIZE] = {};
@@ -448,7 +668,7 @@ OpenWidgetByFilename(const char *const path,
 
         if (BAD(create_widget_window(&context)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         memcpy(&g_widgets[g_widgetCount].context,
@@ -469,22 +689,33 @@ Push(stack_item_t item)
 }
 
 /**
- * @brief Pops the last elements in the queue
+ * @brief Pops the next element in the stack
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static void
+static func_status_t
 Pop()
 {
-        stack_item_t item = g_stack[--g_stackHeight];
+        if (--g_stackHeight < 0)
+        {
+                g_stackHeight = 0;
+                return FUNC_STATUS_OK;
+        }
+
+        stack_item_t item = g_stack[g_stackHeight];
         char content[USHRT_MAX];
-        OpenWidgetByFilename(
-                item.filename, &item.x, &item.y, &item.topMost, content);
+        if (BAD(OpenWidgetByFilename(
+                    item.filename, &item.x, &item.y, &item.topMost, content)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+        return FUNC_STATUS_OK;
 }
 
 /**
  * @brief Loads all configurations from the JSON file. Opens widgets that were
  * previously opened and apply settings from the last session.
  *
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 LoadConfigurationFromFile()
@@ -492,26 +723,26 @@ LoadConfigurationFromFile()
         char absolutePath[BUFFSIZE];
         if (ww_default_widgets_dir(absolutePath))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         ReplaceChars(absolutePath, widget_char_slash, widget_char_b_slash);
         strcat(absolutePath, CONFIG_NAME);
 
         if (access(absolutePath, F_OK) != 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char fileContent[JSONBUFFSIZE];
         if (ww_get_file_content(absolutePath, fileContent, JSONBUFFSIZE))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t jsonContent;
         if (ConvertStringToJson(fileContent, &jsonContent) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t lastSessionWidgets;
@@ -519,7 +750,7 @@ LoadConfigurationFromFile()
                         &lastSessionWidgets,
                         "lastSessionWidgets") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t isWidgetAutostartEnabledJson;
@@ -527,14 +758,14 @@ LoadConfigurationFromFile()
                         &isWidgetAutostartEnabledJson,
                         "isWidgetAutostartEnabled") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char isWidgetAutostartEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isWidgetAutostartEnabledJson,
                                 isWidgetAutostartEnabled) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t isOpenAppOnStartupEnabledJson;
@@ -542,14 +773,14 @@ LoadConfigurationFromFile()
                         &isOpenAppOnStartupEnabledJson,
                         "isOpenAppOnStartupEnabled") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char isOpenAppOnStartupEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isOpenAppOnStartupEnabledJson,
                                 isOpenAppOnStartupEnabled) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t isWidgetFullscreenHideEnabledJson;
@@ -557,24 +788,38 @@ LoadConfigurationFromFile()
                         &isWidgetFullscreenHideEnabledJson,
                         "isWidgetFullscreenHideEnabled") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char isWidgetFullscreenHideEnabled[JSONBUFFSIZE];
         if (ConvertJsonToString(isWidgetFullscreenHideEnabledJson,
                                 isWidgetFullscreenHideEnabled) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
-        g_settings.isWidgetAutostartEnabled =
-                strcmp(isWidgetAutostartEnabled, "true") == 0;
-        g_settings.isOpenAppOnStartupEnabled =
-                strcmp(isOpenAppOnStartupEnabled, "true") == 0;
-        g_settings.isWidgetFullscreenHideEnabled =
-                strcmp(isWidgetFullscreenHideEnabled, "true") == 0;
+        if (BAD(ChangeApplicationSetting(
+                    APPLICATION_SETTING_START_WIDGETS,
+                    strcmp(isWidgetAutostartEnabled, "true") == 0)))
+        {
+                return FUNC_STATUS_ERR;
+        }
 
-        if (!g_settings.isWidgetAutostartEnabled)
+        if (BAD(ChangeApplicationSetting(
+                    APPLICATION_SETTING_AUTOSTART,
+                    strcmp(isOpenAppOnStartupEnabled, "true") == 0)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (BAD(ChangeApplicationSetting(
+                    APPLICATION_SETTING_FULLSCREEN,
+                    strcmp(isWidgetFullscreenHideEnabled, "true") == 0)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (!g_settings.widgetAutostart)
         {
                 return FUNC_STATUS_OK;
         }
@@ -595,34 +840,34 @@ LoadConfigurationFromFile()
                         string_json_t jsonObj;
                         if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         string_json_t jsonPath;
                         if (GetProperty(jsonObj, &jsonPath, "path") !=
                             FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         char path[BUFFSIZE];
                         if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         string_json_t jsonPosition;
                         if (GetProperty(jsonObj, &jsonPosition, "position") !=
                             FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         char position[BUFFSIZE];
                         if (ConvertJsonToString(jsonPosition, position) !=
                             FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         const char *const prefix = "file:\\\\%s";
@@ -640,21 +885,21 @@ LoadConfigurationFromFile()
                         size_t x, y;
                         if (!Get2DValue(position, &x, &y))
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         string_json_t jsonTopMost;
                         if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
                             FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         char topMost[BUFFSIZE];
                         if (ConvertJsonToString(jsonTopMost, topMost) !=
                             FUNC_SUCCESS)
                         {
-                                return FUNC_STATUS_ENV_ERR;
+                                return FUNC_STATUS_ERR;
                         }
 
                         // Loading each individual child into the stack
@@ -674,104 +919,6 @@ LoadConfigurationFromFile()
 }
 
 /**
- * @brief Gets whether a window is top most
- * @param hWnd Handle to the window
- * @returns true if topmost, else false if not
- */
-static bool
-isWindowTopMost(const HWND hWnd)
-{
-        const LONG_PTR style = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
-        return style & WS_EX_TOPMOST;
-}
-
-/**
- * @brief Creates a json context in-memory and saves to a json file
- * @returns The status of the operation upon return
- */
-static func_status_t
-SaveConfigurationToFile()
-{
-        size_t bytesWritten = 0;
-        char session[JSONBUFFSIZE];
-        for (size_t i = 1; i < g_widgetCount + 1; i++)
-        {
-                const ww_window_ctx window = g_widgets[i].context;
-                const HWND hWnd = g_widgets[i].hWnd;
-                const size_t pathLength = strlen(window.filename);
-
-                if (pathLength >= BUFFSIZE)
-                {
-                        return FUNC_STATUS_MEM_ERR;
-                }
-
-                char filename[BUFFSIZE];
-                if (snprintf(filename, BUFFSIZE, "%s", window.filename) < 0)
-                {
-                        return FUNC_STATUS_MEM_ERR;
-                }
-
-                RECT rect;
-                if (!GetWindowRect(hWnd, &rect))
-                {
-                        return FUNC_STATUS_ENV_ERR;
-                }
-
-                int16_t x = rect.left, y = rect.top;
-                if ((bytesWritten +=
-                     snprintf(&session[bytesWritten],
-                              JSONBUFFSIZE,
-                              "{\"path\":\"%s\",\"position\":\"%hd, "
-                              "%hd\",\"alwaysOnTop\":%s},",
-                              filename,
-                              x,
-                              y,
-                              isWindowTopMost(hWnd) == true ? "true"
-                                                            : "false")) >=
-                    JSONBUFFSIZE)
-                {
-                        return FUNC_STATUS_MEM_ERR;
-                }
-        }
-        session[strlen(session) - 1] = '\0';
-
-        const char *const format =
-                "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
-                "\"isWidgetFullscreenHideEnabled\":%s,"
-                "\"isOpenAppOnStartupEnabled\":%s,"
-                "\"lastSessionWidgets\":[%s]}";
-        char json[strlen(format) + strlen(PROG_SEM_VER) + bytesWritten];
-        if (snprintf(
-                    json,
-                    JSONBUFFSIZE,
-                    format,
-                    PROG_SEM_VER,
-                    g_settings.isWidgetAutostartEnabled ? "true" : "false",
-                    g_settings.isWidgetFullscreenHideEnabled ? "true" : "false",
-                    g_settings.isOpenAppOnStartupEnabled ? "true" : "false",
-                    session) < 0)
-        {
-                return FUNC_STATUS_MEM_ERR;
-        }
-
-        char directory[BUFFSIZE];
-        if (ww_default_widgets_dir(directory))
-        {
-                return FUNC_STATUS_ENV_ERR;
-        }
-        strncat(directory,
-                CONFIG_NAME,
-                strlen(directory) + strlen(CONFIG_NAME));
-
-        if (ww_write_to_file(directory, json, WRITE_OVERWRITE))
-        {
-                return FUNC_STATUS_ENV_ERR;
-        }
-
-        return FUNC_STATUS_OK;
-}
-
-/**
  * @brief Destroys a window by its HWND
  * @param hWnd Handle to destroy
  * @returns FUNC_STATUS_OK on success, else a numeric error code
@@ -781,7 +928,7 @@ DestroyWidowByHWND(const HWND hWnd)
 {
         if (DestroyWindow(hWnd) == 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         memset(&g_hWndTable, 0, sizeof(HWND) * MAX_WIDGETS);
         return FUNC_STATUS_OK;
@@ -800,7 +947,7 @@ DestroyWidgetWindows()
                 const HWND hWnd = g_widgets[i].hWnd;
                 if (BAD(DestroyWidowByHWND(hWnd)))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
         }
         return FUNC_STATUS_OK;
@@ -810,6 +957,7 @@ DestroyWidgetWindows()
  * @brief Triggers when the close menu item is selected
  * @param sender Object that triggered the event
  * @param args Arguments of the event
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
@@ -818,12 +966,12 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
         if (BAD(DestroyWidowByHWND(hWnd)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         if (BAD(SaveConfigurationToFile()))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         return FUNC_STATUS_OK;
 }
@@ -833,6 +981,7 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
  * @param hWnd Handle to the window
  * @param x Position on the x axis
  * @param y Position on the y axis
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
@@ -845,7 +994,7 @@ SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
                           0,
                           SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         return FUNC_STATUS_OK;
 }
@@ -856,7 +1005,7 @@ SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
  *
  * @param sender Object that triggered the event
  * @param args Arguments of the event
- * @returns 0 if successful, else some other number
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
@@ -867,7 +1016,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         RECT rect;
         if (!GetWindowRect(handle, &rect))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         POINT position;
@@ -875,7 +1024,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         {
                 if (!GetCursorPos(&position))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
 
                 if (BAD(SetWindowPosition(
@@ -883,13 +1032,13 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                             position.x - (rect.right - rect.left) / 2,
                             position.y - (rect.bottom - rect.top) / 2)))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
         }
 
         if (BAD(SaveConfigurationToFile()))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         return FUNC_STATUS_OK;
@@ -899,7 +1048,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
  * @brief Set the top most status of a window
  * @param hWnd Handle to the window to be modified
  * @param src Flag to set the top most state
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 SetWindowTopMost(const HWND hWnd, const bool src)
@@ -908,7 +1057,7 @@ SetWindowTopMost(const HWND hWnd, const bool src)
         if (!SetWindowPos(
                     hWnd, flags[src], 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         return FUNC_STATUS_OK;
 }
@@ -917,6 +1066,7 @@ SetWindowTopMost(const HWND hWnd, const bool src)
  * @brief Triggers when the close menu item is selected
  * @param sender Object that triggered the event
  * @param args Arguments of the event
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
@@ -926,12 +1076,12 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
         const bool topMost = isWindowTopMost(hWnd);
         if (BAD(SetWindowTopMost(hWnd, topMost)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         if (BAD(SaveConfigurationToFile()))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         return FUNC_STATUS_OK;
 }
@@ -944,7 +1094,7 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
  * @param token Pointer to the registration token
  * @param label Name of the context menu item
  * @param eventHandler Pointer to the event handler function
- * @returns A pointer to the new context menu item, or nullptr on failure
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 AddContextMenuItem(
@@ -991,6 +1141,7 @@ AddContextMenuItem(
  * @brief Removes all items from the default context menu
  * @param args Arguments of the context menu event
  * @returns 0 if successful, else some other number
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 RemoveContextMenuItems(ICoreWebView2ContextMenuRequestedEventArgs *const args)
@@ -1060,7 +1211,7 @@ cleanup:
  * @param this Reference to the event handler
  * @param sender Webview2 core object
  * @param args Arguments of the caller
- * @returns 0 if successful, else any other value
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 WebView2ContextMenuRequestEventHandlerInvoke(
@@ -1072,20 +1223,20 @@ WebView2ContextMenuRequestEventHandlerInvoke(
 
         if (BAD(RemoveContextMenuItems(args)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         ICoreWebView2ContextMenuItemCollection *items = nullptr;
         if (args->lpVtbl->get_MenuItems(args, &items) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         UINT32 itemsCount;
         if (items->lpVtbl->get_Count(items, &itemsCount) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1093,14 +1244,14 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         LPWSTR pathPtr = pathWcharPtr;
         if (sender->lpVtbl->get_Source(sender, &pathPtr) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         char pathCharPtr[BUFFSIZE];
         if (wcstombs(pathCharPtr, pathPtr, BUFFSIZE) < 0)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1108,7 +1259,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         char out[BUFFSIZE];
         if (!TrimStart(pathCharPtr, out, FILE_PREFIX_OFFSET))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1127,7 +1278,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_MOVE,
                                    moveBtnMenuItem)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
@@ -1139,7 +1290,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_TOP_MOST,
                                    topMostBtnMenuItem)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
@@ -1151,7 +1302,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_CLOSE,
                                    closeBtnMenuItem)))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
 cleanup:
@@ -1181,7 +1332,7 @@ cleanup:
 /**
  * @brief Appends the widget to the global list of browsers.
  * @param webview Webview component
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 AppendWidgetsToDOM(ICoreWebView2 *const webview)
@@ -1189,7 +1340,7 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
         char app_dir[BUFFSIZE];
         if (ww_default_widgets_dir(app_dir))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         size_t count = 0;
@@ -1240,7 +1391,7 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
 /**
  * @brief Loads the settings in-memory into the DOM
  * @param webview Webview core object
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 AppendSettingsToDOM(ICoreWebView2 *const webview)
@@ -1251,9 +1402,9 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
                  "toggleSettings({\"isWidgetAutostartEnabled\":%s,"
                  "\"isWidgetFullscreenHideEnabled\":%s,"
                  "\"isOpenAppOnStartupEnabled\":%s})",
-                 g_settings.isWidgetAutostartEnabled ? "true" : "false",
-                 g_settings.isWidgetFullscreenHideEnabled ? "true" : "false",
-                 g_settings.isOpenAppOnStartupEnabled ? "true" : "false");
+                 g_settings.widgetAutostart ? "true" : "false",
+                 g_settings.fullscreenHide ? "true" : "false",
+                 g_settings.appAutostart ? "true" : "false");
 
         wchar_t command[BUFFSIZE];
         if (mbstowcs(command, settings, strlen(settings)) < 0)
@@ -1263,63 +1414,10 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
 
         if (webview->lpVtbl->ExecuteScript(webview, command, nullptr) != S_OK)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         return FUNC_STATUS_OK;
-}
-
-/**
- * @brief Modifies the app's autostart entry
- * @param addEntry True to add, else false to remove the entry
- * @returns FUNC_STATUS_OK on success, else a numeric error code
- */
-static func_status_t
-ModifyAutostartEntry(const bool addEntry)
-{
-        func_status_t status = FUNC_STATUS_OK;
-        char binary[BUFFSIZE];
-        if (ww_get_executable_path(binary, BUFFSIZE))
-        {
-                status = FUNC_STATUS_ENV_ERR;
-                goto cleanup;
-        }
-
-        HKEY hKey = nullptr;
-        if (RegOpenKeyEx(
-                    HKEY_CURRENT_USER, PROG_START_PATH, 0, KEY_WRITE, &hKey))
-        {
-                status = FUNC_STATUS_ENV_ERR;
-                goto cleanup;
-        }
-
-        if (!addEntry)
-        {
-                if (RegDeleteValue(hKey, PROG_NAME))
-                {
-                        status = FUNC_STATUS_ENV_ERR;
-                }
-                goto cleanup;
-        }
-
-        if (RegSetValueEx(hKey,
-                          PROG_NAME,
-                          0,
-                          REG_SZ,
-                          (BYTE *)binary,
-                          (strlen(binary) + 1) * sizeof(wchar_t)))
-        {
-                status = FUNC_STATUS_ENV_ERR;
-                goto cleanup;
-        }
-
-cleanup:
-        if (hKey != nullptr)
-        {
-                RegCloseKey(hKey);
-        }
-
-        return status;
 }
 
 /**
@@ -1331,21 +1429,20 @@ ToggleSettingByName(const char *const src)
 {
         if (strcmp(src, "isOpenAppOnStartupEnabled") == 0)
         {
-                const bool status = !g_settings.isOpenAppOnStartupEnabled;
-                g_settings.isOpenAppOnStartupEnabled = status;
-                ModifyAutostartEntry(status);
+                const bool status = !g_settings.appAutostart;
+                ChangeApplicationSetting(APPLICATION_SETTING_AUTOSTART, status);
         }
 
         if (strcmp(src, "isWidgetFullscreenHideEnabled") == 0)
         {
-                g_settings.isWidgetFullscreenHideEnabled =
-                        !g_settings.isWidgetFullscreenHideEnabled;
+                ChangeApplicationSetting(APPLICATION_SETTING_FULLSCREEN,
+                                         !g_settings.fullscreenHide);
         }
 
         if (strcmp(src, "isWidgetAutostartEnabled") == 0)
         {
-                g_settings.isWidgetAutostartEnabled =
-                        !g_settings.isWidgetAutostartEnabled;
+                ChangeApplicationSetting(APPLICATION_SETTING_START_WIDGETS,
+                                         !g_settings.widgetAutostart);
         }
 
         SaveConfigurationToFile();
@@ -1356,7 +1453,7 @@ ToggleSettingByName(const char *const src)
  * @param handler Received event handler
  * @param webview Context of the webview
  * @param args Arguments of the event handler
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 WebView2WebMessageReceivedEventHandlerInvoke(
@@ -1388,19 +1485,19 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         string_json_t dataString;
         if (ConvertStringToJson(cMessage, &dataString) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t eventIdStr;
         if (GetProperty(dataString, &eventIdStr, "eventId") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         string_json_t argsJson;
         if (GetProperty(dataString, &argsJson, "args") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         // Each event has an associated id to trigger default functions. Some
@@ -1410,13 +1507,13 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         if (ConvertJsonToStandardType(eventIdStr, JSON_INT, &eventId) !=
             FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         char argument[BUFFSIZE];
         if (ConvertJsonToString(argsJson, argument) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         switch (eventId)
@@ -1424,18 +1521,18 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         case EVT_OPEN_DEFAULT_DIR:
                 if (BAD(OpenDefaultDirectory()))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
                 break;
         case EVT_GET_WGT_FILENAMES:
                 if (BAD(AppendWidgetsToDOM(webview)))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
 
                 if (BAD(AppendSettingsToDOM(webview)))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
                 break;
         case EVT_OPEN_WGT_FILENAME:
@@ -1444,7 +1541,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 if (BAD(OpenWidgetByFilename(
                             argument, nullptr, nullptr, nullptr, content)))
                 {
-                        return FUNC_STATUS_ENV_ERR;
+                        return FUNC_STATUS_ERR;
                 }
                 break;
         }
@@ -1475,7 +1572,7 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
                     g_env, hWnd, &controllerCompletedHandler) != S_OK)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         return FUNC_STATUS_OK;
@@ -1504,7 +1601,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                             controller, &g_widgets[g_widgetCount].window) !=
                     S_OK)
                 {
-                        status = FUNC_STATUS_ENV_ERR;
+                        status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
 
@@ -1517,45 +1614,45 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                 (ICoreWebView2_11 *)g_widgets[g_widgetCount].window;
         if (window->lpVtbl->get_Settings(window, &settings) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsScriptEnabled(settings, true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultScriptDialogsEnabled(settings,
                                                                  true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsWebMessageEnabled(settings, true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDevToolsEnabled(settings, true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_AreDefaultContextMenusEnabled(settings,
                                                                 true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (settings->lpVtbl->put_IsStatusBarEnabled(settings, true) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1563,13 +1660,13 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         RECT bounds;
         if (!GetClientRect(hWnd, &bounds))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (controller->lpVtbl->put_Bounds(controller, bounds) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1585,7 +1682,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
         if (window->lpVtbl->add_WebMessageReceived(
                     window, &messageReceivedEventHandler, &token) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1595,7 +1692,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
                 if (window->lpVtbl->add_ContextMenuRequested(
                             window, &contextMenuEventHandler, &token) != S_OK)
                 {
-                        status = FUNC_STATUS_ENV_ERR;
+                        status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
         }
@@ -1612,7 +1709,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const this,
 
         if (window->lpVtbl->Navigate(window, path) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -1660,7 +1757,7 @@ AddSystrayContextMenuItem(const HMENU hMenu,
 {
         if (!InsertMenu(hMenu, 0, MF_BYPOSITION | MF_STRING, uID, label))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
         return FUNC_STATUS_OK;
 }
@@ -1838,22 +1935,88 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 }
 
 /**
- * Gets the dimensions of a window by its hWnd
+ * Gets the dimensions of a window and its position by its hWnd
  * @param hWnd HWND of the window
+ * @param width Width of the window
+ * @param height Height of the window
+ * @param x Position on the X axis
+ * @param y Position on the Y axis
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-GetHwndDimensions(const HWND hWnd, size_t *const width, size_t *const height)
+GetHwndDimensions(const HWND hWnd,
+                  size_t *const width,
+                  size_t *const height,
+                  size_t *const x,
+                  size_t *const y)
 {
         RECT rect;
         if (!GetWindowRect(hWnd, &rect))
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
-        *width = rect.right - rect.left;
-        *height = rect.bottom - rect.top;
+        if (width != nullptr)
+        {
+                *width = rect.right - rect.left;
+        }
+
+        if (height != nullptr)
+        {
+                *height = rect.bottom - rect.top;
+        }
+
+        if (x != nullptr)
+        {
+                *x = rect.left;
+        }
+
+        if (y != nullptr)
+        {
+                *y = rect.top;
+        }
 
         return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Used to get whether a Direct3D device can render.
+ * Essentially the same as detecting whether a game using the GPU is in the
+ * foreground.
+ *
+ * @param canRender Whether the GPU can render
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+CanGPURender(bool *const canRender)
+{
+        func_status_t status = FUNC_STATUS_OK;
+        HRESULT hResult;
+        IDirectDraw7 *dDraw = nullptr;
+        if (FAILED((hResult = DirectDrawCreateEx(nullptr,
+                                                 (void **)&dDraw,
+                                                 &IID_IDirectDraw7,
+                                                 nullptr))))
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                *canRender = false;
+                goto cleanup;
+        }
+
+        if ((hResult = dDraw->lpVtbl->TestCooperativeLevel(dDraw)) ==
+            DDERR_EXCLUSIVEMODEALREADYSET)
+        {
+                *canRender = true;
+                goto cleanup;
+        }
+
+cleanup:
+        if (dDraw != nullptr)
+        {
+                dDraw->lpVtbl->Release(dDraw);
+        }
+
+        return status;
 }
 
 /**
@@ -1868,15 +2031,72 @@ WinEventProc(HWINEVENTHOOK hWinEventHook,
              DWORD dwEventThread,
              DWORD dwEventTimeMs)
 {
-        size_t width, height;
-        if (BAD(GetHwndDimensions(hWnd, &width, &height)))
+        const HWND hWndShell = GetShellWindow();
+        const HWND hDefView =
+                FindWindowEx(hWndShell, nullptr, "SHELLDLL_DefView", nullptr);
+        const HWND hFolderView =
+                FindWindowEx(hDefView, nullptr, "SysListView32", nullptr);
+
+        if (!hWnd || idObj != OBJID_WINDOW || idChild != CHILDID_SELF ||
+            !(GetWindowLong(hWnd, GWL_STYLE) & WS_VISIBLE) ||
+            GetWindowLong(hWnd, GWL_EXSTYLE) &
+                    (WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE))
         {
                 return;
         }
 
-        if (width >= g_screenWidth && g_screenHeight >= height)
+        bool canRender = false;
+        if (BAD(CanGPURender(&canRender)))
         {
-                // TODO: Implement fullscreen widget closing/enabling
+                return;
+        }
+
+        static size_t maxStackHeight = 0;
+        if (hWnd != hFolderView && canRender)
+        {
+                if (g_widgetCount == 0)
+                {
+                        return;
+                }
+
+                g_stackHeight = 0;
+                maxStackHeight = g_widgetCount;
+                for (size_t i = 1; i <= g_widgetCount; i++)
+                {
+                        const ssize_t index = FindHwnd(g_widgets[i].hWnd);
+                        if (index < 0)
+                        {
+                                return;
+                        }
+
+                        const ww_window_ctx context = g_widgets[index].context;
+                        const HWND hWndW = g_widgets[index].hWnd;
+
+                        size_t x, y;
+                        if (BAD(GetHwndDimensions(
+                                    hWndW, nullptr, nullptr, &x, &y)))
+                        {
+                                return;
+                        }
+
+                        stack_item_t item = {
+                                .topMost = context.top_most, .x = x, .y = y};
+                        const size_t strLen = strlen(context.filename);
+                        const char format[] = "file:\\\\%s";
+                        snprintf(item.filename,
+                                 (sizeof(format) / sizeof(format[0]) + strLen),
+                                 format,
+                                 context.filename);
+                        Push(item);
+                }
+
+                DestroyWidgetWindows();
+                return;
+        }
+
+        if (g_stackHeight > -1 && g_stackHeight == maxStackHeight)
+        {
+                Pop();
         }
 }
 
@@ -1907,7 +2127,7 @@ event_loop()
  * @brief Sets the transparency of the window
  * @param hWnd Handle to the window
  * @param alpha Value between 0 to 1 for opacity
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 SetWindowOpacity(const HWND hWnd, const double alpha)
@@ -1917,13 +2137,13 @@ SetWindowOpacity(const HWND hWnd, const double alpha)
 
         if (SetWindowLong(hWnd, GWL_EXSTYLE, style) == 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         const byte byteAlpha = alpha * MAX_ALPHA;
         if (SetLayeredWindowAttributes(hWnd, 0, byteAlpha, LWA_ALPHA) == 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         return FUNC_STATUS_OK;
@@ -1933,7 +2153,7 @@ SetWindowOpacity(const HWND hWnd, const double alpha)
  * @brief Set the border radius for the corners of the window
  * @param hWnd Handle to the window
  * @param context Window context of the widget
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
@@ -1951,12 +2171,12 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
                 CreateRoundRectRgn(0, 0, width, height, radius, radius);
         if (hRgn == nullptr)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         if (SetWindowRgn(hWnd, hRgn, true) == 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         DeleteObject(hRgn);
@@ -1967,7 +2187,7 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
 /**
  * @brief Hides the window from the taskbar
  * @param hWnd Handle to the window
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 HideWindowFromTaskbar(const HWND hWnd)
@@ -1975,7 +2195,7 @@ HideWindowFromTaskbar(const HWND hWnd)
         LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
         if (SetWindowLong(hWnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW) == 0)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         ShowWindow(hWnd, SW_SHOW);
@@ -1988,7 +2208,7 @@ HideWindowFromTaskbar(const HWND hWnd)
  * @param hWnd Handle to the window
  * @param src Resource ico to set the icon to
  * @param hIcon Handle to the icon
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 SetWindowIcon(const HWND hWnd, const char *const src, HANDLE *hIcon)
@@ -2001,7 +2221,7 @@ SetWindowIcon(const HWND hWnd, const char *const src, HANDLE *hIcon)
                                 LR_DEFAULTSIZE | LR_LOADFROMFILE | LR_SHARED |
                                         LR_DEFAULTCOLOR)) == nullptr)
         {
-                return FUNC_STATUS_ENV_ERR;
+                return FUNC_STATUS_ERR;
         }
 
         const LPARAM icon = (LPARAM)*hIcon;
@@ -2016,7 +2236,7 @@ SetWindowIcon(const HWND hWnd, const char *const src, HANDLE *hIcon)
 /**
  * @brief Creates a new window
  * @param context Context of the window with all options
- * @returns The status of the operation upon return
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
 create_widget_window(ww_window_ctx *const context)
@@ -2084,7 +2304,7 @@ create_widget_window(ww_window_ctx *const context)
                 HANDLE hIcon;
                 if (BAD(SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hIcon)))
                 {
-                        status = FUNC_STATUS_ENV_ERR;
+                        status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
 
@@ -2126,7 +2346,7 @@ create_widget_window(ww_window_ctx *const context)
                                     g_hInstance,
                                     nullptr)) == nullptr)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -2141,19 +2361,19 @@ create_widget_window(ww_window_ctx *const context)
         HANDLE hIcon;
         if (BAD(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon)))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (BAD(SetWindowBorderRadius(*hWnd, context)))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
         if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -2164,14 +2384,14 @@ create_widget_window(ww_window_ctx *const context)
                 BAD(SetWindowTopMost(*hWnd, topMost));
                 if (BAD(HideWindowFromTaskbar(*hWnd)))
                 {
-                        status = FUNC_STATUS_ENV_ERR;
+                        status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
         }
 
         if (!UpdateWindow(*hWnd))
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -2183,7 +2403,7 @@ create_widget_window(ww_window_ctx *const context)
                             nullptr,
                             &environmentCompletedHandler) != S_OK)
                 {
-                        status = FUNC_STATUS_ENV_ERR;
+                        status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
                 return FUNC_STATUS_OK;
@@ -2192,7 +2412,7 @@ create_widget_window(ww_window_ctx *const context)
         if (g_env->lpVtbl->CreateCoreWebView2Controller(
                     g_env, *hWnd, &controllerCompletedHandler) != S_OK)
         {
-                status = FUNC_STATUS_ENV_ERR;
+                status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
@@ -2231,21 +2451,11 @@ ww_init_main(HINSTANCE hInstance,
         }
 
         const HWND hWndDesktop = GetDesktopWindow();
-        if (BAD(GetHwndDimensions(
-                    hWndDesktop, &g_screenWidth, &g_screenHeight)))
-        {
-                goto cleanup;
-        }
-
-        if ((g_hook = SetWinEventHook(
-                     EVENT_SYSTEM_CAPTURESTART,
-                     EVENT_SYSTEM_CAPTUREEND,
-                     nullptr,
-                     WinEventProc,
-                     0,
-                     0,
-                     WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS)) ==
-            nullptr)
+        if (BAD(GetHwndDimensions(hWndDesktop,
+                                  &g_screenWidth,
+                                  &g_screenHeight,
+                                  nullptr,
+                                  nullptr)))
         {
                 goto cleanup;
         }

@@ -26,6 +26,8 @@ ARGS := -Iinclude \
 LDFLAGS := -lole32 \
 					 -loleaut32 \
 					 -luuid \
+					 -lddraw \
+					 -ldxguid \
 					 -Llib/WebView2/build/native/x64 \
 					 -lWebView2Loader \
 					 -mwindows
