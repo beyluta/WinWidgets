@@ -44,51 +44,62 @@
   <main class="development">
     <h3>Default folder</h3>
     <!-- Explaining where to find the default widget folders -->
-    <span>Widgets are simple HTML, CSS, and JavaScript files. Essentially just websites that are shown in a floating
-      window. Start by navigating to the default WinWidgets folder under <code>C:\\Documents\WinWidgets</code> on
-      Windows 11. On supported Linux distributions you can find the default directory under
-      <code>~/.local/share/WinWidgets/</code>.</span>
+    <span>
+      Widgets are simple HTML files, embedded web content, displayed in a floating window.<br /><br />
+      To get started, open the default widgets folder. On Windows 11:
+    </span>
+    <blockquote>
+      <pre>
+        C:\\Users\{YOUR_USER}\Documents\WinWidgets
+      </pre>
+    </blockquote>
+    <span>On supported Linux distributions, you'll find it under:</span>
+    <blockquote>
+      <pre>
+        ~/.local/share/WinWidgets
+      </pre>
+    </blockquote>
+
 
     <!-- Which files are needed -->
     <h3>File structure</h3>
-    <span>Each <code>.html</code> file in the default folder needs a corresponding <code>.cfg</code> file with
-      information about the widget. The name of both files must be the same except for the configuration file which must
-      end with the <code>.cfg</code> suffix. Below is an example of the file structure:</span>
+    <span>Each document of type HTML may contain CSS and JavaScript inside the same file. Drag and drop your HTML files
+      to the default folder to load them into the application. Below is an example of how it might look like:</span>
     <blockquote>
       <pre>
-        WinWidgets/
+        ..\WinWidgets\
+        |
         |__ calculator.html
-        |__ calculator.html.cfg
+        |
+        |__ weather.html
+        |
+        |__ clock.html
       </pre>
     </blockquote>
 
     <!-- Configuration file example -->
-    <h3>Configuration file</h3>
-    <span>The configuration file contains data about the current state of the widget. During the program's execution or
-      at the end of execution, this file may be overwritten with new data. If no configuration file is present
-      WinWidgets may create the file itself but it is highly recommended to create one yourself. This is an example of
-      how it should look like:</span>
+    <h3>Widget configuration</h3>
+    <span>
+      At the top of your HTML document add the following <code>&lt;meta /&gt;</code> tags (only the first 2 are
+      required):
+    </span>
     <blockquote>
       <pre>
-        title=My Widget
-        width=600
-        height=800
-        x=512
-        y=512
-        title_bar=true
-        top_most=false
-        opacity=0.5
-        radius=0
+        &lt;!DOCTYPE html&gt;
+        &lt;html&gt;
+        &lt;head&gt;
+
+        &lt;meta name="applicationTitle" value="myWidget" /&gt;
+        &lt;meta name="windowSize" value="800 500" /&gt;
+        &lt;meta name="windowLocation" value="300 300" /&gt;
+        &lt;meta name="windowOpacity" value="0.5" /&gt;
+        &lt;meta name="windowBorderRadius" value="500" /&gt;
+        &lt;meta name="topMost" value="true" /&gt;
+
+        &lt;/head&gt;
+        &lt;/html&gt;
       </pre>
     </blockquote>
-
-    <!-- How to control the widgets -->
-    <h3>Widget controls</h3>
-    <span>If <code>title_bar=false</code> in the configuration file then you may freely resize and move your widget by
-      using the handle bar (top bar) of the widget window. If your widget does not have a handle bar, then you can no
-      longer resize it, but you may still drag it by holding down the Windows-key + Left mouse button.</span>
-    <span>Right-clicking the widget windows opens a context-menu where you can close the widget or set its top-most
-      state.</span>
   </main>
 </body>
 

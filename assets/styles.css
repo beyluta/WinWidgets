@@ -158,7 +158,7 @@ main:not(main.widgets) {
   background: #333;
   color: white;
   border-radius: var(--border-radius);
-  padding-top: 1rem;
+  padding-top: 1.25rem;
   margin: 1rem;
 }
 
