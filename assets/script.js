@@ -72,6 +72,7 @@ function addWidget(path) {
   const newWrapper = document.createElement('div');
   const newElement = document.createElement('iframe');
   newWrapper.setAttribute('onclick', `openWidget('${path}')`);
+  newWrapper.setAttribute('class', 'widget');
   newElement.setAttribute('src', path);
   newWrapper.appendChild(newElement);
   parent.appendChild(newWrapper)

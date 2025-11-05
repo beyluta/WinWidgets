@@ -110,6 +110,7 @@ main:not(main.widgets) {
   max-height: calc(100vh - 13rem);
   overflow-y: auto;
   border-radius: var(--border-radius);
+  padding: 10px;
 }
 
 .widgets .list iframe {
@@ -119,6 +120,17 @@ main:not(main.widgets) {
   border: none;
   border-radius: var(--border-radius);
   pointer-events: none;
+}
+
+.widget {
+  border-radius: 1rem;
+  transition: .085s;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+}
+
+.widget:hover {
+  cursor: pointer;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 6px 16px;
 }
 
 .development {
