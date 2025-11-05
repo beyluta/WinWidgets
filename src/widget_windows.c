@@ -5,6 +5,7 @@
 #include "json.h"
 
 #include <WebView2.h>
+#include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <ddraw.h>
@@ -135,7 +136,7 @@ static bool g_envCreated = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 /**
  * @brief Creates a console window and writes debug messages to it
@@ -929,7 +930,6 @@ DestroyWidowByHWND(const HWND hWnd)
         {
                 return FUNC_STATUS_ERR;
         }
-        memset(&g_hWndTable, 0, sizeof(HWND) * MAX_WIDGETS);
         return FUNC_STATUS_OK;
 }
 
@@ -949,6 +949,7 @@ DestroyWidgetWindows()
                         return FUNC_STATUS_ERR;
                 }
         }
+        memset(&g_hWndTable, 0, sizeof(HWND) * MAX_WIDGETS);
         return FUNC_STATUS_OK;
 }
 
@@ -1359,18 +1360,36 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                         return FUNC_STATUS_MEM_ERR;
                 }
 
-                bytes += snprintf(&files[bytes], BUFFSIZE, "'%s',", widgets[i]);
+                char content[USHRT_MAX];
+                if (ww_get_file_content(widgets[i], content, USHRT_MAX))
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+
+                char appTitle[BUFFSIZE];
+                if (!GetMetaTagValue(content, TAG_APP_NAME, appTitle, BUFFSIZE))
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+
+                bytes += snprintf(&files[bytes],
+                                  BUFFSIZE,
+                                  "{\"title\":\"%s\",\"path\":\"%s\"},",
+                                  appTitle,
+                                  widgets[i]);
         }
         files[bytes - 1] = '\0';
 
         if (bytes >= maxLength)
         {
+                Debug("Bigger than expected");
                 return FUNC_STATUS_MEM_ERR;
         }
 
-        const char *const funcDef = "addWidgets(\"[%s]\")";
-        char command[maxLength + strlen(funcDef)];
-        if ((bytes = snprintf(command, maxLength, funcDef, files)) < 0)
+        Debug(files);
+        const char format[] = "addWidgets([%s])";
+        char command[maxLength + (sizeof(format) / sizeof(format[0]))];
+        if ((bytes = snprintf(command, maxLength, format, files)) < 0)
         {
                 return FUNC_STATUS_MEM_ERR;
         }

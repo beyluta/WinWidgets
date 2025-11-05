@@ -65,15 +65,20 @@ function hideScenes() {
 
 /**
  * Adds a widget to the local widget UI
- * @param {string} path - Full path of the widget to add 
+ * @param {string} title - Name of the widget
+ * @param {string} path - Full path of the widget to add
  */
-function addWidget(path) {
+function addWidget(title, path) {
   const parent = document.querySelector('.list');
   const newWrapper = document.createElement('div');
   const newElement = document.createElement('iframe');
+  const newLabel = document.createElement('p');
+  newLabel.innerText = title;
+  newLabel.setAttribute('class', 'label');
   newWrapper.setAttribute('onclick', `openWidget('${path}')`);
   newWrapper.setAttribute('class', 'widget');
   newElement.setAttribute('src', path);
+  newWrapper.appendChild(newLabel);
   newWrapper.appendChild(newElement);
   parent.appendChild(newWrapper)
 }
@@ -89,13 +94,12 @@ async function openWidget(path) {
 
 /**
  * Adds a list of widgets to the widget UI. This function is called from the C code.
- * @param {string} path - Full path of the widget to add 
+ * @param {object[]} widgets - Array of { title: string, path: string }
  */
-function addWidgets(paths) {
-  const parsedInput = parseSingleQuotedArray(paths);
-  parsedInput.forEach((path) => {
-    addWidget(path);
-  });
+function addWidgets(widgets) {
+  for (const widget of widgets) {
+    addWidget(widget.title, widget.path);
+  }
 }
 
 /**

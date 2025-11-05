@@ -107,10 +107,11 @@ main:not(main.widgets) {
   grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
   margin-top: 1.5rem;
-  max-height: calc(100vh - 13rem);
+  max-height: calc(100vh - 15rem);
   overflow-y: auto;
   border-radius: var(--border-radius);
-  padding: 10px;
+  padding: 25px 10px 10px 10px;
+  position: relative;
 }
 
 .widgets .list iframe {
@@ -126,6 +127,13 @@ main:not(main.widgets) {
   border-radius: 1rem;
   transition: .085s;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+}
+
+.label {
+    position: absolute;
+    margin-top: -1.5rem;
+    color: rgba(0, 0, 0, .75);
+    text-decoration: underline;
 }
 
 .widget:hover {
