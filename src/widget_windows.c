@@ -546,12 +546,12 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
                 memcpy((bool *)ptr, &value, sizeof(bool));
                 ModifyAutostartEntry(value);
                 break;
+        }
         case APPLICATION_SETTING_START_WIDGETS:
         {
                 const bool *ptr = &g_settings.widgetAutostart;
                 memcpy((bool *)ptr, &value, sizeof(bool));
                 break;
-        }
         }
         }
 
@@ -626,10 +626,10 @@ OpenWidgetByFilename(const char *const path,
         if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, BUFFSIZE) &&
             x == nullptr && y == nullptr)
         {
-                size_t x, y;
-                const bool isSet = Get2DValue(buf, &x, &y);
-                context.x = isSet ? x : DEF_X;
-                context.y = isSet ? y : DEF_Y;
+                size_t xPos, yPos;
+                const bool isSet = Get2DValue(buf, &xPos, &yPos);
+                context.x = isSet ? xPos : DEF_X;
+                context.y = isSet ? yPos : DEF_Y;
         }
 
         if (GetMetaTagValue(content, TAG_WIN_PREV, buf, BUFFSIZE))
@@ -1808,9 +1808,9 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 size_t i = 0;
                 do
                 {
-                        const HWND hWnd = g_widgets[i].hWnd;
+                        const HWND hWndW = g_widgets[i].hWnd;
                         RECT bounds;
-                        if (!GetClientRect(hWnd, &bounds))
+                        if (!GetClientRect(hWndW, &bounds))
                         {
                                 return S_FALSE;
                         }
