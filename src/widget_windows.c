@@ -14,9 +14,6 @@ static constexpr uint8_t PROG_NAME_SIZE =
         sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
 
 static constexpr char PROG_SEM_VER[] = "2.0.0";
-static constexpr uint8_t PROG_SEM_VER_SIZE =
-        sizeof(PROG_SEM_VER) / sizeof(PROG_SEM_VER[0]);
-
 static constexpr char PROG_START_PATH[] =
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
 
@@ -451,19 +448,15 @@ SaveConfigurationToFile()
                         return FUNC_STATUS_MEM_ERR;
                 }
         }
-        session[strlen(session) - 1] = '\0';
+        session[bytesWritten - 1] = '\0';
 
-        const char format[] =
-                "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
-                "\"isWidgetFullscreenHideEnabled\":%s,"
-                "\"isOpenAppOnStartupEnabled\":%s,"
-                "\"lastSessionWidgets\":[%s]}";
-        const size_t jsonLen = (sizeof(format) / sizeof(format[0])) +
-                               PROG_SEM_VER_SIZE + bytesWritten;
-        char json[jsonLen];
+        char json[USHRT_MAX];
         if (snprintf(json,
-                     jsonLen,
-                     format,
+                     sizeof(json) / sizeof(json[0]),
+                     "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
+                     "\"isWidgetFullscreenHideEnabled\":%s,"
+                     "\"isOpenAppOnStartupEnabled\":%s,"
+                     "\"lastSessionWidgets\":[%s]}",
                      PROG_SEM_VER,
                      g_settings.widgetAutostart ? "true" : "false",
                      g_settings.fullscreenHide ? "true" : "false",
