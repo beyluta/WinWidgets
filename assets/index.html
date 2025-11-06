@@ -78,7 +78,7 @@
     </blockquote>
 
     <!-- Configuration file example -->
-    <h3>Widget configuration</h3>
+    <h3>Layout and style</h3>
     <span>
       At the top of your HTML document add the following <code>&lt;meta /&gt;</code> tags (only the first 2 are
       required):
@@ -92,13 +92,22 @@
         &lt;meta name="applicationTitle" value="myWidget" /&gt;
         &lt;meta name="windowSize" value="800 500" /&gt;
         &lt;meta name="windowLocation" value="300 300" /&gt;
-        &lt;meta name="windowOpacity" value="0.5" /&gt;
         &lt;meta name="windowBorderRadius" value="500" /&gt;
         &lt;meta name="topMost" value="true" /&gt;
 
         &lt;/head&gt;
         &lt;/html&gt;
       </pre>
+    </blockquote>
+    <span>
+      Widgets support full transparency and are transparent by default, you may use CSS to set the background color:
+    </span>
+    <blockquote>
+    <pre>
+      &lt;style&gt;
+          body { background-color: rgba(255, 255, 255, 0.5); }
+      &lt;/style&gt;
+    </pre>
     </blockquote>
   </main>
 </body>

@@ -9,6 +9,10 @@
 #include <unistd.h>
 #include <ddraw.h>
 
+#ifndef WS_EX_NOREDIRECTIONBITMAP
+#define WS_EX_NOREDIRECTIONBITMAP 0x00200000
+#endif
+
 static constexpr char PROG_NAME[] = "WinWidgets";
 static constexpr uint8_t PROG_NAME_SIZE =
         sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
@@ -580,7 +584,6 @@ OpenWidgetByFilename(const char *const path,
                 .y = y == nullptr ? DEF_HEIGHT : *y,
                 .child = DEF_CHILD,
                 .top_most = topMost == nullptr ? DEF_TOPMOST : *topMost,
-                .opacity = DEF_OPACITY,
                 .radius = DEF_RADIUS};
 
         const size_t pathLength = strlen(path);
@@ -643,15 +646,6 @@ OpenWidgetByFilename(const char *const path,
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
-        }
-
-        if (GetMetaTagValue(content,
-                            TAG_WIN_OPACITY,
-                            buf,
-                            sizeof(buf) / sizeof(buf[0])))
-        {
-                const double opacity = strtod(buf, nullptr);
-                context.opacity = opacity;
         }
 
         if (GetMetaTagValue(content,
@@ -1628,8 +1622,8 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
         HRESULT status = FUNC_STATUS_OK;
 
         g_widgets[g_widgetCount].controller = (ICoreWebView2Controller *)arg;
-        ICoreWebView2Controller *controller =
-                g_widgets[g_widgetCount].controller;
+        ICoreWebView2Controller2 *controller =
+                (ICoreWebView2Controller2 *)g_widgets[g_widgetCount].controller;
         if (controller != nullptr)
         {
                 if (controller->lpVtbl->get_CoreWebView2(
@@ -1644,9 +1638,14 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
         }
 
         // Browser settings
-        ICoreWebView2Settings *settings = nullptr;
         ICoreWebView2_11 *window =
                 (ICoreWebView2_11 *)g_widgets[g_widgetCount].window;
+
+        COREWEBVIEW2_COLOR transparency = {0, 0, 0, 0};
+        controller->lpVtbl->put_DefaultBackgroundColor(controller,
+                                                       transparency);
+
+        ICoreWebView2Settings *settings = nullptr;
         if (window->lpVtbl->get_Settings(window, &settings) != S_OK)
         {
                 status = FUNC_STATUS_ERR;
@@ -2159,32 +2158,6 @@ event_loop()
 }
 
 /**
- * @brief Sets the transparency of the window
- * @param hWnd Handle to the window
- * @param alpha Value between 0 to 1 for opacity
- * @returns FUNC_STATUS_OK on success, else a numeric error code
- */
-static func_status_t
-SetWindowOpacity(const HWND hWnd, const double alpha)
-{
-        LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
-        style |= WS_EX_LAYERED;
-
-        if (SetWindowLong(hWnd, GWL_EXSTYLE, style) == 0)
-        {
-                return FUNC_STATUS_ERR;
-        }
-
-        const byte byteAlpha = alpha * MAX_ALPHA;
-        if (SetLayeredWindowAttributes(hWnd, 0, byteAlpha, LWA_ALPHA) == 0)
-        {
-                return FUNC_STATUS_ERR;
-        }
-
-        return FUNC_STATUS_OK;
-}
-
-/**
  * @brief Set the border radius for the corners of the window
  * @param hWnd Handle to the window
  * @param context Window context of the widget
@@ -2296,7 +2269,7 @@ create_widget_window(ww_window_ctx *const context)
         RegisterClass(&wc);
 
         HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
-        if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
+        if ((*hWnd = CreateWindowEx(WS_EX_LAYERED | WS_EX_NOREDIRECTIONBITMAP,
                                     PROG_NAME,
                                     context->title,
                                     WS_POPUP,
@@ -2331,10 +2304,7 @@ create_widget_window(ww_window_ctx *const context)
                 return FUNC_STATUS_ERR;
         }
 
-        if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
-        {
-                return FUNC_STATUS_ERR;
-        }
+        SetLayeredWindowAttributes(*hWnd, 0, 255, LWA_ALPHA);
 
         const bool topMost = context->top_most == 0;
         if (BAD(SetWindowTopMost(*hWnd, topMost)))
@@ -2472,7 +2442,7 @@ create_widget_manager(ww_window_ctx *const context)
                 return FUNC_STATUS_ERR;
         }
 
-        if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
+        if (SetLayeredWindowAttributes(*hWnd, 0, MAX_ALPHA, LWA_ALPHA) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
