@@ -136,14 +136,17 @@ static bool
 Debug(const char *const message)
 {
         const size_t messageLen = strlen(message);
-        if (messageLen >= BUFFSIZE)
+        char newMessage[USHRT_MAX];
+
+        if (messageLen >= sizeof(newMessage) / sizeof(newMessage[0]))
         {
                 return false;
         }
 
-        const size_t newMessageLen = BUFFSIZE + 1;
-        char newMessage[newMessageLen];
-        if (snprintf(newMessage, newMessageLen, "%s\n", message) < 0)
+        if (snprintf(newMessage,
+                     sizeof(newMessage) / sizeof(newMessage[0]),
+                     "%s\n",
+                     message) < 0)
         {
                 return false;
         }
@@ -1407,7 +1410,12 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
         }
 
         wchar_t wideBuffCommand[maxLength];
-        mbstowcs(wideBuffCommand, command, bytes);
+        if (mbstowcs(wideBuffCommand, command, bytes) == (size_t)-1)
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+        wideBuffCommand[bytes] = '\0';
+
         webview->lpVtbl->ExecuteScript(webview, wideBuffCommand, nullptr);
 
         return FUNC_STATUS_OK;
