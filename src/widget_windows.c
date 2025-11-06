@@ -5,13 +5,18 @@
 #include "json.h"
 
 #include <WebView2.h>
-#include <limits.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <ddraw.h>
 
 static constexpr char PROG_NAME[] = "WinWidgets";
+static constexpr uint8_t PROG_NAME_SIZE =
+        sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
+
 static constexpr char PROG_SEM_VER[] = "2.0.0";
+static constexpr uint8_t PROG_SEM_VER_SIZE =
+        sizeof(PROG_SEM_VER) / sizeof(PROG_SEM_VER[0]);
+
 static constexpr char PROG_START_PATH[] =
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
 
@@ -26,8 +31,6 @@ static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
 static constexpr uint8_t HASH_PRIME = 31;
 static constexpr uint8_t HANDLE_PREFIX_OFFSET = 7;
 static constexpr uint8_t FILE_PREFIX_OFFSET = 8;
-static constexpr uint8_t PROG_NAME_SIZE =
-        sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
 
 static constexpr uint16_t KEY_STATE_HELD = SHRT_MAX + 1;
 static constexpr uint16_t PROG_WM_ICONNOTIFY = WM_APP + 1;
@@ -86,7 +89,7 @@ typedef struct
 /**
  * @brief Evaluates the expression, quits and logs the error on failure.
  */
-#define BAD(expression) ((expression) != FUNC_STATUS_OK)
+#define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
 // ----------------------------------------------------------
 // Global variables to control the state of the main window |
@@ -339,7 +342,7 @@ ModifyAutostartEntry(const bool addEntry)
 {
         func_status_t status = FUNC_STATUS_OK;
         char binary[BUFFSIZE];
-        if (ww_get_executable_path(binary, BUFFSIZE))
+        if (ww_get_executable_path(binary, sizeof(binary) / sizeof(binary[0])))
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -404,7 +407,8 @@ static func_status_t
 SaveConfigurationToFile()
 {
         size_t bytesWritten = 0;
-        char session[JSONBUFFSIZE];
+        char session[JSONBUFFSIZE] = {};
+
         for (size_t i = 1; i < g_widgetCount + 1; i++)
         {
                 const ww_window_ctx window = g_widgets[i].context;
@@ -417,7 +421,10 @@ SaveConfigurationToFile()
                 }
 
                 char filename[BUFFSIZE];
-                if (snprintf(filename, BUFFSIZE, "%s", window.filename) < 0)
+                if (snprintf(filename,
+                             sizeof(filename) / sizeof(filename[0]),
+                             "%s",
+                             window.filename) < 0)
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
@@ -431,7 +438,7 @@ SaveConfigurationToFile()
                 int16_t x = rect.left, y = rect.top;
                 if ((bytesWritten +=
                      snprintf(&session[bytesWritten],
-                              JSONBUFFSIZE,
+                              sizeof(session) / sizeof(session[0]),
                               "{\"path\":\"%s\",\"position\":\"%hd, "
                               "%hd\",\"alwaysOnTop\":%s},",
                               filename,
@@ -439,21 +446,23 @@ SaveConfigurationToFile()
                               y,
                               isWindowTopMost(hWnd) == true ? "true"
                                                             : "false")) >=
-                    JSONBUFFSIZE)
+                    sizeof(session) / sizeof(session[0]))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
         }
         session[strlen(session) - 1] = '\0';
 
-        const char *const format =
+        const char format[] =
                 "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
                 "\"isWidgetFullscreenHideEnabled\":%s,"
                 "\"isOpenAppOnStartupEnabled\":%s,"
                 "\"lastSessionWidgets\":[%s]}";
-        char json[strlen(format) + strlen(PROG_SEM_VER) + bytesWritten];
+        const size_t jsonLen = (sizeof(format) / sizeof(format[0])) +
+                               PROG_SEM_VER_SIZE + bytesWritten;
+        char json[jsonLen];
         if (snprintf(json,
-                     JSONBUFFSIZE,
+                     jsonLen,
                      format,
                      PROG_SEM_VER,
                      g_settings.widgetAutostart ? "true" : "false",
@@ -566,7 +575,8 @@ OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
                      const bool *const topMost,
-                     char *const content)
+                     char *const content,
+                     const size_t contentSize)
 {
         ww_window_ctx context = {
                 .width = DEF_WIDTH,
@@ -590,19 +600,21 @@ OpenWidgetByFilename(const char *const path,
                 return FUNC_STATUS_ERR;
         }
 
-        if (ww_get_file_content(trimStr, content, BUFFSIZE) == true)
+        if (ww_get_file_content(trimStr, content, contentSize) == true)
         {
                 return FUNC_STATUS_ERR;
         }
 
         char buf[BUFFSIZE] = {};
-        if (GetMetaTagValue(content, TAG_APP_NAME, buf, BUFFSIZE))
+        if (GetMetaTagValue(
+                    content, TAG_APP_NAME, buf, sizeof(buf) / sizeof(buf[0])))
         {
-                memcpy(context.title, buf, BUFFSIZE);
-                context.title[BUFFSIZE - 1] = '\0';
+                memcpy(context.title, buf, sizeof(buf) / sizeof(buf[0]));
+                context.title[(sizeof(buf) / sizeof(buf[0])) - 1] = '\0';
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_SIZE, buf, BUFFSIZE))
+        if (GetMetaTagValue(
+                    content, TAG_WIN_SIZE, buf, sizeof(buf) / sizeof(buf[0])))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -610,7 +622,10 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, BUFFSIZE) &&
+        if (GetMetaTagValue(content,
+                            TAG_WIN_LOCATION,
+                            buf,
+                            sizeof(buf) / sizeof(buf[0])) &&
             x == nullptr && y == nullptr)
         {
                 size_t xPos, yPos;
@@ -619,7 +634,8 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_PREV, buf, BUFFSIZE))
+        if (GetMetaTagValue(
+                    content, TAG_WIN_PREV, buf, sizeof(buf) / sizeof(buf[0])))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -627,19 +643,28 @@ OpenWidgetByFilename(const char *const path,
                 context.prevHeight = isSet ? height : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, BUFFSIZE) &&
+        if (GetMetaTagValue(content,
+                            TAG_APP_TOPMOST,
+                            buf,
+                            sizeof(buf) / sizeof(buf[0])) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_OPACITY, buf, BUFFSIZE))
+        if (GetMetaTagValue(content,
+                            TAG_WIN_OPACITY,
+                            buf,
+                            sizeof(buf) / sizeof(buf[0])))
         {
                 const double opacity = strtod(buf, nullptr);
                 context.opacity = opacity;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_BORD_RAD, buf, BUFFSIZE))
+        if (GetMetaTagValue(content,
+                            TAG_WIN_BORD_RAD,
+                            buf,
+                            sizeof(buf) / sizeof(buf[0])))
         {
                 const double radius = strtod(buf, nullptr);
                 context.radius = radius;
@@ -684,8 +709,12 @@ Pop()
 
         stack_item_t item = g_stack[g_stackHeight];
         char content[USHRT_MAX];
-        if (BAD(OpenWidgetByFilename(
-                    item.filename, &item.x, &item.y, &item.topMost, content)))
+        if (BAD(OpenWidgetByFilename(item.filename,
+                                     &item.x,
+                                     &item.y,
+                                     &item.topMost,
+                                     content,
+                                     sizeof(content) / sizeof(content[0]))))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -711,11 +740,13 @@ LoadConfigurationFromFile()
 
         if (access(absolutePath, F_OK) != 0)
         {
-                return FUNC_STATUS_ERR;
+                return FUNC_STATUS_USR_ERR;
         }
 
         char fileContent[JSONBUFFSIZE];
-        if (ww_get_file_content(absolutePath, fileContent, JSONBUFFSIZE))
+        if (ww_get_file_content(absolutePath,
+                                fileContent,
+                                sizeof(fileContent) / sizeof(fileContent[0])))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -861,7 +892,10 @@ LoadConfigurationFromFile()
                         }
 
                         char prefixPath[BUFFSIZE];
-                        if (snprintf(prefixPath, BUFFSIZE, prefix, path) < 0)
+                        if (snprintf(prefixPath,
+                                     sizeof(prefixPath) / sizeof(prefixPath[0]),
+                                     prefix,
+                                     path) < 0)
                         {
                                 return FUNC_STATUS_MEM_ERR;
                         }
@@ -1228,7 +1262,10 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         }
 
         char pathCharPtr[BUFFSIZE];
-        if (wcstombs(pathCharPtr, pathPtr, BUFFSIZE) == (size_t)-1)
+        if (wcstombs(pathCharPtr,
+                     pathPtr,
+                     sizeof(pathCharPtr) / sizeof(pathCharPtr[0])) ==
+            (size_t)-1)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -1351,13 +1388,16 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 }
 
                 char appTitle[BUFFSIZE];
-                if (!GetMetaTagValue(content, TAG_APP_NAME, appTitle, BUFFSIZE))
+                if (!GetMetaTagValue(content,
+                                     TAG_APP_NAME,
+                                     appTitle,
+                                     sizeof(appTitle) / sizeof(appTitle[0])))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
 
                 bytes += snprintf(&files[bytes],
-                                  BUFFSIZE,
+                                  sizeof(appTitle) / sizeof(appTitle[0]),
                                   "{\"title\":\"%s\",\"path\":\"%s\"},",
                                   appTitle,
                                   widgets[i]);
@@ -1393,7 +1433,7 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
 {
         char settings[BUFFSIZE];
         snprintf(settings,
-                 BUFFSIZE,
+                 sizeof(settings) / sizeof(settings[0]),
                  "toggleSettings({\"isWidgetAutostartEnabled\":%s,"
                  "\"isWidgetFullscreenHideEnabled\":%s,"
                  "\"isOpenAppOnStartupEnabled\":%s})",
@@ -1402,7 +1442,8 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
                  g_settings.appAutostart ? "true" : "false");
 
         wchar_t command[BUFFSIZE];
-        if (mbstowcs(command, settings, strlen(settings)) == (size_t)-1)
+        if (mbstowcs(command, settings, sizeof(command) / sizeof(command[0])) ==
+            (size_t)-1)
         {
                 return FUNC_STATUS_MEM_ERR;
         }
@@ -1535,7 +1576,12 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         {
                 char content[USHRT_MAX];
                 if (BAD(OpenWidgetByFilename(
-                            argument, nullptr, nullptr, nullptr, content)))
+                            argument,
+                            nullptr,
+                            nullptr,
+                            nullptr,
+                            content,
+                            sizeof(content) / sizeof(content[0]))))
                 {
                         return FUNC_STATUS_ERR;
                 }
