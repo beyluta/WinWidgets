@@ -117,7 +117,7 @@ static bool g_envCreated = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 /**
  * @brief Creates a console window and writes debug messages to it
@@ -1363,11 +1363,9 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
 
         if (bytes >= maxLength)
         {
-                Debug("Bigger than expected");
                 return FUNC_STATUS_MEM_ERR;
         }
 
-        Debug(files);
         const char format[] = "addWidgets([%s])";
         char command[maxLength + (sizeof(format) / sizeof(format[0]))];
         if ((bytes = snprintf(command, maxLength, format, files)) < 0)

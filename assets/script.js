@@ -96,7 +96,6 @@ async function openWidget(path) {
  * @param {object[]} widgets - Array of { title: string, path: string }
  */
 function addWidgets(widgets) {
-  alert(JSON.stringify(widgets));
   for (const widget of widgets) {
     addWidget(widget.title, widget.path);
   }
