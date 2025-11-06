@@ -2237,25 +2237,7 @@ SetWindowIcon(const HWND hWnd, const char *const src, HANDLE *hIcon)
 static func_status_t
 create_widget_window(ww_window_ctx *const context)
 {
-        func_status_t status = FUNC_STATUS_OK;
-
-        // Children should not have prefixes
-        if (context->child)
-        {
-                TrimStart(context->filename,
-                          context->filename,
-                          HANDLE_PREFIX_OFFSET);
-        }
-
-        // Saving the context of the main window to a global list
-        if (g_widgetCount == 0)
-        {
-                memcpy(&g_widgets[g_widgetCount].context,
-                       context,
-                       sizeof(ww_window_ctx));
-        }
-
-        // Replacing '/' with '\' as it is the standard for windows
+        TrimStart(context->filename, context->filename, HANDLE_PREFIX_OFFSET);
         ReplaceChars(context->filename, widget_char_slash, widget_char_b_slash);
 
         const size_t hash =
@@ -2265,58 +2247,7 @@ create_widget_window(ww_window_ctx *const context)
         if (g_hWndTable[hash] != nullptr)
         {
                 g_widgetCount--;
-                status = FUNC_STATUS_USR_ERR;
-                goto cleanup;
-        }
-
-        // Trick for the main window so that it doesn't appear in the taskbar.
-        // Basically we create an invisible window and set it as the parent of
-        // the real window.
-        if (g_invisibleHwnd == nullptr)
-        {
-                WNDCLASS invisibleWc = {};
-                invisibleWc.lpfnWndProc = WindowProc;
-                invisibleWc.hInstance = g_hInstance;
-                invisibleWc.lpszClassName = PROG_NAME;
-                RegisterClass(&invisibleWc);
-
-                g_invisibleHwnd = CreateWindowEx(0,
-                                                 PROG_NAME,
-                                                 nullptr,
-                                                 WS_OVERLAPPED,
-                                                 CW_USEDEFAULT,
-                                                 CW_USEDEFAULT,
-                                                 CW_USEDEFAULT,
-                                                 CW_USEDEFAULT,
-                                                 nullptr,
-                                                 nullptr,
-                                                 g_hInstance,
-                                                 nullptr);
-
-                // Setting the ICON of the invisible window
-                ShowWindow(g_invisibleHwnd, SW_HIDE);
-                UpdateWindow(g_invisibleHwnd);
-
-                HANDLE hIcon;
-                if (BAD(SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hIcon)))
-                {
-                        status = FUNC_STATUS_ERR;
-                        goto cleanup;
-                }
-
-                // Creating the systemtray icon for this invisible window
-                NOTIFYICONDATA nId;
-                nId.cbSize = sizeof(nId);
-                nId.hWnd = g_invisibleHwnd;
-                nId.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-                nId.uID = 0;
-                nId.uCallbackMessage = PROG_WM_ICONNOTIFY;
-                nId.hIcon = hIcon;
-                nId.uVersion = NOTIFYICON_VERSION_4;
-
-                memcpy(nId.szTip, PROG_NAME, PROG_NAME_SIZE);
-
-                Shell_NotifyIcon(NIM_ADD, &nId);
+                return FUNC_STATUS_ERR;
         }
 
         WNDCLASS wc = {};
@@ -2326,24 +2257,154 @@ create_widget_window(ww_window_ctx *const context)
         RegisterClass(&wc);
 
         HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
-        const size_t wsStyle =
-                context->child ? WS_POPUP : WS_OVERLAPPEDWINDOW | WS_VISIBLE;
-        const HWND parentHwnd = context->child ? nullptr : g_invisibleHwnd;
         if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
                                     PROG_NAME,
                                     context->title,
-                                    wsStyle,
+                                    WS_POPUP,
                                     context->x,
                                     context->y,
                                     context->width,
                                     context->height,
-                                    parentHwnd,
+                                    nullptr,
                                     nullptr,
                                     g_hInstance,
                                     nullptr)) == nullptr)
         {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
+                return FUNC_STATUS_ERR;
+        }
+
+        g_hWndTable[hash] = *hWnd;
+        ShowWindow(*hWnd, g_nCmdShow);
+
+        if (g_parentHwnd == nullptr)
+        {
+                g_parentHwnd = *hWnd;
+        }
+
+        HANDLE hIcon;
+        if (BAD(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (BAD(SetWindowBorderRadius(*hWnd, context)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        const bool topMost = context->top_most == 0;
+        if (BAD(SetWindowTopMost(*hWnd, topMost)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (BAD(HideWindowFromTaskbar(*hWnd)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (!UpdateWindow(*hWnd))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        if (g_env->lpVtbl->CreateCoreWebView2Controller(
+                    g_env, *hWnd, &controllerCompletedHandler) != S_OK)
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Used to create the main window of the application. This function
+ * should only be called once at the start of the program.
+ *
+ * @param context Information about the window
+ */
+static func_status_t
+create_widget_manager(ww_window_ctx *const context)
+{
+        memcpy(&g_widgets[g_widgetCount].context,
+               context,
+               sizeof(ww_window_ctx));
+        ReplaceChars(context->filename, widget_char_slash, widget_char_b_slash);
+
+        const size_t hash =
+                GetHashFromString(context->filename, HASH_PRIME, MAX_WIDGETS);
+
+        // Trick for the main window so that it doesn't appear in the taskbar.
+        // Basically we create an invisible window and set it as the parent of
+        // the real window.
+        WNDCLASS invisibleWc = {};
+        invisibleWc.lpfnWndProc = WindowProc;
+        invisibleWc.hInstance = g_hInstance;
+        invisibleWc.lpszClassName = PROG_NAME;
+        RegisterClass(&invisibleWc);
+
+        g_invisibleHwnd = CreateWindowEx(0,
+                                         PROG_NAME,
+                                         nullptr,
+                                         WS_OVERLAPPED,
+                                         CW_USEDEFAULT,
+                                         CW_USEDEFAULT,
+                                         CW_USEDEFAULT,
+                                         CW_USEDEFAULT,
+                                         nullptr,
+                                         nullptr,
+                                         g_hInstance,
+                                         nullptr);
+
+        // Setting the ICON of the invisible window
+        ShowWindow(g_invisibleHwnd, SW_HIDE);
+        UpdateWindow(g_invisibleHwnd);
+
+        HANDLE hInvisIcon;
+        if (BAD(SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hInvisIcon)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        // Creating the systemtray icon for this invisible window
+        NOTIFYICONDATA nId;
+        nId.cbSize = sizeof(nId);
+        nId.hWnd = g_invisibleHwnd;
+        nId.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+        nId.uID = 0;
+        nId.uCallbackMessage = PROG_WM_ICONNOTIFY;
+        nId.hIcon = hInvisIcon;
+        nId.uVersion = NOTIFYICON_VERSION_4;
+        memcpy(nId.szTip, PROG_NAME, PROG_NAME_SIZE);
+        Shell_NotifyIcon(NIM_ADD, &nId);
+
+        // Creating the real window
+        WNDCLASS wc = {};
+        wc.lpfnWndProc = WindowProc;
+        wc.hInstance = g_hInstance;
+        wc.lpszClassName = PROG_NAME;
+        RegisterClass(&wc);
+
+        HWND *const hWnd = &g_widgets[g_widgetCount].hWnd;
+        if ((*hWnd = CreateWindowEx(WS_EX_LAYERED,
+                                    PROG_NAME,
+                                    context->title,
+                                    WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                    context->x,
+                                    context->y,
+                                    context->width,
+                                    context->height,
+                                    g_invisibleHwnd,
+                                    nullptr,
+                                    g_hInstance,
+                                    nullptr)) == nullptr)
+        {
+                return FUNC_STATUS_ERR;
         }
 
         g_hWndTable[hash] = *hWnd;
@@ -2364,72 +2425,32 @@ create_widget_window(ww_window_ctx *const context)
         HANDLE hIcon;
         if (BAD(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon)))
         {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
+                return FUNC_STATUS_ERR;
         }
 
         if (BAD(SetWindowBorderRadius(*hWnd, context)))
         {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
+                return FUNC_STATUS_ERR;
         }
 
         if (BAD(SetWindowOpacity(*hWnd, context->opacity)))
         {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
-        }
-
-        // Apply these visual changes only for children widgets
-        if (context->child)
-        {
-                const bool topMost = context->top_most == 0;
-                if (BAD(SetWindowTopMost(*hWnd, topMost)))
-                {
-                        status = FUNC_STATUS_ERR;
-                        goto cleanup;
-                }
-
-                if (BAD(HideWindowFromTaskbar(*hWnd)))
-                {
-                        status = FUNC_STATUS_ERR;
-                        goto cleanup;
-                }
+                return FUNC_STATUS_ERR;
         }
 
         if (!UpdateWindow(*hWnd))
         {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
+                return FUNC_STATUS_ERR;
         }
 
-        if (!g_envCreated)
+        if (CreateCoreWebView2EnvironmentWithOptions(
+                    nullptr, nullptr, nullptr, &environmentCompletedHandler) !=
+            S_OK)
         {
-                if (CreateCoreWebView2EnvironmentWithOptions(
-                            nullptr,
-                            nullptr,
-                            nullptr,
-                            &environmentCompletedHandler) != S_OK)
-                {
-                        status = FUNC_STATUS_ERR;
-                        goto cleanup;
-                }
-                return FUNC_STATUS_OK;
+                return FUNC_STATUS_ERR;
         }
 
-        if (g_env->lpVtbl->CreateCoreWebView2Controller(
-                    g_env, *hWnd, &controllerCompletedHandler) != S_OK)
-        {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
-        }
-
-cleanup:
-        if (status > FUNC_STATUS_USR_ERR)
-        {
-                CoUninitialize();
-        }
-        return status;
+        return FUNC_STATUS_OK;
 }
 
 /*
@@ -2474,7 +2495,7 @@ ww_init_main(const HINSTANCE hInstance,
                 goto cleanup;
         }
 
-        if (BAD(create_widget_window(context)))
+        if (BAD(create_widget_manager(context)))
         {
                 goto cleanup;
         }
