@@ -1354,9 +1354,11 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
 
         size_t count = 0;
         char widgets[MAX_WIDGETS][BUFFSIZE];
-        if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) == 0)
+        if ((count = ww_get_files_from_dir(app_dir, widgets, MAX_WIDGETS)) < 1)
         {
-                return FUNC_STATUS_MEM_ERR;
+                webview->lpVtbl->ExecuteScript(
+                        webview, L"addWidgets([])", nullptr);
+                return FUNC_STATUS_USR_ERR;
         }
 
         ssize_t bytes = 0;
@@ -1375,7 +1377,9 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 }
 
                 char content[USHRT_MAX];
-                if (ww_get_file_content(widgets[i], content, USHRT_MAX))
+                if (ww_get_file_content(widgets[i],
+                                        content,
+                                        sizeof(content) / sizeof(content[0])))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
@@ -2245,10 +2249,7 @@ event_loop()
                         ICoreWebView2 *parentWebview =
                                 g_widgets[PARENT_INDEX].window;
 
-                        if (BAD(AppendWidgetsToDOM(parentWebview)))
-                        {
-                                continue;
-                        }
+                        AppendWidgetsToDOM(parentWebview);
 
                         g_dirChangesDetected = false;
                 }

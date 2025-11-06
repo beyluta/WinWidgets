@@ -230,8 +230,9 @@ ww_get_files_from_dir(const char *src, char dest[][BUFFSIZE], const size_t size)
                 snprintf(temp, total_len, "%s/%s", src, dir->d_name);
                 temp[total_len - 1] = '\0';
 
-                const size_t len = strlen(temp);
-                memcpy(dest[i++], temp, len);
+                const size_t len = strlen(temp) + 1;
+                memcpy(dest[i], temp, len);
+                dest[i++][len] = '\0';
         }
         closedir(directory);
 
