@@ -113,6 +113,7 @@ static HWINEVENTHOOK g_hook = nullptr;
 static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
 static bool g_envCreated = false;
+static bool g_silentMode = false;
 
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
@@ -343,6 +344,8 @@ ModifyAutostartEntry(const bool addEntry)
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
+
+        strcat(binary, " --silent");
 
         HKEY hKey = nullptr;
         if (RegOpenKeyEx(
@@ -2343,13 +2346,20 @@ create_widget_window(ww_window_ctx *const context)
                 goto cleanup;
         }
 
+        g_hWndTable[hash] = *hWnd;
+        if (g_silentMode && g_parentHwnd == nullptr)
+        {
+                ShowWindow(*hWnd, SW_MINIMIZE);
+        }
+        else
+        {
+                ShowWindow(*hWnd, g_nCmdShow);
+        }
+
         if (g_parentHwnd == nullptr)
         {
                 g_parentHwnd = *hWnd;
         }
-
-        g_hWndTable[hash] = *hWnd;
-        ShowWindow(*hWnd, g_nCmdShow);
 
         HANDLE hIcon;
         if (BAD(SetWindowIcon(*hWnd, FAVICON_PATH, &hIcon)))
@@ -2432,15 +2442,16 @@ cleanup:
  * @returns true if successful, else false on failure
  */
 bool
-ww_init_main(HINSTANCE hInstance,
-             int nCmdShow,
-             ww_window_ctx *const context,
-             ww_widget_ctx *)
+ww_init_main(const HINSTANCE hInstance,
+             const int nCmdShow,
+             const LPSTR pCmdLine,
+             ww_window_ctx *const context)
 {
         bool comInitialized = true;
 
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
+        g_silentMode = strcmp(pCmdLine, "--silent") == 0;
 
         if (FAILED(CoInitialize(nullptr)))
         {

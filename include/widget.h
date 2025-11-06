@@ -71,10 +71,10 @@ bool
 ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets);
 #elif _WIN32
 bool
-ww_init_main(HINSTANCE hInstance,
-             int nCmdShow,
-             ww_window_ctx *context,
-             ww_widget_ctx *widgets);
+ww_init_main(const HINSTANCE hInstance,
+             const int nCmdShow,
+             const LPSTR pCmdLine,
+             ww_window_ctx *const context);
 #endif
 
 #endif

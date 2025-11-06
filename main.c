@@ -14,7 +14,7 @@ main(void)
 {
 #elif _WIN32
 int WINAPI
-WinMain(HINSTANCE hInstance, HINSTANCE, PSTR, int nCmdShow)
+WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR pCmdLine, int nCmdShow)
 {
 #endif
         char temp[BUFFSIZE];
@@ -57,17 +57,17 @@ WinMain(HINSTANCE hInstance, HINSTANCE, PSTR, int nCmdShow)
         memcpy(window.filename, html, len);
         window.filename[len] = '\0';
 
+#if __linux__
         ww_widget_ctx widgets[MAX_WIDGETS];
         for (size_t i = 0; i < MAX_WIDGETS; i++)
         {
                 widgets[i].window_context.index = i;
         }
 
-#if __linux__
         if (ww_init_main(&window, widgets) == true)
         {
 #elif _WIN32
-        if (ww_init_main(hInstance, nCmdShow, &window, widgets) == true)
+        if (ww_init_main(hInstance, nCmdShow, pCmdLine, &window) == true)
         {
 #endif
                 fprintf(stderr, "Failed to create the widget\n");
