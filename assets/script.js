@@ -96,6 +96,9 @@ async function openWidget(path) {
  * @param {object[]} widgets - Array of { title: string, path: string }
  */
 function addWidgets(widgets) {
+  const el = document.querySelector('.list');
+  el.innerHTML = '';
+
   for (const widget of widgets) {
     addWidget(widget.title, widget.path);
   }

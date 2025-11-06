@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <ddraw.h>
+#include <pthread.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
@@ -28,6 +29,7 @@ static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Toggle move";
 static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
 static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Toggle always on top";
 
+static constexpr uint8_t PARENT_INDEX = 0;
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
 static constexpr uint8_t HASH_PRIME = 31;
 static constexpr uint8_t HANDLE_PREFIX_OFFSET = 7;
@@ -88,12 +90,12 @@ typedef struct
 } application_settings_t;
 
 /**
- * @brief Evaluates the expression, quits and logs the error on failure.
+ * @brief Whether the function call is not recoverable
  */
 #define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
 // ----------------------------------------------------------
-// Global variables to control the state of the main window |
+// Global variables to control the state of the application |
 // ----------------------------------------------------------
 static EventRegistrationToken g_closeEventHandlerToken = {};
 static EventRegistrationToken g_moveEventHandlerToken = {};
@@ -118,6 +120,7 @@ static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
 static bool g_envCreated = false;
 static bool g_silentMode = false;
+static volatile bool g_dirChangesDetected = false;
 
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
@@ -2135,6 +2138,91 @@ WinEventProc(HWINEVENTHOOK,
 }
 
 /**
+ * @brief Used to reload changes in the default widgets directy when something
+ * inside the directory changes.
+ */
+static void *
+OnDirectoryChangedReload(void *)
+{
+        HANDLE hDir = nullptr;
+        char dirPath[BUFFSIZE];
+        if (ww_default_widgets_dir(dirPath))
+        {
+                goto cleanup;
+        }
+
+        wchar_t lpDirPath[BUFFSIZE];
+        if (mbstowcs(lpDirPath,
+                     dirPath,
+                     sizeof(dirPath) / sizeof(dirPath[0])) == (size_t)-1)
+        {
+                goto cleanup;
+        }
+
+        if ((hDir = CreateFileW(
+                     lpDirPath,
+                     FILE_LIST_DIRECTORY,
+                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                     nullptr,
+                     OPEN_EXISTING,
+                     FILE_FLAG_BACKUP_SEMANTICS,
+                     nullptr)) == nullptr)
+        {
+                goto cleanup;
+        }
+
+        BYTE buffer[1024];
+        DWORD bytes;
+        while (true)
+        {
+                if (!ReadDirectoryChangesW(
+                            hDir,
+                            &buffer,
+                            sizeof(buffer) / sizeof(buffer[0]),
+                            true,
+                            FILE_NOTIFY_CHANGE_FILE_NAME |
+                                    FILE_NOTIFY_CHANGE_DIR_NAME |
+                                    FILE_NOTIFY_CHANGE_ATTRIBUTES |
+                                    FILE_NOTIFY_CHANGE_SIZE |
+                                    FILE_NOTIFY_CHANGE_LAST_WRITE,
+                            &bytes,
+                            nullptr,
+                            nullptr))
+                {
+                        continue;
+                }
+
+                DWORD entryOffset = 1;
+                bool canUpdateChanges = true;
+                while (entryOffset)
+                {
+                        FILE_NOTIFY_INFORMATION *info =
+                                (FILE_NOTIFY_INFORMATION *)buffer;
+                        const size_t len = info->FileNameLength / sizeof(WCHAR);
+                        char filename[BUFFSIZE];
+                        wcstombs(filename, info->FileName, len);
+                        filename[len] = '\0';
+
+                        if (strcmp(filename, &CONFIG_NAME[1]) == 0)
+                        {
+                                canUpdateChanges = false;
+                        }
+
+                        entryOffset = info->NextEntryOffset;
+                }
+
+                g_dirChangesDetected = canUpdateChanges;
+        }
+
+cleanup:
+        if (hDir != nullptr)
+        {
+                CloseHandle(hDir);
+        }
+        return nullptr;
+}
+
+/**
  * @brief Default event loop of th application
  */
 static void
@@ -2144,7 +2232,19 @@ event_loop()
         BOOL bRet;
         while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
         {
-                // An error occured
+                if (g_dirChangesDetected)
+                {
+                        ICoreWebView2 *parentWebview =
+                                g_widgets[PARENT_INDEX].window;
+
+                        if (BAD(AppendWidgetsToDOM(parentWebview)))
+                        {
+                                continue;
+                        }
+
+                        g_dirChangesDetected = false;
+                }
+
                 if (bRet == -1)
                 {
                         break;
@@ -2477,7 +2577,9 @@ ww_init_main(const HINSTANCE hInstance,
              const LPSTR pCmdLine,
              ww_window_ctx *const context)
 {
+        pthread_t thread;
         bool comInitialized = true;
+        int pThread = 0;
 
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
@@ -2509,17 +2611,28 @@ ww_init_main(const HINSTANCE hInstance,
                 goto cleanup;
         }
 
+        if ((pThread = pthread_create(
+                     &thread, nullptr, OnDirectoryChangedReload, nullptr)) != 0)
+        {
+                goto cleanup;
+        }
+
         event_loop();
 
 cleanup:
-        if (comInitialized)
+        if (pThread == 0)
         {
-                CoUninitialize();
+                pthread_detach(thread);
         }
 
         if (g_hook != nullptr)
         {
                 UnhookWinEvent(g_hook);
+        }
+
+        if (comInitialized)
+        {
+                CoUninitialize();
         }
 
         return false;
