@@ -18,14 +18,6 @@ static constexpr char PROG_START_PATH[] =
 static constexpr char CONFIG_NAME[] = "\\config.json";
 static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 
-static constexpr char TAG_APP_NAME[] = "applicationTitle";
-static constexpr char TAG_APP_TOPMOST[] = "topMost";
-static constexpr char TAG_WIN_SIZE[] = "windowSize";
-static constexpr char TAG_WIN_LOCATION[] = "windowLocation";
-static constexpr char TAG_WIN_PREV[] = "previewSize";
-static constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
-static constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
-
 static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Toggle move";
 static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
 static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Toggle always on top";
@@ -36,17 +28,6 @@ static constexpr uint8_t HANDLE_PREFIX_OFFSET = 7;
 static constexpr uint8_t FILE_PREFIX_OFFSET = 8;
 static constexpr uint8_t PROG_NAME_SIZE =
         sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
-
-static constexpr uint16_t DEF_WIDTH = 500;
-static constexpr uint16_t DEF_HEIGHT = 500;
-static constexpr uint16_t DEF_PREV_WIDTH = DEF_WIDTH;
-static constexpr uint16_t DEF_PREV_HEIGHT = DEF_HEIGHT;
-static constexpr uint16_t DEF_X = 0;
-static constexpr uint16_t DEF_Y = 0;
-static constexpr uint16_t DEF_OPACITY = 1;
-static constexpr uint16_t DEF_RADIUS = 0;
-static constexpr bool DEF_CHILD = true;
-static constexpr bool DEF_TOPMOST = false;
 
 static constexpr uint16_t KEY_STATE_HELD = SHRT_MAX + 1;
 static constexpr uint16_t PROG_WM_ICONNOTIFY = WM_APP + 1;

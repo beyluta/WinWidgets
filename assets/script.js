@@ -26,8 +26,7 @@ function openScene(scene, mode) {
 function toggleSettings(settings) {
   for (const [key, value] of Object.entries(settings)) {
     const setting = document.getElementById(key);
-    if (typeof value === 'boolean' && value === true)
-    {
+    if (typeof value === 'boolean' && value === true) {
       toggleSetting(setting);
     }
   }
@@ -97,6 +96,7 @@ async function openWidget(path) {
  * @param {object[]} widgets - Array of { title: string, path: string }
  */
 function addWidgets(widgets) {
+  alert(JSON.stringify(widgets));
   for (const widget of widgets) {
     addWidget(widget.title, widget.path);
   }
@@ -129,8 +129,8 @@ function postMessage(messageName, args) {
     eventId: EVENT_IDS[messageName],
     args: args ?? null
   };
-  window.chrome.webview.postMessage(JSON.stringify(programArgs));       // Windows
-  window.webkit.messageHandlers[messageName].postMessage(args ?? null); // Linux
+  window.chrome?.webview?.postMessage(JSON.stringify(programArgs));       // Windows
+  window.webkit?.messageHandlers?.[messageName]?.postMessage(args ?? null); // Linux
 }
 
 /**

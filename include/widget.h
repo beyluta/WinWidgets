@@ -3,10 +3,30 @@
 
 #include "global.h"
 #include <stddef.h>
+#include <stdint.h>
 
 #if _WIN32
 #include <minwindef.h>
 #endif
+
+constexpr char TAG_APP_NAME[] = "applicationTitle";
+constexpr char TAG_APP_TOPMOST[] = "topMost";
+constexpr char TAG_WIN_SIZE[] = "windowSize";
+constexpr char TAG_WIN_LOCATION[] = "windowLocation";
+constexpr char TAG_WIN_PREV[] = "previewSize";
+constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
+constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
+
+constexpr uint16_t DEF_WIDTH = 500;
+constexpr uint16_t DEF_HEIGHT = 500;
+constexpr uint16_t DEF_PREV_WIDTH = DEF_WIDTH;
+constexpr uint16_t DEF_PREV_HEIGHT = DEF_HEIGHT;
+constexpr uint16_t DEF_X = 0;
+constexpr uint16_t DEF_Y = 0;
+constexpr uint16_t DEF_OPACITY = 1;
+constexpr uint16_t DEF_RADIUS = 0;
+constexpr bool DEF_CHILD = true;
+constexpr bool DEF_TOPMOST = false;
 
 /**
  * @brief Window context structure for widgets.

@@ -2,8 +2,11 @@
 #include "filesystem.h"
 #include "gdk/gdk.h"
 #include "global.h"
+#include "utils.h"
+
 #include <cairo/cairo.h>
 #include <gtk/gtk.h>
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <webkit2/webkit2.h>
@@ -246,29 +249,55 @@ on_get_widget_filenames(WebKitUserContentManager *,
                 return;
         }
 
-        // Building a comma separated list with the list all files found
-        size_t j = 0;
-        const size_t len = (MAX_WIDGETS * BUFFSIZE) + (MAX_WIDGETS * 2) +
-                           (MAX_WIDGETS - 1) + 2;
-        char list[len];
+        ssize_t bytes = 0;
+        const uint8_t offset = 3;
+        const ssize_t maxLength = (MAX_WIDGETS * BUFFSIZE) +
+                                  (MAX_WIDGETS * (BUFFSIZE + offset)) -
+                                  (MAX_WIDGETS * BUFFSIZE);
+
+        char files[maxLength];
         for (size_t i = 0; i < count; i++)
         {
-                const size_t size = strlen(widgets[i]);
-                char temp[size + 3];
-                snprintf(temp, sizeof(temp) + 1, "'%s',", widgets[i]);
-                memcpy(&list[j], temp, sizeof(temp));
-                j = j + sizeof(temp);
-        }
-        list[j - 1] = '\0';
+                const size_t filenameLen = strlen(widgets[i]);
+                if (filenameLen >= BUFFSIZE - offset)
+                {
+                        return;
+                }
 
-        // Build a JSON object out of the list
-        const size_t list_len = strlen(list) + 4;
-        char json[list_len];
-        snprintf(json, list_len + 1, "\"[%s]\"", list);
-        json[list_len] = '\0';
+                char content[USHRT_MAX];
+                if (ww_get_file_content(widgets[i], content, USHRT_MAX))
+                {
+                        return;
+                }
+
+                char appTitle[BUFFSIZE];
+                if (!GetMetaTagValue(content, TAG_APP_NAME, appTitle, BUFFSIZE))
+                {
+                        return;
+                }
+
+                bytes += snprintf(&files[bytes],
+                                  BUFFSIZE,
+                                  "{\"title\":\"%s\",\"path\":\"%s\"},",
+                                  appTitle,
+                                  widgets[i]);
+        }
+        files[bytes - 1] = '\0';
+
+        if (bytes >= maxLength)
+        {
+                return;
+        }
+
+        const char format[] = "[%s]";
+        char command[maxLength + (sizeof(format) / sizeof(format[0]))];
+        if ((bytes = snprintf(command, maxLength, format, files)) < 0)
+        {
+                return;
+        }
 
         // Calling the function from JavaScript
-        call_js_function("addWidgets", json, user_data);
+        call_js_function("addWidgets", command, user_data);
 }
 
 /**
