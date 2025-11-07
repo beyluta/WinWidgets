@@ -142,15 +142,12 @@ Debug(const char *const message)
         const size_t messageLen = strlen(message);
         char newMessage[USHRT_MAX];
 
-        if (messageLen >= sizeof(newMessage) / sizeof(newMessage[0]))
+        if (messageLen >= lengthof(newMessage))
         {
                 return false;
         }
 
-        if (snprintf(newMessage,
-                     sizeof(newMessage) / sizeof(newMessage[0]),
-                     "%s\n",
-                     message) < 0)
+        if (snprintf(newMessage, lengthof(newMessage), "%s\n", message) < 0)
         {
                 return false;
         }
@@ -353,7 +350,7 @@ ModifyAutostartEntry(const bool addEntry)
 {
         func_status_t status = FUNC_STATUS_OK;
         char binary[BUFFSIZE];
-        if (ww_get_executable_path(binary, sizeof(binary) / sizeof(binary[0])))
+        if (ww_get_executable_path(binary, lengthof(binary)))
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -2378,6 +2375,13 @@ create_widget_window(ww_window_ctx *const context)
 
         g_hWndTable[hash] = *hWnd;
         ShowWindow(*hWnd, g_nCmdShow);
+        SetWindowPos(*hWnd,
+                     HWND_BOTTOM,
+                     0,
+                     0,
+                     0,
+                     0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
 
         if (g_parentHwnd == nullptr)
         {
@@ -2397,10 +2401,13 @@ create_widget_window(ww_window_ctx *const context)
 
         SetLayeredWindowAttributes(*hWnd, 0, 255, LWA_ALPHA);
 
-        const bool topMost = context->top_most == 0;
-        if (BAD(SetWindowTopMost(*hWnd, topMost)))
+        const bool topMost = context->top_most;
+        if (topMost)
         {
-                return FUNC_STATUS_ERR;
+                if (BAD(SetWindowTopMost(*hWnd, !context->top_most)))
+                {
+                        return FUNC_STATUS_ERR;
+                }
         }
 
         if (BAD(HideWindowFromTaskbar(*hWnd)))
