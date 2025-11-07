@@ -14,9 +14,18 @@
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
 #endif
 
+/**
+ * @brief Whether the function call is not recoverable
+ */
+#define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
+
+/**
+ * @brief Get length of fixed size array of any type
+ */
+#define lengthof(pointer) (sizeof(pointer) / (sizeof(pointer[0])))
+
 static constexpr char PROG_NAME[] = "WinWidgets";
-static constexpr uint8_t PROG_NAME_SIZE =
-        sizeof(PROG_NAME) / sizeof(PROG_NAME[0]);
+static constexpr uint8_t PROG_NAME_SIZE = lengthof(PROG_NAME);
 
 static constexpr char PROG_SEM_VER[] = "2.0.0";
 static constexpr char PROG_START_PATH[] =
@@ -88,11 +97,6 @@ typedef struct
         const bool fullscreenHide;
         const bool appAutostart;
 } application_settings_t;
-
-/**
- * @brief Whether the function call is not recoverable
- */
-#define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
 // ----------------------------------------------------------
 // Global variables to control the state of the application |
@@ -429,7 +433,7 @@ SaveConfigurationToFile()
 
                 char filename[BUFFSIZE];
                 if (snprintf(filename,
-                             sizeof(filename) / sizeof(filename[0]),
+                             lengthof(filename),
                              "%s",
                              window.filename) < 0)
                 {
@@ -445,7 +449,7 @@ SaveConfigurationToFile()
                 int16_t x = rect.left, y = rect.top;
                 if ((bytesWritten +=
                      snprintf(&session[bytesWritten],
-                              sizeof(session) / sizeof(session[0]),
+                              lengthof(session),
                               "{\"path\":\"%s\",\"position\":\"%hd, "
                               "%hd\",\"alwaysOnTop\":%s},",
                               filename,
@@ -453,7 +457,7 @@ SaveConfigurationToFile()
                               y,
                               isWindowTopMost(hWnd) == true ? "true"
                                                             : "false")) >=
-                    sizeof(session) / sizeof(session[0]))
+                    lengthof(session))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
@@ -462,7 +466,7 @@ SaveConfigurationToFile()
 
         char json[USHRT_MAX];
         if (snprintf(json,
-                     sizeof(json) / sizeof(json[0]),
+                     lengthof(json),
                      "{\"version\":\"%s\",\"isWidgetAutostartEnabled\":%s,"
                      "\"isWidgetFullscreenHideEnabled\":%s,"
                      "\"isOpenAppOnStartupEnabled\":%s,"
@@ -608,15 +612,13 @@ OpenWidgetByFilename(const char *const path,
         }
 
         char buf[BUFFSIZE] = {};
-        if (GetMetaTagValue(
-                    content, TAG_APP_NAME, buf, sizeof(buf) / sizeof(buf[0])))
+        if (GetMetaTagValue(content, TAG_APP_NAME, buf, lengthof(buf)))
         {
-                memcpy(context.title, buf, sizeof(buf) / sizeof(buf[0]));
-                context.title[(sizeof(buf) / sizeof(buf[0])) - 1] = '\0';
+                memcpy(context.title, buf, lengthof(buf));
+                context.title[lengthof(buf) - 1] = '\0';
         }
 
-        if (GetMetaTagValue(
-                    content, TAG_WIN_SIZE, buf, sizeof(buf) / sizeof(buf[0])))
+        if (GetMetaTagValue(content, TAG_WIN_SIZE, buf, lengthof(buf)))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -624,10 +626,7 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (GetMetaTagValue(content,
-                            TAG_WIN_LOCATION,
-                            buf,
-                            sizeof(buf) / sizeof(buf[0])) &&
+        if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, lengthof(buf)) &&
             x == nullptr && y == nullptr)
         {
                 size_t xPos, yPos;
@@ -636,8 +635,7 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (GetMetaTagValue(
-                    content, TAG_WIN_PREV, buf, sizeof(buf) / sizeof(buf[0])))
+        if (GetMetaTagValue(content, TAG_WIN_PREV, buf, lengthof(buf)))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -645,19 +643,13 @@ OpenWidgetByFilename(const char *const path,
                 context.prevHeight = isSet ? height : DEF_Y;
         }
 
-        if (GetMetaTagValue(content,
-                            TAG_APP_TOPMOST,
-                            buf,
-                            sizeof(buf) / sizeof(buf[0])) &&
+        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, lengthof(buf)) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (GetMetaTagValue(content,
-                            TAG_WIN_BORD_RAD,
-                            buf,
-                            sizeof(buf) / sizeof(buf[0])))
+        if (GetMetaTagValue(content, TAG_WIN_BORD_RAD, buf, lengthof(buf)))
         {
                 const double radius = strtod(buf, nullptr);
                 context.radius = radius;
@@ -707,7 +699,7 @@ Pop()
                                      &item.y,
                                      &item.topMost,
                                      content,
-                                     sizeof(content) / sizeof(content[0]))))
+                                     lengthof(content))))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -737,9 +729,8 @@ LoadConfigurationFromFile()
         }
 
         char fileContent[JSONBUFFSIZE];
-        if (ww_get_file_content(absolutePath,
-                                fileContent,
-                                sizeof(fileContent) / sizeof(fileContent[0])))
+        if (ww_get_file_content(
+                    absolutePath, fileContent, lengthof(fileContent)))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -886,7 +877,7 @@ LoadConfigurationFromFile()
 
                         char prefixPath[BUFFSIZE];
                         if (snprintf(prefixPath,
-                                     sizeof(prefixPath) / sizeof(prefixPath[0]),
+                                     lengthof(prefixPath),
                                      prefix,
                                      path) < 0)
                         {
@@ -1255,10 +1246,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         }
 
         char pathCharPtr[BUFFSIZE];
-        if (wcstombs(pathCharPtr,
-                     pathPtr,
-                     sizeof(pathCharPtr) / sizeof(pathCharPtr[0])) ==
-            (size_t)-1)
+        if (wcstombs(pathCharPtr, pathPtr, lengthof(pathCharPtr)) == (size_t)-1)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -1377,9 +1365,7 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 }
 
                 char content[USHRT_MAX];
-                if (ww_get_file_content(widgets[i],
-                                        content,
-                                        sizeof(content) / sizeof(content[0])))
+                if (ww_get_file_content(widgets[i], content, lengthof(content)))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
@@ -1388,13 +1374,13 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 if (!GetMetaTagValue(content,
                                      TAG_APP_NAME,
                                      appTitle,
-                                     sizeof(appTitle) / sizeof(appTitle[0])))
+                                     lengthof(appTitle)))
                 {
                         return FUNC_STATUS_MEM_ERR;
                 }
 
                 bytes += snprintf(&files[bytes],
-                                  sizeof(appTitle) / sizeof(appTitle[0]),
+                                  lengthof(appTitle),
                                   "{\"title\":\"%s\",\"path\":\"%s\"},",
                                   appTitle,
                                   widgets[i]);
@@ -1407,7 +1393,7 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
         }
 
         const char format[] = "addWidgets([%s])";
-        char command[maxLength + (sizeof(format) / sizeof(format[0]))];
+        char command[maxLength + lengthof(format)];
         if ((bytes = snprintf(command, maxLength, format, files)) < 0)
         {
                 return FUNC_STATUS_MEM_ERR;
@@ -1435,7 +1421,7 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
 {
         char settings[BUFFSIZE];
         snprintf(settings,
-                 sizeof(settings) / sizeof(settings[0]),
+                 lengthof(settings),
                  "toggleSettings({\"isWidgetAutostartEnabled\":%s,"
                  "\"isWidgetFullscreenHideEnabled\":%s,"
                  "\"isOpenAppOnStartupEnabled\":%s})",
@@ -1444,8 +1430,7 @@ AppendSettingsToDOM(ICoreWebView2 *const webview)
                  g_settings.appAutostart ? "true" : "false");
 
         wchar_t command[BUFFSIZE];
-        if (mbstowcs(command, settings, sizeof(command) / sizeof(command[0])) ==
-            (size_t)-1)
+        if (mbstowcs(command, settings, lengthof(command)) == (size_t)-1)
         {
                 return FUNC_STATUS_MEM_ERR;
         }
@@ -1577,13 +1562,12 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         case EVT_OPEN_WGT_FILENAME:
         {
                 char content[USHRT_MAX];
-                if (BAD(OpenWidgetByFilename(
-                            argument,
-                            nullptr,
-                            nullptr,
-                            nullptr,
-                            content,
-                            sizeof(content) / sizeof(content[0]))))
+                if (BAD(OpenWidgetByFilename(argument,
+                                             nullptr,
+                                             nullptr,
+                                             nullptr,
+                                             content,
+                                             lengthof(content))))
                 {
                         return FUNC_STATUS_ERR;
                 }
@@ -2133,7 +2117,7 @@ WinEventProc(HWINEVENTHOOK,
                         const size_t strLen = strlen(context.filename);
                         const char format[] = "file:\\\\%s";
                         snprintf(item.filename,
-                                 (sizeof(format) / sizeof(format[0]) + strLen),
+                                 lengthof(format) + strLen,
                                  format,
                                  context.filename);
                         Push(item);
@@ -2164,9 +2148,7 @@ OnDirectoryChangedReload(void *)
         }
 
         wchar_t lpDirPath[BUFFSIZE];
-        if (mbstowcs(lpDirPath,
-                     dirPath,
-                     sizeof(dirPath) / sizeof(dirPath[0])) == (size_t)-1)
+        if (mbstowcs(lpDirPath, dirPath, lengthof(dirPath)) == (size_t)-1)
         {
                 goto cleanup;
         }
@@ -2191,7 +2173,7 @@ OnDirectoryChangedReload(void *)
                 if (!ReadDirectoryChangesW(
                             hDir,
                             &buffer,
-                            sizeof(buffer) / sizeof(buffer[0]),
+                            lengthof(buffer),
                             true,
                             FILE_NOTIFY_CHANGE_FILE_NAME |
                                     FILE_NOTIFY_CHANGE_DIR_NAME |
