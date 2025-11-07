@@ -23,6 +23,7 @@ body {
   grid-template-columns: 6rem 1fr;
   grid-template-rows: auto 1fr;
   min-height: 100vh;
+  background-color: white;
 }
 
 nav {
