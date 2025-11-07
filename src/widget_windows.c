@@ -1804,6 +1804,11 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
         switch (uMsg)
         {
+        case WM_CLOSE:
+        {
+                ShowWindow(hWnd, SW_MINIMIZE);
+                return S_OK;
+        }
         case WM_DESTROY:
         {
                 const ssize_t indexHwnd = FindHwnd(hWnd);
