@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="applicationTitle" value="Battery" />
+<meta name="windowSize" value="250 200" />
+<meta name="windowLocation" value="0 0" />
+<meta name="windowBorderRadius" value="12" />
+<meta name="topMost" value="true">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  :root {
+    --mica-dark: rgba(20, 20, 20, 0.75);
+    --text-color: #f0f0f0;
+    --low-battery: #E81123;
+    --radius: 12px;
+    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
+    --backdrop-blur: 70px;
+    --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: transparent;
+    font-family: var(--font-family);
+    overflow: hidden;
+  }
+
+  .wrapper {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .widget {
+    background: var(--mica-dark);
+    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    width: 180px;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 2em;
+    color: var(--text-color);
+  }
+
+  .low {
+    color: var(--low-battery);
+  }
+
+  .percentage {
+    font-size: 1em;
+    font-weight: 500;
+    color: var(--text-color);
+  }
+
+</style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="widget" role="region" aria-label="Battery Widget">
+      <i class="fa-solid fa-battery-full" id="battery-icon"></i>
+      <div class="percentage" id="battery-percent">--%</div>
+    </div>
+  </div>
+
+  <script>
+    const batteryIcon = document.getElementById('battery-icon');
+    const batteryPercent = document.getElementById('battery-percent');
+
+    async function updateBattery() {
+      if (!navigator.getBattery) {
+        batteryIcon.className = "fa-solid fa-battery-empty";
+        batteryPercent.textContent = 'N/A';
+        return;
+      }
+
+      const battery = await navigator.getBattery();
+
+      function refresh() {
+        const level = battery.level;
+        const charging = battery.charging;
+        const percent = Math.round(level * 100);
+
+        // Update icon
+        batteryIcon.classList.remove('fa-battery-empty','fa-battery-quarter','fa-battery-half','fa-battery-three-quarters','fa-battery-full');
+        batteryIcon.classList.remove('low');
+
+        if (charging) {
+          batteryIcon.className = 'fa-solid fa-battery-full';
+        } else if (level <= 0.2) {
+          batteryIcon.className = 'fa-solid fa-battery-quarter low';
+        } else if (level <= 0.4) {
+          batteryIcon.className = 'fa-solid fa-battery-quarter';
+        } else if (level <= 0.6) {
+          batteryIcon.className = 'fa-solid fa-battery-half';
+        } else if (level <= 0.8) {
+          batteryIcon.className = 'fa-solid fa-battery-three-quarters';
+        } else {
+          batteryIcon.className = 'fa-solid fa-battery-full';
+        }
+
+        // Update percentage
+        batteryPercent.textContent = `${percent}%`;
+        batteryPercent.style.color = (percent <= 20 && !charging) ? 'var(--low-battery)' : 'var(--text-color)';
+      }
+
+      refresh();
+      battery.addEventListener('levelchange', refresh);
+      battery.addEventListener('chargingchange', refresh);
+    }
+
+    updateBattery();
+  </script>
+</body>
+</html>

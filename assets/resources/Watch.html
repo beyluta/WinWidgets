@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="applicationTitle" value="Watch" />
+<meta name="windowSize" value="200 120" />
+<meta name="windowLocation" value="0 0" />
+<meta name="windowBorderRadius" value="12" />
+<meta name="topMost" value="true" />
+
+<style>
+  :root {
+    --text-color: #282828; /* solid dark gray */
+    --backdrop-blur: 70px;
+    --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: transparent;
+    font-family: var(--font-family);
+  }
+
+  .digital-clock {
+    text-align: center;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-color);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  }
+
+  .time {
+    font-size: 2.8em; /* bigger hours:minutes:seconds */
+    color: var(--text-color);
+  }
+
+  .date {
+    font-size: 1.4em; /* bigger day/month label */
+    margin-top: 6px;
+    color: var(--text-color);
+    backdrop-filter: blur(var(--backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--backdrop-blur));
+  }
+</style>
+</head>
+
+<body>
+  <div class="digital-clock" id="clock">
+    <div class="time" id="time">--:--:--</div>
+    <div class="date" id="date">---</div>
+  </div>
+
+  <script>
+    const timeEl = document.getElementById('time');
+    const dateEl = document.getElementById('date');
+
+    function updateClock() {
+      const now = new Date();
+
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const seconds = now.getSeconds().toString().padStart(2, '0');
+      timeEl.textContent = `${hours}:${minutes}:${seconds}`;
+
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const dayName = days[now.getDay()];
+      const monthName = months[now.getMonth()];
+      const dayNum = now.getDate();
+      dateEl.textContent = `${dayName}, ${monthName} ${dayNum}`;
+    }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+</body>
+</html>

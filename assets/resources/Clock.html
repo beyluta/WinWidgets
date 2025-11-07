@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="applicationTitle" value="Clock" />
+<meta name="windowSize" value="350 350" />
+<meta name="windowLocation" value="0 0" />
+<meta name="windowBorderRadius" value="12" />
+<meta name="topMost" value="true" />
+
+<style>
+  :root {
+    --mica-dark: rgba(20, 20, 20, 0.75);
+    --text-color: rgba(240, 240, 240, 0.95);
+    --radius: 50%; /* circular */
+    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
+    --backdrop-blur: 70px;
+    --accent: #00A4EF;
+    --hand-hour: rgba(200, 200, 200, 0.9);
+    --hand-minute: rgba(200, 200, 200, 0.7);
+    --hand-second: rgba(0, 164, 239, 0.9);
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: transparent;
+    font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  .wrapper {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .clock {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    border-radius: var(--radius);
+    background: var(--mica-dark);
+    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* ensures circular edges */
+  }
+
+  .hand {
+    position: absolute;
+    transform-origin: bottom center;
+    bottom: 50%;
+    left: 50%;
+  }
+
+  .hour {
+    width: 6px;
+    height: 60px;
+    background: var(--hand-hour);
+    border-radius: 3px;
+  }
+
+  .minute {
+    width: 4px;
+    height: 85px;
+    background: var(--hand-minute);
+    border-radius: 2px;
+  }
+
+  .second {
+    width: 2px;
+    height: 90px;
+    background: var(--hand-second);
+    border-radius: 1px;
+  }
+
+  .center-dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 6px rgba(0,0,0,0.7);
+  }
+</style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="clock" role="region" aria-label="Clock Widget">
+      <div class="hand hour" id="hour-hand"></div>
+      <div class="hand minute" id="minute-hand"></div>
+      <div class="hand second" id="second-hand"></div>
+      <div class="center-dot"></div>
+    </div>
+  </div>
+
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const seconds = now.getSeconds();
+      const minutes = now.getMinutes();
+      const hours = now.getHours();
+
+      const secondDeg = (seconds / 60) * 360;
+      const minuteDeg = (minutes / 60 + seconds / 3600) * 360;
+      const hourDeg = ((hours % 12) / 12 + minutes / 720) * 360;
+
+      document.getElementById('second-hand').style.transform = `translate(-50%, 0) rotate(${secondDeg}deg)`;
+      document.getElementById('minute-hand').style.transform = `translate(-50%, 0) rotate(${minuteDeg}deg)`;
+      document.getElementById('hour-hand').style.transform = `translate(-50%, 0) rotate(${hourDeg}deg)`;
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+  </script>
+</body>
+</html>

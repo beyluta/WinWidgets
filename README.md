@@ -54,6 +54,19 @@ run on operating systems or distributions not listed here but it isn't guarantee
 
 ## Building
 
+This is a brief guide for all supported platforms to compile and run the application.
+
+### Windows prerequisites
+
+For Windows 11 you need to install mingw64 and put in inside the `Path` environment variable.
+
+### Linux prerequisites
+
+For Linux your need the packages `cairo` and `webkitgtk-6.0`. Make sure to get their
+corresponding `-dev` packages as well, else you won't be able to compile.
+
+### Common commands
+
 These are MakeFile commands that work for all supported platforms.
 Read them carefully to successfully compile the application.
 

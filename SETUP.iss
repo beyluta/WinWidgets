@@ -9,6 +9,7 @@
 #define MyAppFavicon "assets\icons\favicon.ico"
 #define MyAppLicenseFile "LICENSE"
 #define MyAppOutputDir "build"
+#define MyAppResources "assets\resources"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -50,17 +51,39 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "build\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "build\assets\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "build\output.exe.WebView2\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "build\WinWidgets.exe.WebView2\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
-
-[Files]
-Source: "build\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "build\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "build\output.exe.WebView2\*"; DestDir: "{app}\output.exe.WebView2"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "build\WinWidgets.exe.WebView2\*"; DestDir: "{app}\WinWidgets.exe.WebView2"; Flags: ignoreversion recursesubdirs createallsubdirs
+; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+
+[Code]
+procedure CopyDir(const Src, Dest: string);
+var
+  FindRec: TFindRec;
+  SrcPath, DestPath: string;
+begin
+  ForceDirectories(Dest);
+  if FindFirst(Src + '\*', FindRec) then
+  try
+    repeat
+      if (FindRec.Name = '.') or (FindRec.Name = '..') then continue;
+      SrcPath := Src + '\' + FindRec.Name;
+      DestPath := Dest + '\' + FindRec.Name;
+      if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) <> 0 then
+        CopyDir(SrcPath, DestPath)
+      else
+        CopyFile(SrcPath, DestPath, False);
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+    CopyDir('{#MyAppResources}', ExpandConstant('{userdocs}\Widgets'));
+end;
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -68,4 +91,3 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilen
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-

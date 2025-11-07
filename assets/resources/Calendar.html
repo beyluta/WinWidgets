@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="applicationTitle" value="Calendar" />
+<meta name="windowSize" value="320 350" />
+<meta name="windowLocation" value="0 0" />
+<meta name="windowBorderRadius" value="12" />
+<meta name="topMost" value="true">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  :root {
+    --mica-dark: rgba(20, 20, 20, 0.75);
+    --text-color: #f0f0f0;
+    --accent: rgba(240,240,240,0.3); /* today highlight */
+    --radius: 12px;
+    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
+    --backdrop-blur: 70px;
+    --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: transparent;
+    font-family: var(--font-family);
+    overflow: hidden;
+  }
+
+  .wrapper {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .widget {
+    background: var(--mica-dark);
+    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+  }
+
+  .month-year {
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 1.2em;
+    color: var(--text-color);
+  }
+
+  .weekdays, .days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+  }
+
+  .weekdays div {
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 4px;
+  }
+
+  .days div {
+    padding: 6px 0;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    color: var(--text-color);
+  }
+
+  .days div.today {
+    background-color: var(--accent);
+    color: var(--text-color);
+  }
+
+  .days div:hover {
+    background-color: rgba(255,255,255,0.08);
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="widget" role="region" aria-label="Calendar Widget">
+      <div class="month-year" id="monthYear">---</div>
+      <div class="weekdays">
+        <div>S</div><div>M</div><div>T</div><div>W</div>
+        <div>T</div><div>F</div><div>S</div>
+      </div>
+      <div class="days" id="daysGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    const monthYearEl = document.getElementById('monthYear');
+    const daysGrid = document.getElementById('daysGrid');
+
+    function renderCalendar() {
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const today = now.getDate();
+
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      monthYearEl.textContent = `${months[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const totalDays = new Date(year, month + 1, 0).getDate();
+
+      daysGrid.innerHTML = '';
+
+      for(let i = 0; i < firstDay; i++) {
+        const emptyDiv = document.createElement('div');
+        daysGrid.appendChild(emptyDiv);
+      }
+
+      for(let d = 1; d <= totalDays; d++) {
+        const dayDiv = document.createElement('div');
+        dayDiv.textContent = d;
+        if(d === today) dayDiv.classList.add('today');
+        daysGrid.appendChild(dayDiv);
+      }
+    }
+
+    renderCalendar();
+  </script>
+</body>
+</html>

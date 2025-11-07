@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="applicationTitle" value="System Info" />
+<meta name="windowSize" value="300 220" />
+<meta name="windowLocation" value="0 0" />
+<meta name="windowBorderRadius" value="12" />
+<meta name="topMost" value="true">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+  :root {
+    --mica-dark: rgba(20, 20, 20, 0.75);
+    --text-color: #f0f0f0;
+    --radius: 12px;
+    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
+    --backdrop-blur: 70px;
+    --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: transparent;
+    font-family: var(--font-family);
+    overflow: hidden;
+  }
+
+  .wrapper {
+    padding: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .widget {
+    background: var(--mica-dark);
+    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 24px;
+    width: 200px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-color);
+    font-size: 1em;
+  }
+
+  .info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .info i {
+    font-size: 1.2em;
+    width: 20px;
+  }
+
+  .info-value {
+    font-weight: 600;
+    flex: 1;
+    text-align: right;
+  }
+</style>
+</head>
+
+<body>
+  <div class="wrapper">
+    <div class="widget" role="region" aria-label="System Info Widget">
+      <div class="info">
+        <i class="fa-solid fa-desktop"></i>
+        <span class="info-value" id="platform">--</span>
+      </div>
+      <div class="info">
+        <i class="fa-solid fa-memory"></i>
+        <span class="info-value" id="ram">--</span>
+      </div>
+      <div class="info">
+        <i class="fa-solid fa-microchip"></i>
+        <span class="info-value" id="cores">--</span>
+      </div>
+      <div class="info">
+        <i class="fa-solid fa-battery-three-quarters"></i>
+        <span class="info-value" id="battery">--%</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const platformEl = document.getElementById('platform');
+    const ramEl = document.getElementById('ram');
+    const coresEl = document.getElementById('cores');
+    const batteryEl = document.getElementById('battery');
+    const batteryIcon = document.querySelector('.fa-battery-three-quarters');
+
+    function updateSystemInfo() {
+      platformEl.textContent = navigator.platform || 'N/A';
+      ramEl.textContent = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'N/A';
+      coresEl.textContent = navigator.hardwareConcurrency || 'N/A';
+
+      if (navigator.getBattery) {
+        navigator.getBattery().then(battery => {
+          const level = Math.round(battery.level * 100);
+          batteryEl.textContent = level + '%';
+
+          // Update icon depending on battery level
+          if (level > 80) batteryIcon.className = 'fa-solid fa-battery-full';
+          else if (level > 60) batteryIcon.className = 'fa-solid fa-battery-three-quarters';
+          else if (level > 40) batteryIcon.className = 'fa-solid fa-battery-half';
+          else if (level > 20) batteryIcon.className = 'fa-solid fa-battery-quarter';
+          else batteryIcon.className = 'fa-solid fa-battery-empty';
+        });
+      } else {
+        batteryEl.textContent = 'N/A';
+      }
+    }
+
+    updateSystemInfo();
+    setInterval(updateSystemInfo, 5000); // update every 5 seconds
+  </script>
+</body>
+</html>
