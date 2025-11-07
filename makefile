@@ -4,7 +4,7 @@ CC = gcc
 CFLAGS = `pgk-config --cflags --libs gtk+-3.0 webkit2gtk+-4.1`
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 BUILDDIR = build
-OUT = $(BUILDDIR)/output
+OUT = $(BUILDDIR)/WinWidgets
 SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
@@ -25,7 +25,8 @@ ARGS := -Iinclude \
 				-Wextra \
 				-Wall \
 				-xc \
-				-std=c23
+				-std=c23 \
+				-mwindows
 LDFLAGS := -lole32 \
 					 -loleaut32 \
 					 -luuid \
@@ -33,7 +34,7 @@ LDFLAGS := -lole32 \
 					 -ldxguid \
 					 -Llib/WebView2/build/native/x64 \
 					 -lWebView2Loader \
-					 -mwindows
+					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 SRC := $(SRC) \
 			 src/widget_windows.c
 
