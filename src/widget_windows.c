@@ -2184,6 +2184,7 @@ OnDirectoryChangedReload(void *)
         }
 
         BYTE buffer[1024];
+        BYTE *pBuffer = buffer;
         DWORD bytes;
         while (true)
         {
@@ -2204,12 +2205,11 @@ OnDirectoryChangedReload(void *)
                         continue;
                 }
 
-                DWORD entryOffset = 1;
+                FILE_NOTIFY_INFORMATION *info = nullptr;
                 bool canUpdateChanges = true;
-                while (entryOffset)
+                do
                 {
-                        FILE_NOTIFY_INFORMATION *info =
-                                (FILE_NOTIFY_INFORMATION *)buffer;
+                        info = (FILE_NOTIFY_INFORMATION *)pBuffer;
                         const size_t len = info->FileNameLength / sizeof(WCHAR);
                         char filename[BUFFSIZE];
                         wcstombs(filename, info->FileName, len);
@@ -2220,8 +2220,8 @@ OnDirectoryChangedReload(void *)
                                 canUpdateChanges = false;
                         }
 
-                        entryOffset = info->NextEntryOffset;
-                }
+                        pBuffer += info->NextEntryOffset;
+                } while (info->NextEntryOffset);
 
                 g_dirChangesDetected = canUpdateChanges;
         }
