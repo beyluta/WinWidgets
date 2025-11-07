@@ -54,6 +54,12 @@ static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
 typedef enum : uint8_t
 {
+        STATE_ORDER_BOTTOM,
+        STATE_ORDER_TOP,
+} state_order_t;
+
+typedef enum : uint8_t
+{
         EVT_OPEN_DEFAULT_DIR,
         EVT_GET_WGT_FILENAMES,
         EVT_OPEN_WGT_FILENAME,
@@ -515,29 +521,6 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
                 const bool *ptr = &g_settings.fullscreenHide;
                 memcpy((bool *)ptr, &value, sizeof(bool));
 
-                if (value && g_hook == nullptr)
-                {
-                        if ((g_hook = SetWinEventHook(
-                                     EVENT_SYSTEM_CAPTURESTART,
-                                     EVENT_SYSTEM_CAPTUREEND,
-                                     nullptr,
-                                     WinEventProc,
-                                     0,
-                                     0,
-                                     WINEVENT_OUTOFCONTEXT |
-                                             WINEVENT_SKIPOWNPROCESS)) ==
-                            nullptr)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-                        break;
-                }
-
-                if (g_hook != nullptr)
-                {
-                        UnhookWinEvent(g_hook);
-                        g_hook = nullptr;
-                }
                 break;
         }
         case APPLICATION_SETTING_AUTOSTART:
@@ -1044,6 +1027,29 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
 }
 
 /**
+ * @brief Sets the window to be below all others
+ * @param hWnd HWND of the window
+ * @param state State of the window to set
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+SetWindowOrderState(const HWND hWnd, const state_order_t state)
+{
+        const HWND flags[] = {HWND_BOTTOM, HWND_TOP};
+        if (!SetWindowPos(hWnd,
+                          flags[state],
+                          0,
+                          0,
+                          0,
+                          0,
+                          SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE))
+        {
+                return FUNC_STATUS_ERR;
+        }
+        return FUNC_STATUS_OK;
+}
+
+/**
  * @brief Set the top most status of a window
  * @param hWnd Handle to the window to be modified
  * @param src Flag to set the top most state
@@ -1052,11 +1058,17 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
 static func_status_t
 SetWindowTopMost(const HWND hWnd, const bool src)
 {
-        const HWND flags[] = {HWND_TOPMOST, HWND_NOTOPMOST};
+        const HWND flags[] = {HWND_NOTOPMOST, HWND_TOPMOST};
         if (!SetWindowPos(
                     hWnd, flags[src], 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE))
         {
                 return FUNC_STATUS_ERR;
+        }
+
+        if (src)
+        {
+                SetActiveWindow(hWnd);
+                SetWindowOrderState(hWnd, STATE_ORDER_TOP);
         }
         return FUNC_STATUS_OK;
 }
@@ -1072,8 +1084,8 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
                                  IUnknown *const)
 {
         const HWND hWnd = g_hWndTable[g_hWndSelectedHash];
-        const bool topMost = isWindowTopMost(hWnd);
-        if (BAD(SetWindowTopMost(hWnd, topMost)))
+        const bool state = isWindowTopMost(hWnd);
+        if (BAD(SetWindowTopMost(hWnd, !state)))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -2087,7 +2099,7 @@ WinEventProc(HWINEVENTHOOK,
         }
 
         static ssize_t maxStackHeight = 0;
-        if (hWnd != hFolderView && canRender)
+        if (hWnd != hFolderView)
         {
                 if (g_widgetCount == 0)
                 {
@@ -2102,6 +2114,21 @@ WinEventProc(HWINEVENTHOOK,
                         if (index < 0)
                         {
                                 return;
+                        }
+
+                        if (!isWindowTopMost(g_widgets[i].hWnd))
+                        {
+                                if (BAD(SetWindowOrderState(
+                                            g_widgets[i].hWnd,
+                                            STATE_ORDER_BOTTOM)))
+                                {
+                                        continue;
+                                }
+                        }
+
+                        if (!canRender)
+                        {
+                                continue;
                         }
 
                         const ww_window_ctx context = g_widgets[index].context;
@@ -2123,6 +2150,11 @@ WinEventProc(HWINEVENTHOOK,
                                  format,
                                  context.filename);
                         Push(item);
+                }
+
+                if (!canRender)
+                {
+                        return;
                 }
 
                 DestroyWidgetWindows();
@@ -2380,13 +2412,7 @@ create_widget_window(ww_window_ctx *const context)
 
         g_hWndTable[hash] = *hWnd;
         ShowWindow(*hWnd, g_nCmdShow);
-        SetWindowPos(*hWnd,
-                     HWND_BOTTOM,
-                     0,
-                     0,
-                     0,
-                     0,
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        SetWindowOrderState(*hWnd, STATE_ORDER_BOTTOM);
 
         if (g_parentHwnd == nullptr)
         {
@@ -2409,7 +2435,7 @@ create_widget_window(ww_window_ctx *const context)
         const bool topMost = context->top_most;
         if (topMost)
         {
-                if (BAD(SetWindowTopMost(*hWnd, !context->top_most)))
+                if (BAD(SetWindowTopMost(*hWnd, true)))
                 {
                         return FUNC_STATUS_ERR;
                 }
@@ -2610,6 +2636,19 @@ ww_init_main(const HINSTANCE hInstance,
         }
 
         if (BAD(create_widget_manager(context)))
+        {
+                goto cleanup;
+        }
+
+        if ((g_hook = SetWinEventHook(
+                     EVENT_SYSTEM_CAPTURESTART,
+                     EVENT_SYSTEM_CAPTUREEND,
+                     nullptr,
+                     WinEventProc,
+                     0,
+                     0,
+                     WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS)) ==
+            nullptr)
         {
                 goto cleanup;
         }
