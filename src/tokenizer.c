@@ -40,6 +40,7 @@ parse_tokens_from(const char *const src,
                   const size_t tokenLen,
                   const char *const target,
                   char *const dest,
+                  const size_t destLen,
                   bool *const success,
                   const char EOL)
 {
@@ -75,15 +76,19 @@ parse_tokens_from(const char *const src,
                                                         1,
                                                 nullptr,
                                                 dest,
+                                                destLen,
                                                 success,
                                                 EOL);
                                 }
                         }
                         else
                         {
-                                memcpy(dest, &src[from + 1], i - from);
-                                dest[i - from - 1] = '\0';
-                                *success = true;
+                                if (i - from < destLen)
+                                {
+                                        memcpy(dest, &src[from + 1], i - from);
+                                        dest[i - from - 1] = '\0';
+                                        *success = true;
+                                }
                         }
                 }
 
@@ -125,6 +130,7 @@ ww_begin_tokenization(const char *const src,
                                                       1,
                                               target,
                                               dest,
+                                              destLen,
                                               &success,
                                               '>');
                         if (success)

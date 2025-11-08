@@ -6,6 +6,7 @@ OUT = $(BUILDDIR)/WinWidgets
 SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
+			src/tokenizer.c \
 			lib/minimal-json-c-parser/src/json.c
 
 

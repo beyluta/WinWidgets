@@ -36,6 +36,14 @@ ww_get_files_from_dir(const char *src,
                       const size_t size);
 
 /**
+ * @brief Gets the amount of bytes a file has
+ * @param src File to count the bytes
+ * @returns Amount of bytes reported by the operating system
+ */
+size_t
+ww_get_file_bytes(const char *const src);
+
+/**
  * @brief Gets the entire content of a file
  * @param src Full path to the file on the system
  * @param dest String to save the content to

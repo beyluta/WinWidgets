@@ -292,6 +292,17 @@ ww_get_file_content(const char *src, char *dest, const size_t max_len)
         return false;
 }
 
+size_t
+ww_get_file_bytes(const char *const src)
+{
+        struct stat sb;
+        if (stat(src, &sb) == -1)
+        {
+                return 0;
+        }
+        return sb.st_size;
+}
+
 bool
 ww_get_root_dir(const char *src, char *dest)
 {

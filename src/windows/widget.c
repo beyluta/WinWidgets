@@ -3,6 +3,7 @@
 #include "utils.h"
 #include "widget.h"
 #include "json.h"
+#include "tokenizer.h"
 
 #include <WebView2.h>
 #include <stdio.h>
@@ -586,13 +587,17 @@ OpenWidgetByFilename(const char *const path,
         }
 
         char buf[BUFFSIZE] = {};
-        if (GetMetaTagValue(content, TAG_APP_NAME, buf, lengthof(buf)))
+        const size_t bufLen = lengthof(buf);
+
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_APP_NAME, buf, bufLen))
         {
                 memcpy(context.title, buf, lengthof(buf));
                 context.title[lengthof(buf) - 1] = '\0';
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_SIZE, buf, lengthof(buf)))
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_WIN_SIZE, buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -600,7 +605,8 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, lengthof(buf)) &&
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_WIN_LOCATION, buf, bufLen) &&
             x == nullptr && y == nullptr)
         {
                 size_t xPos, yPos;
@@ -609,7 +615,8 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_PREV, buf, lengthof(buf)))
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_WIN_PREV, buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -617,13 +624,15 @@ OpenWidgetByFilename(const char *const path,
                 context.prevHeight = isSet ? height : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, lengthof(buf)) &&
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_APP_TOPMOST, buf, bufLen) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_BORD_RAD, buf, lengthof(buf)))
+        if (ww_begin_tokenization(
+                    content, lengthof(buf), TAG_WIN_BORD_RAD, buf, bufLen))
         {
                 const double radius = strtod(buf, nullptr);
                 context.radius = radius;
@@ -1364,22 +1373,28 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 const size_t filenameLen = strlen(widgets[i]);
                 if (filenameLen >= BUFFSIZE - offset)
                 {
-                        return FUNC_STATUS_MEM_ERR;
+                        continue;
+                }
+
+                if (ww_get_file_bytes(widgets[i]) >= USHRT_MAX)
+                {
+                        continue;
                 }
 
                 char content[USHRT_MAX];
                 if (ww_get_file_content(widgets[i], content, lengthof(content)))
                 {
-                        return FUNC_STATUS_MEM_ERR;
+                        continue;
                 }
 
                 char appTitle[BUFFSIZE];
-                if (!GetMetaTagValue(content,
-                                     TAG_APP_NAME,
-                                     appTitle,
-                                     lengthof(appTitle)))
+                if (!ww_begin_tokenization(content,
+                                           lengthof(content),
+                                           TAG_APP_NAME,
+                                           appTitle,
+                                           lengthof(appTitle)))
                 {
-                        return FUNC_STATUS_MEM_ERR;
+                        continue;
                 }
 
                 bytes += snprintf(&files[bytes],
