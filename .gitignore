@@ -2,3 +2,6 @@
 .clangd
 build
 output
+
+# Windows specific
+src/windows/resources.o

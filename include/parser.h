@@ -15,10 +15,10 @@
  * @returns true on success, else false on failure
  */
 bool
-ww_begin_tokenization(const char *const src,
-                      const size_t srcLen,
-                      const char *const target,
-                      char *const dest,
-                      const size_t destLen);
+ww_begin_parsing(const char *const src,
+                 const size_t srcLen,
+                 const char *const target,
+                 char *const dest,
+                 const size_t destLen);
 
 #endif

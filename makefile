@@ -6,7 +6,7 @@ OUT = $(BUILDDIR)/WinWidgets
 SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
-			src/tokenizer.c \
+			src/parser.c \
 			lib/minimal-json-c-parser/src/json.c
 
 
@@ -39,14 +39,16 @@ LDFLAGS := -lole32 \
 					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 SRC := $(SRC) \
 			 src/windows/widget.c
+RESRC = "$(CURDIR)/src/windows/resources.o"
 
 format:
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
 build: format
+	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
-	$(CC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
+	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
 run: build
 	./$(OUT)
 

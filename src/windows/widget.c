@@ -3,7 +3,7 @@
 #include "utils.h"
 #include "widget.h"
 #include "json.h"
-#include "tokenizer.h"
+#include "parser.h"
 
 #include <WebView2.h>
 #include <stdio.h>
@@ -589,15 +589,13 @@ OpenWidgetByFilename(const char *const path,
         char buf[BUFFSIZE] = {};
         const size_t bufLen = lengthof(buf);
 
-        if (ww_begin_tokenization(
-                    content, lengthof(buf), TAG_APP_NAME, buf, bufLen))
+        if (ww_begin_parsing(content, lengthof(buf), TAG_APP_NAME, buf, bufLen))
         {
                 memcpy(context.title, buf, lengthof(buf));
                 context.title[lengthof(buf) - 1] = '\0';
         }
 
-        if (ww_begin_tokenization(
-                    content, lengthof(buf), TAG_WIN_SIZE, buf, bufLen))
+        if (ww_begin_parsing(content, lengthof(buf), TAG_WIN_SIZE, buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -605,7 +603,7 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (ww_begin_tokenization(
+        if (ww_begin_parsing(
                     content, lengthof(buf), TAG_WIN_LOCATION, buf, bufLen) &&
             x == nullptr && y == nullptr)
         {
@@ -615,8 +613,7 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (ww_begin_tokenization(
-                    content, lengthof(buf), TAG_WIN_PREV, buf, bufLen))
+        if (ww_begin_parsing(content, lengthof(buf), TAG_WIN_PREV, buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -624,14 +621,14 @@ OpenWidgetByFilename(const char *const path,
                 context.prevHeight = isSet ? height : DEF_Y;
         }
 
-        if (ww_begin_tokenization(
+        if (ww_begin_parsing(
                     content, lengthof(buf), TAG_APP_TOPMOST, buf, bufLen) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (ww_begin_tokenization(
+        if (ww_begin_parsing(
                     content, lengthof(buf), TAG_WIN_BORD_RAD, buf, bufLen))
         {
                 const double radius = strtod(buf, nullptr);
@@ -1388,11 +1385,11 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 }
 
                 char appTitle[BUFFSIZE];
-                if (!ww_begin_tokenization(content,
-                                           lengthof(content),
-                                           TAG_APP_NAME,
-                                           appTitle,
-                                           lengthof(appTitle)))
+                if (!ww_begin_parsing(content,
+                                      lengthof(content),
+                                      TAG_APP_NAME,
+                                      appTitle,
+                                      lengthof(appTitle)))
                 {
                         continue;
                 }
@@ -2076,6 +2073,18 @@ cleanup:
 }
 
 /**
+ * @brief Gets whether the current window is active
+ * @param hWnd The window to compare
+ * @returns true if active, false if inactive
+ */
+static bool
+IsWindowActive(const HWND hWnd)
+{
+        const HWND activehWnd = GetForegroundWindow();
+        return hWnd == activehWnd;
+}
+
+/**
  * @brief Triggers events for all processes in the entire system
  */
 static void CALLBACK
@@ -2102,7 +2111,7 @@ WinEventProc(HWINEVENTHOOK,
         }
 
         bool canRender = false;
-        if (BAD(CanGPURender(&canRender)))
+        if (g_settings.fullscreenHide && BAD(CanGPURender(&canRender)))
         {
                 return;
         }
@@ -2123,6 +2132,13 @@ WinEventProc(HWINEVENTHOOK,
                         if (index < 0)
                         {
                                 return;
+                        }
+
+                        if (IsWindowActive(g_widgets[i].hWnd))
+                        {
+                                SetWindowOrderState(g_widgets[i].hWnd,
+                                                    STATE_ORDER_TOP);
+                                continue;
                         }
 
                         if (!isWindowTopMost(g_widgets[i].hWnd))
@@ -2421,7 +2437,6 @@ create_widget_window(ww_window_ctx *const context)
 
         g_hWndTable[hash] = *hWnd;
         ShowWindow(*hWnd, g_nCmdShow);
-        SetWindowOrderState(*hWnd, STATE_ORDER_BOTTOM);
 
         if (g_parentHwnd == nullptr)
         {
@@ -2623,6 +2638,23 @@ ww_init_main(const HINSTANCE hInstance,
         g_nCmdShow = nCmdShow;
         g_silentMode = strcmp(pCmdLine, "--silent") == 0;
 
+        HANDLE mutex = nullptr;
+        if ((mutex = CreateMutex(nullptr, TRUE, PROG_NAME)) == nullptr)
+        {
+                goto cleanup;
+        }
+
+        if (GetLastError() == ERROR_ALREADY_EXISTS)
+        {
+                const HWND hWndActive = FindWindow(0, PROG_NAME);
+                if (hWndActive)
+                {
+                        ShowWindow(hWndActive, SW_RESTORE);
+                        SetForegroundWindow(hWndActive);
+                }
+                goto cleanup;
+        }
+
         if (FAILED(CoInitialize(nullptr)))
         {
                 comInitialized = false;
@@ -2684,6 +2716,11 @@ cleanup:
         if (comInitialized)
         {
                 CoUninitialize();
+        }
+
+        if (mutex != nullptr)
+        {
+                CloseHandle(mutex);
         }
 
         return false;

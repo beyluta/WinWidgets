@@ -108,11 +108,11 @@ parse_tokens_from(const char *const src,
 }
 
 bool
-ww_begin_tokenization(const char *const src,
-                      const size_t srcLen,
-                      const char *const target,
-                      char *const dest,
-                      const size_t destLen)
+ww_begin_parsing(const char *const src,
+                 const size_t srcLen,
+                 const char *const target,
+                 char *const dest,
+                 const size_t destLen)
 {
         for (size_t i = 0, j = 0; i < srcLen; i++)
         {
