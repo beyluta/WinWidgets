@@ -1,8 +1,6 @@
 .PHONY: init update build run format
 
 CC = gcc
-CFLAGS = `pgk-config --cflags --libs gtk+-3.0 webkit2gtk+-4.1`
-GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 BUILDDIR = build
 OUT = $(BUILDDIR)/WinWidgets
 SRC = main.c \
@@ -16,6 +14,9 @@ init:
 update:
 	git submodule update --recursive --remote
 
+# ------- 
+# Building for Windows platform
+# --------
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
@@ -36,7 +37,7 @@ LDFLAGS := -lole32 \
 					 -lWebView2Loader \
 					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 SRC := $(SRC) \
-			 src/widget_windows.c
+			 src/windows/widget.c
 
 format:
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
@@ -47,7 +48,12 @@ build: format
 	$(CC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
 run: build
 	./$(OUT)
-else
+
+# ------- 
+# Building for Linux platform
+# --------
+else ifeq($(UNAME), Linux)
+GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-O2 \
@@ -59,14 +65,16 @@ ARGS := -Iinclude \
 				-D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl
 SRC := $(SRC) \
-			 src/widget_linux.c
+			 src/linux/widget.c
 
 format:
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
 build: format
-	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT) 
+	mkdir -p "$(BUILDDIR)"
+	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
+	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
 run: build
 	WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 ./$(OUT)	
 endif

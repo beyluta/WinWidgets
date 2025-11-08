@@ -19,11 +19,6 @@
  */
 #define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
-/**
- * @brief Get length of fixed size array of any type
- */
-#define lengthof(pointer) (sizeof(pointer) / (sizeof(pointer[0])))
-
 static constexpr char PROG_NAME[] = "WinWidgets";
 static constexpr uint8_t PROG_NAME_SIZE = lengthof(PROG_NAME);
 
@@ -520,7 +515,6 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
         {
                 const bool *ptr = &g_settings.fullscreenHide;
                 memcpy((bool *)ptr, &value, sizeof(bool));
-
                 break;
         }
         case APPLICATION_SETTING_AUTOSTART:

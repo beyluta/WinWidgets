@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * @brief Get length of fixed size array of any type
+ */
+#define lengthof(pointer) (sizeof(pointer) / (sizeof(pointer[0])))
+
 typedef enum : uint8_t
 {
         widget_char_space = 32,
