@@ -75,6 +75,7 @@ format:
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
 build: format
+	rm -r "$(BUILDDIR)"
 	mkdir -p "$(BUILDDIR)"
 	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
 	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)

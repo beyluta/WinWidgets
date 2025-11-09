@@ -10,105 +10,138 @@
 
 <body>
   <nav>
-    <img class="interact" alt="WinWidgets Logo" src="imgs/icon.png" onclick="openScene('widgets', 'block')" />
-    <div class="icons interact">
-      <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" onclick="openScene('widgets', 'block')" />
-      <img class="interact" alt="Code Image" src="svgs/code.svg" onclick="openScene('development', 'block')" />
-      <img class="interact" alt="Gear Image" src="svgs/gear.svg" onclick="openScene('settings', 'grid')" />
+    <div class="nav-top">
+      <img class="interact logo" alt="WinWidgets Logo" src="imgs/icon.png" onclick="openScene('widgets', 'block')" />
+      <div class="icons interact">
+        <div class="nav-item interact" onclick="openScene('widgets', 'block')" data-tooltip="Widgets">
+          <img class="interact" alt="Gauge Image" src="svgs/gauge.svg" />
+        </div>
+        <div class="nav-item interact" onclick="openScene('development', 'grid')" data-tooltip="Development">
+          <img class="interact" alt="Code Image" src="svgs/code.svg" />
+        </div>
+        <div class="nav-item interact" onclick="openScene('settings', 'grid')" data-tooltip="Settings">
+          <img class="interact" alt="Gear Image" src="svgs/gear.svg" />
+        </div>
+      </div>
+    </div>
+    <div class="nav-bottom">
+      <div class="theme-toggle interact" onclick="toggleTheme()" data-tooltip="Theme">
+        <img class="interact" alt="Theme Toggle" src="svgs/eye.svg" id="theme-icon" />
+      </div>
     </div>
   </nav>
 
   <section class="header">
-    <h1>Installed Widgets</h1>
+    <h1 id="page-title">Installed Widgets</h1>
   </section>
 
   <main class="widgets">
     <div class="search">
       <img alt="Search Logo" src="svgs/search.svg" />
       <input type="text" id="widgets" name="widgets" placeholder="Search for widget...">
+      <img class="interact clear-search" alt="Clear search" src="svgs/xmark.svg" onclick="clearSearch()"
+        style="display: none;" />
       <img class="interact" alt="Folder Logo" src="svgs/folder.svg" onclick="openDefaultDirectory()" />
     </div>
-    <article class="list"><!-- Widgets are injected here --></article>
+    <article class="list">
+    </article>
   </main>
 
   <main class="settings">
-    <h3>Application</h3>
-    <span>Run the application on startup</span>
-    <div id="isOpenAppOnStartupEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
-    <span>Hide Widgets when another application is in fullscreen</span>
-    <div id="isWidgetFullscreenHideEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
-    <span>Restore last session when the application loads</span>
-    <div id="isWidgetAutostartEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    <div class="setting-item">
+      <div class="setting-info">
+        <span class="setting-title">Run on startup</span>
+        <span class="setting-description">Launch WinWidgets automatically when you sign in</span>
+      </div>
+      <div id="isOpenAppOnStartupEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    </div>
+    <div class="setting-item">
+      <div class="setting-info">
+        <span class="setting-title">Hide in fullscreen</span>
+        <span class="setting-description">Hide widgets when another app is in fullscreen mode</span>
+      </div>
+      <div id="isWidgetFullscreenHideEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    </div>
+    <div class="setting-item">
+      <div class="setting-info">
+        <span class="setting-title">Restore last session</span>
+        <span class="setting-description">Automatically reopen your widgets from the previous session</span>
+      </div>
+      <div id="isWidgetAutostartEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
+    </div>
   </main>
 
   <main class="development">
-    <h3>Default folder</h3>
-    <!-- Explaining where to find the default widget folders -->
-    <span>
-      Widgets are simple HTML files, embedded web content, displayed in a floating window.<br /><br />
-      To get started, open the default widgets folder. On Windows 11:
-    </span>
-    <blockquote>
-      <pre>
-        C:\\Users\{YOUR_USER}\Documents\WinWidgets
-      </pre>
-    </blockquote>
-    <span>On supported Linux distributions, you'll find it under:</span>
-    <blockquote>
-      <pre>
-        ~/.local/share/WinWidgets
-      </pre>
-    </blockquote>
+    <div class="dev-section">
+      <h3>Default folder</h3>
+      <span>
+        Widgets are simple HTML files, embedded web content, displayed in a floating window.<br /><br />
+        To get started, open the default widgets folder. On Windows 11:
+      </span>
+      <blockquote>
+        <p>
+          C:\\Users\{YOUR_USER}\Documents\WinWidgets
+        </p>
+      </blockquote>
+      <span>On supported Linux distributions, you'll find it under:</span>
+      <blockquote>
+        <p>
+          ~/.local/share/WinWidgets
+        </p>
+      </blockquote>
+    </div>
 
+    <div class="dev-section">
+      <h3>File structure</h3>
+      <span>Each document of type HTML may contain CSS and JavaScript inside the same file. Drag and drop your HTML
+        files
+        to the default folder to load them into the application. Below is an example of how it might look like:</span>
+      <blockquote>
+        <p>
+          ..\WinWidgets\
+          |
+          |__ calculator.html
+          |
+          |__ weather.html
+          |
+          |__ clock.html
+        </p>
+      </blockquote>
+    </div>
 
-    <!-- Which files are needed -->
-    <h3>File structure</h3>
-    <span>Each document of type HTML may contain CSS and JavaScript inside the same file. Drag and drop your HTML files
-      to the default folder to load them into the application. Below is an example of how it might look like:</span>
-    <blockquote>
-      <pre>
-        ..\WinWidgets\
-        |
-        |__ calculator.html
-        |
-        |__ weather.html
-        |
-        |__ clock.html
-      </pre>
-    </blockquote>
+    <div class="dev-section">
+      <h3>Layout and style</h3>
+      <span>
+        At the top of your HTML document add the following <code>&lt;meta /&gt;</code> tags (only the first 2 are
+        required):
+      </span>
+      <blockquote>
+        <p>
+          &lt;!DOCTYPE html&gt;
+          &lt;html&gt;
+          &lt;head&gt;
 
-    <!-- Configuration file example -->
-    <h3>Layout and style</h3>
-    <span>
-      At the top of your HTML document add the following <code>&lt;meta /&gt;</code> tags (only the first 2 are
-      required):
-    </span>
-    <blockquote>
-      <pre>
-        &lt;!DOCTYPE html&gt;
-        &lt;html&gt;
-        &lt;head&gt;
+          &lt;meta name="applicationTitle" value="myWidget" /&gt;
+          &lt;meta name="windowSize" value="800 500" /&gt;
+          &lt;meta name="windowLocation" value="300 300" /&gt;
+          &lt;meta name="windowBorderRadius" value="500" /&gt;
+          &lt;meta name="topMost" value="true" /&gt;
 
-        &lt;meta name="applicationTitle" value="myWidget" /&gt;
-        &lt;meta name="windowSize" value="800 500" /&gt;
-        &lt;meta name="windowLocation" value="300 300" /&gt;
-        &lt;meta name="windowBorderRadius" value="500" /&gt;
-        &lt;meta name="topMost" value="true" /&gt;
-
-        &lt;/head&gt;
-        &lt;/html&gt;
-      </pre>
-    </blockquote>
-    <span>
-      Widgets support full transparency and are transparent by default, you may use CSS to set the background color:
-    </span>
-    <blockquote>
-    <pre>
-      &lt;style&gt;
+          &lt;/head&gt;
+          &lt;/html&gt;
+        </p>
+      </blockquote>
+      <span>
+        Widgets support full transparency and are transparent by default, you may use CSS to set the background color:
+      </span>
+      <blockquote>
+        <p>
+          &lt;style&gt;
           body { background-color: rgba(255, 255, 255, 0.5); }
-      &lt;/style&gt;
-    </pre>
-    </blockquote>
+          &lt;/style&gt;
+        </p>
+      </blockquote>
+    </div>
   </main>
 </body>
 

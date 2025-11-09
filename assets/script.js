@@ -9,6 +9,16 @@ const EVENT_IDS = {
 };
 
 /**
+ * Default delay of the tooltip before it appears.
+ */
+const TOOLTIPDELAY = 500;
+
+/**
+ * Tooltip timeout trackers
+ */
+let tooltipTimeouts = new Map();
+
+/**
  * Opens the specified scene in the application.
  * @param {string} scene - The name of the scene to open.
  * @param {string} mode - Display style of the scene.
@@ -17,6 +27,75 @@ function openScene(scene, mode) {
   hideScenes();
   const element = document.querySelector(`.${scene}`);
   element.style.display = mode;
+  updatePageTitle(scene);
+}
+
+/**
+ * Updates the page title based on the current scene
+ * @param {string} scene - The name of the scene
+ */
+function updatePageTitle(scene) {
+  const titleElement = document.getElementById('page-title');
+  const titles = {
+    'widgets': 'Installed Widgets',
+    'development': 'Development',
+    'settings': 'Settings'
+  };
+  titleElement.textContent = titles[scene] || 'Installed Widgets';
+}
+
+/**
+ * Toggles between light and dark mode
+ */
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
+/**
+ * Initializes theme from localStorage
+ */
+function initializeTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-mode');
+  }
+}
+
+/**
+ * Shows tooltip after 2 seconds of hovering
+ * @param {HTMLElement} element - Element to show tooltip for
+ */
+function showTooltipDelayed(element) {
+  const timeoutId = setTimeout(() => {
+    element.classList.add('show-tooltip');
+  }, TOOLTIPDELAY);
+  tooltipTimeouts.set(element, timeoutId);
+}
+
+/**
+ * Hides tooltip and clears timeout
+ * @param {HTMLElement} element - Element to hide tooltip for
+ */
+function hideTooltip(element) {
+  const timeoutId = tooltipTimeouts.get(element);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    tooltipTimeouts.delete(element);
+  }
+  element.classList.remove('show-tooltip');
+}
+
+/**
+ * Initializes tooltip behavior for navigation items
+ */
+function initializeTooltips() {
+  const navItems = document.querySelectorAll('.nav-item, .theme-toggle');
+  navItems.forEach(item => {
+    item.addEventListener('mouseenter', () => showTooltipDelayed(item));
+    item.addEventListener('mouseleave', () => hideTooltip(item));
+  });
 }
 
 /**
@@ -76,6 +155,7 @@ function addWidget(title, path) {
   newLabel.setAttribute('class', 'label');
   newWrapper.setAttribute('onclick', `openWidget('${path}')`);
   newWrapper.setAttribute('class', 'widget');
+  newWrapper.setAttribute('data-widget-title', title.toLowerCase());
   newElement.setAttribute('src', path);
   newWrapper.appendChild(newLabel);
   newWrapper.appendChild(newElement);
@@ -105,6 +185,59 @@ function addWidgets(widgets) {
 }
 
 /**
+ * Filters widgets based on search query
+ * @param {string} query - Search query to filter widgets
+ */
+function filterWidgets(query) {
+  const widgets = document.querySelectorAll('.widget');
+  const searchQuery = query.toLowerCase().trim();
+
+  widgets.forEach(widget => {
+    const widgetTitle = widget.getAttribute('data-widget-title');
+    if (widgetTitle.includes(searchQuery)) {
+      widget.classList.remove('hidden');
+    } else {
+      widget.classList.add('hidden');
+    }
+  });
+}
+
+/**
+ * Clears the search input and shows all widgets
+ */
+function clearSearch() {
+  const searchInput = document.getElementById('widgets');
+  searchInput.value = '';
+  filterWidgets('');
+  updateClearButtonVisibility();
+}
+
+/**
+ * Updates the visibility of the clear button based on input value
+ */
+function updateClearButtonVisibility() {
+  const searchInput = document.getElementById('widgets');
+  const clearButton = document.querySelector('.clear-search');
+
+  if (searchInput.value.length > 0) {
+    clearButton.style.display = 'block';
+  } else {
+    clearButton.style.display = 'none';
+  }
+}
+
+/**
+ * Initializes search functionality
+ */
+function initializeSearch() {
+  const searchInput = document.getElementById('widgets');
+  searchInput.addEventListener('input', (e) => {
+    filterWidgets(e.target.value);
+    updateClearButtonVisibility();
+  });
+}
+
+/**
  * Converts a string representation of an array using single quotes
  * (e.g., "['a', 'b', 'c']") to a real JavaScript array.
  * @param {string} str - The string array with single quotes.
@@ -123,7 +256,7 @@ function openDefaultDirectory() {
 }
 
 /**
- * Triggers a postMessages for all platform available
+ Triggers a postMessages for all platform available
  * @param {string} messageName - Identifier of the message to be posted
  */
 function postMessage(messageName, args) {
@@ -136,8 +269,65 @@ function postMessage(messageName, args) {
 }
 
 /**
+ * Copies text from a blockquote element to clipboard
+ * @param {HTMLElement} button - The copy button that was clicked
+ */
+function copyBlockquoteText(button) {
+  const blockquote = button.closest('blockquote');
+  const text = blockquote.querySelector('p').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const originalText = button.textContent;
+    button.textContent = 'Copied!';
+    setTimeout(() => {
+      button.textContent = originalText;
+    }, 2000);
+  });
+}
+
+/**
+ * Adds copy buttons to all blockquotes
+ */
+function initializeCopyButtons() {
+  const blockquotes = document.querySelectorAll('.development blockquote');
+  blockquotes.forEach(blockquote => {
+    const copyButton = document.createElement('button');
+    copyButton.className = 'copy-button';
+    copyButton.textContent = 'Copy';
+    copyButton.onclick = function() { copyBlockquoteText(this); };
+    blockquote.style.position = 'relative';
+    blockquote.appendChild(copyButton);
+  });
+}
+
+/**
+ * Block right-click context menu
+ */
+function blockContextMenu() {
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+  });
+}
+
+/**
+ * Block text selection except for blockquote elements
+ */
+function blockTextSelection() {
+  document.addEventListener('selectstart', (e) => {
+    if (!e.target.closest('blockquote')) {
+      e.preventDefault();
+    }
+  });
+}
+
+/**
  * Executes code after the DOM content is fully loaded and parsed.
  */
 document.addEventListener('DOMContentLoaded', async function() {
+  initializeTheme();
+  initializeTooltips();
+  initializeCopyButtons();
+  initializeSearch();
+  blockContextMenu();
+  blockTextSelection();
   postMessage("on_get_widget_filenames");
 });
