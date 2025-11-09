@@ -34,6 +34,7 @@ LDFLAGS := -lole32 \
 					 -luuid \
 					 -lddraw \
 					 -ldxguid \
+					 -ldwmapi \
 					 -Llib/WebView2/build/native/x64 \
 					 -lWebView2Loader \
 					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic

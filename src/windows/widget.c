@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <ddraw.h>
 #include <pthread.h>
+#include <dwmapi.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
@@ -60,6 +61,7 @@ typedef enum : uint8_t
         EVT_GET_WGT_FILENAMES,
         EVT_OPEN_WGT_FILENAME,
         EVT_TOGGLE_SETTING,
+        EVT_THEME_CHANGED,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -1583,8 +1585,23 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 break;
         }
         case EVT_TOGGLE_SETTING:
+        {
                 ToggleSettingByName(argument);
                 break;
+        }
+        case EVT_THEME_CHANGED:
+        {
+                BOOL themeDark = strcmp(argument, "dark") == 0 ? TRUE : FALSE;
+                if (FAILED(DwmSetWindowAttribute(g_parentHwnd,
+                                                 DWMWA_USE_IMMERSIVE_DARK_MODE,
+                                                 &themeDark,
+                                                 sizeof(themeDark))))
+                {
+                        return FUNC_STATUS_ERR;
+                }
+
+                break;
+        }
         }
 
         return FUNC_STATUS_OK;

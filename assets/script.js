@@ -5,7 +5,8 @@ const EVENT_IDS = {
   "on_open_default_directory": "0",
   "on_get_widget_filenames": "1",
   "on_open_widget_by_filename": "2",
-  "on_toggle_setting": "3"
+  "on_toggle_setting": "3",
+  "on_theme_changed": "4",
 };
 
 /**
@@ -50,7 +51,9 @@ function updatePageTitle(scene) {
 function toggleTheme() {
   document.body.classList.toggle('dark-mode');
   const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  const theme = isDark ? 'dark' : 'light';
+  localStorage.setItem('theme', theme);
+  postMessage('on_theme_changed', theme);
 }
 
 /**
@@ -61,6 +64,7 @@ function initializeTheme() {
   if (savedTheme === 'dark') {
     document.body.classList.add('dark-mode');
   }
+  postMessage('on_theme_changed', savedTheme === 'dark' ? 'dark' : 'light');
 }
 
 /**
@@ -235,17 +239,6 @@ function initializeSearch() {
     filterWidgets(e.target.value);
     updateClearButtonVisibility();
   });
-}
-
-/**
- * Converts a string representation of an array using single quotes
- * (e.g., "['a', 'b', 'c']") to a real JavaScript array.
- * @param {string} str - The string array with single quotes.
- * @returns {Array} The parsed JavaScript array.
- */
-function parseSingleQuotedArray(str) {
-  // FIXME: C must send double quoted arrays
-  return JSON.parse(str.replace(/'/g, '"'));
 }
 
 /**
