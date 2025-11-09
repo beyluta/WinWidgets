@@ -117,6 +117,7 @@ main:not(main.widgets) {
 
 .widgets .list iframe {
   width: 100%;
+  height: 100% !important;
   aspect-ratio: 16 / 16;
   height: auto;
   border: none;
