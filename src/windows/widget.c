@@ -103,28 +103,19 @@ typedef struct
 // ----------------------------------------------------------
 // Global variables to control the state of the application |
 // ----------------------------------------------------------
-static EventRegistrationToken g_closeEventHandlerToken = {};
-static EventRegistrationToken g_moveEventHandlerToken = {};
-static EventRegistrationToken g_topMostEventHandlerToken = {};
 static ICoreWebView2Environment *g_env = nullptr;
 
 static application_settings_t g_settings;
 static webview_widget_t g_widgets[MAX_WIDGETS] = {};
 static HWND g_parentHwnd = nullptr;
 static HWND g_hWndTable[MAX_WIDGETS] = {};
-static HWND g_invisibleHwnd = nullptr;
 
 static size_t g_hWndSelectedHash = {};
 static size_t g_nCmdShow = {};
 static size_t g_widgetCount = 0;
 
-static size_t g_screenWidth;
-static size_t g_screenHeight;
-
-static HWINEVENTHOOK g_hook = nullptr;
 static HINSTANCE g_hInstance = nullptr;
 static ULONG g_handlerRefCount = 0;
-static bool g_envCreated = false;
 static bool g_silentMode = false;
 static volatile bool g_dirChangesDetected = false;
 
@@ -1275,11 +1266,12 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2Environment10 *environment =
                 (ICoreWebView2Environment10 *)g_env;
 
+        static EventRegistrationToken moveEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *moveBtnMenuItem = nullptr;
         if (BAD(AddContextMenuItem(environment,
                                    items,
                                    &itemsCount,
-                                   &g_moveEventHandlerToken,
+                                   &moveEventHandlerToken,
                                    &moveMenuSelectedHandler,
                                    LBL_CTX_MENU_MOVE,
                                    moveBtnMenuItem)))
@@ -1287,11 +1279,12 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 return FUNC_STATUS_ERR;
         }
 
+        static EventRegistrationToken topMostEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
         if (BAD(AddContextMenuItem(environment,
                                    items,
                                    &itemsCount,
-                                   &g_topMostEventHandlerToken,
+                                   &topMostEventHandlerToken,
                                    &topMostMenuSelectedHandler,
                                    LBL_CTX_MENU_TOP_MOST,
                                    topMostBtnMenuItem)))
@@ -1299,11 +1292,12 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 return FUNC_STATUS_ERR;
         }
 
+        static EventRegistrationToken closeEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
         if (BAD(AddContextMenuItem(environment,
                                    items,
                                    &itemsCount,
-                                   &g_closeEventHandlerToken,
+                                   &closeEventHandlerToken,
                                    &closeMenuSelectedHandler,
                                    LBL_CTX_MENU_CLOSE,
                                    closeBtnMenuItem)))
@@ -1608,7 +1602,6 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const,
                                   const HRESULT,
                                   const ICoreWebView2Environment *const arg)
 {
-        g_envCreated = true;
         g_env = (ICoreWebView2Environment *)arg;
 
         const HWND hWnd = g_widgets[g_widgetCount].hWnd;
@@ -2510,25 +2503,25 @@ create_widget_manager(ww_window_ctx *const context)
         invisibleWc.lpszClassName = PROG_NAME;
         RegisterClass(&invisibleWc);
 
-        g_invisibleHwnd = CreateWindowEx(0,
-                                         PROG_NAME,
-                                         nullptr,
-                                         WS_OVERLAPPED,
-                                         CW_USEDEFAULT,
-                                         CW_USEDEFAULT,
-                                         CW_USEDEFAULT,
-                                         CW_USEDEFAULT,
-                                         nullptr,
-                                         nullptr,
-                                         g_hInstance,
-                                         nullptr);
+        const HWND hWndInvisible = CreateWindowEx(0,
+                                                  PROG_NAME,
+                                                  nullptr,
+                                                  WS_OVERLAPPED,
+                                                  CW_USEDEFAULT,
+                                                  CW_USEDEFAULT,
+                                                  CW_USEDEFAULT,
+                                                  CW_USEDEFAULT,
+                                                  nullptr,
+                                                  nullptr,
+                                                  g_hInstance,
+                                                  nullptr);
 
         // Setting the ICON of the invisible window
-        ShowWindow(g_invisibleHwnd, SW_HIDE);
-        UpdateWindow(g_invisibleHwnd);
+        ShowWindow(hWndInvisible, SW_HIDE);
+        UpdateWindow(hWndInvisible);
 
         HANDLE hInvisIcon;
-        if (BAD(SetWindowIcon(g_invisibleHwnd, FAVICON_PATH, &hInvisIcon)))
+        if (BAD(SetWindowIcon(hWndInvisible, FAVICON_PATH, &hInvisIcon)))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -2536,7 +2529,7 @@ create_widget_manager(ww_window_ctx *const context)
         // Creating the systemtray icon for this invisible window
         NOTIFYICONDATA nId;
         nId.cbSize = sizeof(nId);
-        nId.hWnd = g_invisibleHwnd;
+        nId.hWnd = hWndInvisible;
         nId.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         nId.uID = 0;
         nId.uCallbackMessage = PROG_WM_ICONNOTIFY;
@@ -2561,7 +2554,7 @@ create_widget_manager(ww_window_ctx *const context)
                                     context->y,
                                     context->width,
                                     context->height,
-                                    g_invisibleHwnd,
+                                    hWndInvisible,
                                     nullptr,
                                     g_hInstance,
                                     nullptr)) == nullptr)
@@ -2630,6 +2623,7 @@ ww_init_main(const HINSTANCE hInstance,
              const LPSTR pCmdLine,
              ww_window_ctx *const context)
 {
+        HWINEVENTHOOK hook = nullptr;
         pthread_t thread;
         bool comInitialized = true;
         int pThread = 0;
@@ -2662,6 +2656,8 @@ ww_init_main(const HINSTANCE hInstance,
         }
 
         const HWND hWndDesktop = GetDesktopWindow();
+        static size_t g_screenWidth;
+        static size_t g_screenHeight;
         if (BAD(GetHwndDimensions(hWndDesktop,
                                   &g_screenWidth,
                                   &g_screenHeight,
@@ -2681,7 +2677,7 @@ ww_init_main(const HINSTANCE hInstance,
                 goto cleanup;
         }
 
-        if ((g_hook = SetWinEventHook(
+        if ((hook = SetWinEventHook(
                      EVENT_SYSTEM_CAPTURESTART,
                      EVENT_SYSTEM_CAPTUREEND,
                      nullptr,
@@ -2708,9 +2704,9 @@ cleanup:
                 pthread_detach(thread);
         }
 
-        if (g_hook != nullptr)
+        if (hook != nullptr)
         {
-                UnhookWinEvent(g_hook);
+                UnhookWinEvent(hook);
         }
 
         if (comInitialized)
