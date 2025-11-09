@@ -15,13 +15,15 @@
     --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   }
 
-  body {
+  html, body {
     margin: 0;
+    height: 100%;
+    width: 100%;
+    background: transparent;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    background: transparent;
+    overflow: hidden;
     font-family: var(--font-family);
   }
 
@@ -32,6 +34,13 @@
     color: var(--text-color);
     backdrop-filter: blur(var(--backdrop-blur));
     -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
   }
 
   .time {
@@ -43,13 +52,11 @@
     font-size: 1.4em; /* bigger day/month label */
     margin-top: 6px;
     color: var(--text-color);
-    backdrop-filter: blur(var(--backdrop-blur));
-    -webkit-backdrop-filter: blur(var(--backdrop-blur));
   }
 </style>
 </head>
 
-<body>
+<body role="region" aria-label="Watch Widget">
   <div class="digital-clock" id="clock">
     <div class="time" id="time">--:--:--</div>
     <div class="date" id="date">---</div>

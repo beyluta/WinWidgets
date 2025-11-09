@@ -14,42 +14,36 @@
   :root {
     --mica-dark: rgba(20, 20, 20, 0.75);
     --text-color: #f0f0f0;
-    --accent: rgba(240,240,240,0.3); /* today highlight */
-    --radius: 12px;
-    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
+    --accent: rgba(240,240,240,0.3);
+    --radius: 16px;
     --backdrop-blur: 70px;
     --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   }
 
-  body {
+  html, body {
     margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    height: 100%;
+    width: 100%;
     background: transparent;
-    font-family: var(--font-family);
-    overflow: hidden;
-  }
-
-  .wrapper {
-    padding: 40px;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: var(--font-family);
   }
 
   .widget {
+    width: 100%;
+    height: 100%;
     background: var(--mica-dark);
     backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     padding: 16px;
-    width: 260px;
     display: flex;
     flex-direction: column;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
     color: var(--text-color);
   }
 
@@ -92,16 +86,14 @@
 </style>
 </head>
 
-<body>
-  <div class="wrapper">
-    <div class="widget" role="region" aria-label="Calendar Widget">
-      <div class="month-year" id="monthYear">---</div>
-      <div class="weekdays">
-        <div>S</div><div>M</div><div>T</div><div>W</div>
-        <div>T</div><div>F</div><div>S</div>
-      </div>
-      <div class="days" id="daysGrid"></div>
+<body role="region" aria-label="Calendar Widget">
+  <div class="widget" id="calendar">
+    <div class="month-year" id="monthYear">---</div>
+    <div class="weekdays">
+      <div>S</div><div>M</div><div>T</div><div>W</div>
+      <div>T</div><div>F</div><div>S</div>
     </div>
+    <div class="days" id="daysGrid"></div>
   </div>
 
   <script>

@@ -3,9 +3,9 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="applicationTitle" value="System Info" />
-<meta name="windowSize" value="300 220" />
+<meta name="windowSize" value="300 180" />
 <meta name="windowLocation" value="0 0" />
-<meta name="windowBorderRadius" value="12" />
+<meta name="windowBorderRadius" value="20" />
 <meta name="topMost" value="false">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -14,85 +14,81 @@
   :root {
     --mica-dark: rgba(20, 20, 20, 0.75);
     --text-color: #f0f0f0;
-    --radius: 12px;
-    --shadow: 0 12px 12px rgba(0, 0, 0, 0.33);
-    --backdrop-blur: 70px;
+    --radius: 20px;
+    --backdrop-blur: 60px;
     --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   }
 
-  body {
+  html, body {
+    height: 100%;
+    width: 100%;
     margin: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
     background: transparent;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-family: var(--font-family);
+    color: var(--text-color);
     overflow: hidden;
   }
 
-  .wrapper {
-    padding: 40px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
   .widget {
+    width: 100%;
+    height: 100%;
     background: var(--mica-dark);
     backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px 24px;
-    width: 200px;
-    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    padding: 1.2rem 1.6rem;
+    box-sizing: border-box;
     gap: 14px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    color: var(--text-color);
-    font-size: 1em;
   }
 
   .info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    justify-content: space-between;
+    font-size: 1em;
   }
 
   .info i {
     font-size: 1.2em;
-    width: 20px;
+    margin-right: 10px;
+    width: 22px;
   }
 
   .info-value {
     font-weight: 600;
-    flex: 1;
     text-align: right;
+    flex: 1;
   }
 </style>
 </head>
 
-<body>
-  <div class="wrapper">
-    <div class="widget" role="region" aria-label="System Info Widget">
-      <div class="info">
-        <i class="fa-solid fa-desktop"></i>
-        <span class="info-value" id="platform">--</span>
-      </div>
-      <div class="info">
-        <i class="fa-solid fa-memory"></i>
-        <span class="info-value" id="ram">--</span>
-      </div>
-      <div class="info">
-        <i class="fa-solid fa-microchip"></i>
-        <span class="info-value" id="cores">--</span>
-      </div>
-      <div class="info">
-        <i class="fa-solid fa-battery-three-quarters"></i>
-        <span class="info-value" id="battery">--%</span>
-      </div>
+<body role="region" aria-label="System Info Widget">
+  <div class="widget">
+    <div class="info">
+      <i class="fa-solid fa-desktop"></i>
+      <span class="info-value" id="platform">--</span>
+    </div>
+    <div class="info">
+      <i class="fa-solid fa-memory"></i>
+      <span class="info-value" id="ram">--</span>
+    </div>
+    <div class="info">
+      <i class="fa-solid fa-microchip"></i>
+      <span class="info-value" id="cores">--</span>
+    </div>
+    <div class="info">
+      <i class="fa-solid fa-battery-three-quarters" id="battery-icon"></i>
+      <span class="info-value" id="battery">--%</span>
     </div>
   </div>
 
@@ -101,7 +97,7 @@
     const ramEl = document.getElementById('ram');
     const coresEl = document.getElementById('cores');
     const batteryEl = document.getElementById('battery');
-    const batteryIcon = document.querySelector('.fa-battery-three-quarters');
+    const batteryIcon = document.getElementById('battery-icon');
 
     function updateSystemInfo() {
       platformEl.textContent = navigator.platform || 'N/A';
@@ -113,12 +109,12 @@
           const level = Math.round(battery.level * 100);
           batteryEl.textContent = level + '%';
 
-          // Update icon depending on battery level
-          if (level > 80) batteryIcon.className = 'fa-solid fa-battery-full';
-          else if (level > 60) batteryIcon.className = 'fa-solid fa-battery-three-quarters';
-          else if (level > 40) batteryIcon.className = 'fa-solid fa-battery-half';
-          else if (level > 20) batteryIcon.className = 'fa-solid fa-battery-quarter';
-          else batteryIcon.className = 'fa-solid fa-battery-empty';
+          batteryIcon.className = 'fa-solid';
+          if (level > 80) batteryIcon.classList.add('fa-battery-full');
+          else if (level > 60) batteryIcon.classList.add('fa-battery-three-quarters');
+          else if (level > 40) batteryIcon.classList.add('fa-battery-half');
+          else if (level > 20) batteryIcon.classList.add('fa-battery-quarter');
+          else batteryIcon.classList.add('fa-battery-empty');
         });
       } else {
         batteryEl.textContent = 'N/A';
@@ -126,7 +122,7 @@
     }
 
     updateSystemInfo();
-    setInterval(updateSystemInfo, 5000); // update every 5 seconds
+    setInterval(updateSystemInfo, 5000);
   </script>
 </body>
 </html>

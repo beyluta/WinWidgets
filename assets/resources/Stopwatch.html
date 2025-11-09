@@ -3,55 +3,54 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="applicationTitle" value="Stopwatch" />
-<meta name="windowSize" value="420 250" />
+<meta name="windowSize" value="350 180" />
 <meta name="windowLocation" value="0 0" />
-<meta name="windowBorderRadius" value="12" />
+<meta name="windowBorderRadius" value="20" />
 <meta name="topMost" value="false" />
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
   :root {
-    --mica-dark: rgba(20, 20, 20, 0.75); /* matched to clock */
+    --mica-dark: rgba(20, 20, 20, 0.75);
     --text-color: rgba(240, 240, 240, 0.95);
     --text-dim: rgba(240, 240, 240, 0.6);
     --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-    --radius: 12px;
-    --shadow: 0 12px 12px rgba(0,0,0,0.33);
-    --backdrop-blur: 70px; /* stronger blur like clock */
+    --radius: 20px;
+    --backdrop-blur: 70px;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    background: transparent;
   }
 
   body {
-    font-family: var(--font-family);
-    margin: 0;
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 100vh;
-    background: transparent;
+    justify-content: center;
+    font-family: var(--font-family);
+    color: var(--text-color);
     overflow: hidden;
   }
 
-  .wrapper {
-    padding: 40px; /* more space for shadow */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
   .widget {
+    width: 100%;
+    height: 100%;
     background: var(--mica-dark);
     backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 30px;
-    width: 260px;
-    text-align: center;
+    border: 1px solid rgba(255,255,255,0.05);
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    align-items: center;
     gap: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-sizing: border-box;
+    padding: 1.5rem;
   }
 
   .time {
@@ -97,7 +96,6 @@
     cursor: not-allowed;
   }
 
-  /* Neutral monochrome icons */
   .btn.start i,
   .btn.stop i,
   .btn.reset i {
@@ -106,15 +104,13 @@
 </style>
 </head>
 
-<body>
-  <div class="wrapper">
-    <div class="widget" role="region" aria-label="Stopwatch Widget">
-      <div class="time" id="display">00:00.00</div>
-      <div class="controls">
-        <button class="btn start" id="startBtn" title="Start"><i class="fa-solid fa-play"></i></button>
-        <button class="btn stop" id="stopBtn" title="Stop" disabled><i class="fa-solid fa-pause"></i></button>
-        <button class="btn reset" id="resetBtn" title="Reset" disabled><i class="fa-solid fa-rotate-right"></i></button>
-      </div>
+<body role="region" aria-label="Stopwatch Widget">
+  <div class="widget">
+    <div class="time" id="display">00:00.00</div>
+    <div class="controls">
+      <button class="btn start" id="startBtn" title="Start"><i class="fa-solid fa-play"></i></button>
+      <button class="btn stop" id="stopBtn" title="Stop" disabled><i class="fa-solid fa-pause"></i></button>
+      <button class="btn reset" id="resetBtn" title="Reset" disabled><i class="fa-solid fa-rotate-right"></i></button>
     </div>
   </div>
 
