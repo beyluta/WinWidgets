@@ -80,6 +80,12 @@ typedef enum : uint8_t
         APPLICATION_SETTING_START_WIDGETS,
 } application_runtime_setting_t;
 
+typedef enum : uint8_t
+{
+        WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
+        WEBVIEW_CONTEXT_MENU_KIND_CHECKBOX
+} webview_context_menu_kind_t;
+
 typedef struct
 {
         ww_window_ctx context;
@@ -1108,16 +1114,46 @@ AddContextMenuItem(
         EventRegistrationToken *const token,
         ICoreWebView2CustomItemSelectedEventHandler *const eventHandler,
         const wchar_t *const label,
+        const webview_context_menu_kind_t kind,
+        const bool *const checkboxState,
         ICoreWebView2ContextMenuItem *menuItem)
 {
-        if (environment->lpVtbl->CreateContextMenuItem(
-                    environment,
-                    label,
-                    nullptr,
-                    COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
-                    &menuItem) != S_OK)
+
+        switch (kind)
         {
-                return FUNC_STATUS_WBV_ERR;
+        case WEBVIEW_CONTEXT_MENU_KIND_COMMAND:
+        {
+                if (environment->lpVtbl->CreateContextMenuItem(
+                            environment,
+                            label,
+                            nullptr,
+                            COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
+                            &menuItem) != S_OK)
+                {
+                        return FUNC_STATUS_WBV_ERR;
+                }
+                break;
+        }
+        case WEBVIEW_CONTEXT_MENU_KIND_CHECKBOX:
+        {
+                if (environment->lpVtbl->CreateContextMenuItem(
+                            environment,
+                            label,
+                            nullptr,
+                            COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_CHECK_BOX,
+                            &menuItem) != S_OK)
+                {
+                        return FUNC_STATUS_WBV_ERR;
+                }
+
+                if (menuItem->lpVtbl->put_IsChecked(
+                            menuItem, *checkboxState == true ? TRUE : FALSE) !=
+                    S_OK)
+                {
+                        return FUNC_STATUS_WBV_ERR;
+                }
+                break;
+        }
         }
 
         if (menuItem->lpVtbl->remove_CustomItemSelected(menuItem, *token) !=
@@ -1263,8 +1299,9 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         }
 
         const size_t hash = GetHashFromString(out, HASH_PRIME, MAX_WIDGETS);
-
+        const HWND hWndSelected = g_hWndTable[hash];
         g_hWndSelectedHash = hash;
+
         ICoreWebView2Environment10 *environment =
                 (ICoreWebView2Environment10 *)g_env;
 
@@ -1276,6 +1313,8 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    &moveEventHandlerToken,
                                    &moveMenuSelectedHandler,
                                    LBL_CTX_MENU_MOVE,
+                                   WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
+                                   nullptr,
                                    moveBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
@@ -1283,12 +1322,15 @@ WebView2ContextMenuRequestEventHandlerInvoke(
 
         static EventRegistrationToken topMostEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *topMostBtnMenuItem = nullptr;
+        const bool isTopMost = isWindowTopMost(hWndSelected);
         if (BAD(AddContextMenuItem(environment,
                                    items,
                                    &itemsCount,
                                    &topMostEventHandlerToken,
                                    &topMostMenuSelectedHandler,
                                    LBL_CTX_MENU_TOP_MOST,
+                                   WEBVIEW_CONTEXT_MENU_KIND_CHECKBOX,
+                                   &isTopMost,
                                    topMostBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
@@ -1302,6 +1344,8 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    &closeEventHandlerToken,
                                    &closeMenuSelectedHandler,
                                    LBL_CTX_MENU_CLOSE,
+                                   WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
+                                   nullptr,
                                    closeBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;

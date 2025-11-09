@@ -82,13 +82,19 @@ make init
 make update
 ```
 
-Compile the binary with the following command (output can be found at `buid/output.exe`):
+Compile the binary for debugging with the following command:
 
 ```bash
-make build
+make debug
 ```
 
-Build and execute the program automatically with:
+Compile the binary for release with the following command:
+
+```bash
+make release
+```
+
+Execute the program with:
 
 ```bash
 make run

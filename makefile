@@ -1,4 +1,4 @@
-.PHONY: init update build run format
+.PHONY: init update debug release run format
 
 CC = gcc
 BUILDDIR = build
@@ -8,6 +8,9 @@ SRC = main.c \
 			src/utils.c \
 			src/parser.c \
 			lib/minimal-json-c-parser/src/json.c
+RELEASE = -Werror \
+					-Wextra \
+					-Wall
 
 
 init:
@@ -23,9 +26,6 @@ ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-isystem lib/WebView2/build/native/include \
 				-O3 \
-				-Werror \
-				-Wextra \
-				-Wall \
 				-xc \
 				-std=c23 \
 				-mwindows
@@ -43,14 +43,16 @@ SRC := $(SRC) \
 RESRC = "$(CURDIR)/src/windows/resources.o"
 
 format:
-	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
-build: format
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
+	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
+debug: format
 	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
-run: build
+release: format
+	$(CC) $(RESRC) $(SRC) $(ARGS) $(RELEASE) $(LDFLAGS) -o $(OUT)
+run:
 	./$(OUT)
 
 # ------- 
@@ -62,9 +64,6 @@ ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-O2 \
 				-xc \
-				-Wall \
-				-Werror \
-				-Wextra \
 				-std=c23 \
 				-D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl
@@ -72,14 +71,16 @@ SRC := $(SRC) \
 			 src/linux/widget.c
 
 format:
-	clang-format -i $(CURDIR)/src/*.c \
-	$(CURDIR)/include/*.h \
-	$(CURDIR)/main.c
-build: format
 	rm -r "$(BUILDDIR)"
 	mkdir -p "$(BUILDDIR)"
 	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
+	clang-format -i $(CURDIR)/src/*.c \
+	$(CURDIR)/include/*.h \
+	$(CURDIR)/main.c
+debug: format
 	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
-run: build
+release: format
+	$(CC) $(SRC) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
+run:
 	WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 ./$(OUT)	
 endif
