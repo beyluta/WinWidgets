@@ -70,17 +70,4 @@ GetSubstring(const char *const src,
              const size_t start,
              const size_t end);
 
-/**
- * @brief Gets the value of a meta tag as a string
- * @param filenaem Path to the file
- * @param src Name of the tag to search for
- * @param dest Destination string to save the result to
- * @returns Whether the function was successful or not
- */
-bool
-GetMetaTagValue(const char *const content,
-                const char *const src,
-                char *const dest,
-                const size_t destLen);
-
 #endif

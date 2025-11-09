@@ -4,6 +4,7 @@
 #include "glib-object.h"
 #include "global.h"
 #include "utils.h"
+#include "parser.h"
 
 #include <cairo/cairo.h>
 #include <gtk/gtk.h>
@@ -133,19 +134,23 @@ on_get_widget_filenames(WebKitUserContentManager *,
                 const size_t filenameLen = strlen(widgets[i]);
                 if (filenameLen >= BUFFSIZE - offset)
                 {
-                        return;
+                        continue;
                 }
 
                 char content[USHRT_MAX];
                 if (ww_get_file_content(widgets[i], content, USHRT_MAX))
                 {
-                        return;
+                        continue;
                 }
 
                 char appTitle[BUFFSIZE];
-                if (!GetMetaTagValue(content, TAG_APP_NAME, appTitle, BUFFSIZE))
+                if (!ww_begin_parsing(content,
+                                      lengthof(content),
+                                      TAG_APP_NAME,
+                                      appTitle,
+                                      lengthof(appTitle)))
                 {
-                        return;
+                        continue;
                 }
 
                 bytes += snprintf(&files[bytes],
@@ -221,13 +226,13 @@ get_widget_config(const char *filename,
 
         char buf[BUFFSIZE] = {};
         const size_t bufLen = lengthof(buf);
-        if (GetMetaTagValue(content, TAG_APP_NAME, buf, bufLen))
+        if (ww_begin_parsing(content, contentSize, TAG_APP_NAME, buf, bufLen))
         {
                 memcpy(dest->title, buf, bufLen);
                 dest->title[bufLen - 1] = '\0';
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_SIZE, buf, bufLen))
+        if (ww_begin_parsing(content, contentSize, TAG_WIN_SIZE, buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -235,7 +240,8 @@ get_widget_config(const char *filename,
                 dest->height = isSet ? height : DEF_WIDTH;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_LOCATION, buf, bufLen))
+        if (ww_begin_parsing(
+                    content, contentSize, TAG_WIN_LOCATION, buf, bufLen))
         {
                 size_t xPos, yPos;
                 const bool isSet = Get2DValue(buf, &xPos, &yPos);
@@ -243,12 +249,14 @@ get_widget_config(const char *filename,
                 dest->y = isSet ? yPos : DEF_Y;
         }
 
-        if (GetMetaTagValue(content, TAG_APP_TOPMOST, buf, bufLen))
+        if (ww_begin_parsing(
+                    content, contentSize, TAG_APP_TOPMOST, buf, bufLen))
         {
                 dest->top_most = strcmp(buf, "true") == 0;
         }
 
-        if (GetMetaTagValue(content, TAG_WIN_BORD_RAD, buf, bufLen))
+        if (ww_begin_parsing(
+                    content, contentSize, TAG_WIN_BORD_RAD, buf, bufLen))
         {
                 dest->radius = strtod(buf, nullptr);
         }
