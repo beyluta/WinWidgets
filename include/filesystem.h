@@ -106,4 +106,20 @@ ww_folder_exists(const char *const src);
 ssize_t
 ww_get_executable_path(char *const dest, const size_t max_len);
 
+/**
+ * @brief Goes up a chain of directories inside a string. The string may contain
+ * both / or \ as delimiters.
+ *
+ * @param src Source containing the entire path
+ * @param srcLen Length of the source string
+ * @param dest Destination string
+ * @param destLen Length of the destination string
+ * @returns true if successful, else false on failure
+ */
+bool
+ww_dir_up(const char *const src,
+          const size_t srcLen,
+          char *const dest,
+          const size_t destLen);
+
 #endif

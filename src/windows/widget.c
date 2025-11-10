@@ -49,17 +49,13 @@ static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
 static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close widget";
 static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Always on top";
-static constexpr wchar_t ICO_CTX_MENU_MOVE_LIGHT[] =
-        L"assets/icons/drag_light.png";
-static constexpr wchar_t ICO_CTX_MENU_MOVE_DARK[] =
-        L"assets/icons/drag_dark.png";
-static constexpr wchar_t ICO_CTX_MENU_PIN_LIGHT[] =
-        L"assets/icons/pin_light.png";
-static constexpr wchar_t ICO_CTX_MENU_PIN_DARK[] = L"assets/icons/pin_dark.png";
-static constexpr wchar_t ICO_CTX_MENU_CLOSE_LIGHT[] =
-        L"assets/icons/close_light.png";
-static constexpr wchar_t ICO_CTX_MENU_CLOSE_DARK[] =
-        L"assets/icons/close_dark.png";
+
+static constexpr char ICO_DRAG_LIGHT[] = "\\assets\\icons\\drag_light.png";
+static constexpr char ICO_DRAG_DARK[] = "\\assets\\icons\\drag_dark.png";
+static constexpr char ICO_PIN_LIGHT[] = "\\assets\\icons\\pin_light.png";
+static constexpr char ICO_PIN_DARK[] = "\\assets\\icons\\pin_dark.png";
+static constexpr char ICO_CLOSE_LIGHT[] = "\\assets\\icons\\close_light.png";
+static constexpr char ICO_CLOSE_DARK[] = "\\assets\\icons\\close_dark.png";
 
 static constexpr uint8_t PARENT_INDEX = 0;
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
@@ -1010,9 +1006,28 @@ cleanup:
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 static func_status_t
-GetContextMenuIcon(IStream **stream, const LPWSTR icon)
+GetContextMenuIcon(IStream **stream, const char *const icon)
 {
-        if (SHCreateStreamOnFileEx(icon,
+        char path[BUFFSIZE];
+        if (ww_get_executable_path(path, lengthof(path)))
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+
+        char parentDir[BUFFSIZE];
+        if (!ww_dir_up(path, lengthof(path), parentDir, lengthof(path)))
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+        strcat(parentDir, icon);
+
+        wchar_t wIconPath[BUFFSIZE];
+        if (mbstowcs(wIconPath, parentDir, lengthof(parentDir)) == (size_t)-1)
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+
+        if (SHCreateStreamOnFileEx(wIconPath,
                                    STGM_READ,
                                    FILE_ATTRIBUTE_NORMAL,
                                    FALSE,
@@ -1021,6 +1036,7 @@ GetContextMenuIcon(IStream **stream, const LPWSTR icon)
         {
                 return FUNC_STATUS_MEM_ERR;
         }
+
         return FUNC_STATUS_OK;
 }
 
@@ -1051,7 +1067,7 @@ AddContextMenuItem(
         const wchar_t *const label,
         const webview_context_menu_kind_t kind,
         const bool *const checkboxState,
-        const LPWSTR iconPath,
+        const char *const iconPath,
         ICoreWebView2ContextMenuItem *menuItem)
 {
         func_status_t status = FUNC_STATUS_OK;
@@ -1268,18 +1284,17 @@ WebView2ContextMenuRequestEventHandlerInvoke(
 
         static EventRegistrationToken closeEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
-        if (BAD(AddContextMenuItem(environment,
-                                   items,
-                                   &itemsCount,
-                                   &closeEventHandlerToken,
-                                   &closeMenuSelectedHandler,
-                                   LBL_CTX_MENU_CLOSE,
-                                   WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
-                                   nullptr,
-                                   lightTheme
-                                           ? (LPWSTR)ICO_CTX_MENU_CLOSE_DARK
-                                           : (LPWSTR)ICO_CTX_MENU_CLOSE_LIGHT,
-                                   closeBtnMenuItem)))
+        if (BAD(AddContextMenuItem(
+                    environment,
+                    items,
+                    &itemsCount,
+                    &closeEventHandlerToken,
+                    &closeMenuSelectedHandler,
+                    LBL_CTX_MENU_CLOSE,
+                    WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
+                    nullptr,
+                    lightTheme ? ICO_CLOSE_DARK : ICO_CLOSE_LIGHT,
+                    closeBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
         }
@@ -1294,8 +1309,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_MOVE,
                                    WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
                                    nullptr,
-                                   lightTheme ? (LPWSTR)ICO_CTX_MENU_MOVE_DARK
-                                              : (LPWSTR)ICO_CTX_MENU_MOVE_LIGHT,
+                                   lightTheme ? ICO_DRAG_DARK : ICO_DRAG_LIGHT,
                                    moveBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
@@ -1312,8 +1326,7 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_TOP_MOST,
                                    WEBVIEW_CONTEXT_MENU_KIND_CHECKBOX,
                                    &isTopMost,
-                                   lightTheme ? (LPWSTR)ICO_CTX_MENU_PIN_DARK
-                                              : (LPWSTR)ICO_CTX_MENU_PIN_LIGHT,
+                                   lightTheme ? ICO_PIN_DARK : ICO_PIN_LIGHT,
                                    topMostBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;

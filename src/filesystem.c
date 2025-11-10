@@ -408,3 +408,29 @@ ww_folder_exists(const char *const src)
         }
         return false;
 }
+
+bool
+ww_dir_up(const char *const src,
+          const size_t srcLen,
+          char *const dest,
+          const size_t destLen)
+{
+        size_t i = srcLen;
+        for (; i > 0; i--)
+        {
+                if (src[i] == '/' || src[i] == '\\')
+                {
+                        break;
+                }
+        }
+
+        if (destLen <= i)
+        {
+                return false;
+        }
+
+        memcpy(dest, src, i);
+        dest[i] = '\0';
+
+        return true;
+}
