@@ -23,6 +23,7 @@ update:
 # --------
 ifeq ($(OS), Windows_NT)
 ARGS := -Iinclude \
+				-Iinclude/windows \
 				-Ilib/minimal-json-c-parser/include \
 				-isystem lib/WebView2/build/native/include \
 				-O3 \

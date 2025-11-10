@@ -1,16 +1,16 @@
+#include "widget.h"
+#include "decl_webview.h"
 #include "filesystem.h"
 #include "global.h"
-#include "utils.h"
-#include "widget.h"
 #include "json.h"
 #include "parser.h"
+#include "utils.h"
 
-#include <WebView2.h>
+#include <ddraw.h>
+#include <dwmapi.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <ddraw.h>
-#include <pthread.h>
-#include <dwmapi.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
@@ -63,15 +63,6 @@ typedef enum : uint8_t
         EVT_TOGGLE_SETTING,
         EVT_THEME_CHANGED,
 } widget_events_t;
-
-typedef enum : uint8_t
-{
-        FUNC_STATUS_OK,
-        FUNC_STATUS_USR_ERR,
-        FUNC_STATUS_WBV_ERR,
-        FUNC_STATUS_MEM_ERR,
-        FUNC_STATUS_ERR
-} func_status_t;
 
 typedef enum : uint8_t
 {
@@ -176,6 +167,26 @@ Debug(const char *const message)
 }
 #endif
 
+ULONG
+HandlerAddRef(IUnknown *)
+{
+        return ++g_handlerRefCount;
+}
+
+ULONG
+HandlerRelease(IUnknown *)
+{
+        return --g_handlerRefCount;
+}
+
+HRESULT
+HandlerQueryInterface(IUnknown *this, const IID *, void **ppvObject)
+{
+        *ppvObject = this;
+        HandlerAddRef(this);
+        return S_FALSE;
+}
+
 // ---------------------------------------------------------------------
 // Forward declaration of function definitions that will be used later |
 // ---------------------------------------------------------------------
@@ -189,136 +200,7 @@ WinEventProc(HWINEVENTHOOK hWinEventHook,
              DWORD dwEventTimeMs);
 
 static func_status_t
-EnvironmentCompletedHandlerInvoke(const IUnknown *const this,
-                                  const HRESULT errorCode,
-                                  const ICoreWebView2Environment *const arg);
-
-static func_status_t
-ControllerCompletedHandlerInvoke(const IUnknown *const this,
-                                 const HRESULT errorCode,
-                                 const ICoreWebView2Controller *const arg);
-
-static func_status_t
-WebView2ContextMenuRequestEventHandlerInvoke(
-        ICoreWebView2ContextMenuRequestedEventHandler *const this,
-        ICoreWebView2 *const sender,
-        ICoreWebView2ContextMenuRequestedEventArgs *const args);
-
-static func_status_t
-WebView2WebMessageReceivedEventHandlerInvoke(
-        ICoreWebView2WebMessageReceivedEventHandler *const handler,
-        ICoreWebView2 *const webview,
-        ICoreWebView2WebMessageReceivedEventArgs *const args);
-
-static func_status_t
-OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                               IUnknown *const args);
-
-static func_status_t
-OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                              IUnknown *const args);
-
-static func_status_t
-OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
-                                 IUnknown *const args);
-
-static func_status_t
 create_widget_window(ww_window_ctx *const context);
-
-// --------------------------------------------------
-// Vtable functions for creating the default window |
-// --------------------------------------------------
-static ULONG
-HandlerAddRef(IUnknown *)
-{
-        return ++g_handlerRefCount;
-}
-
-static ULONG
-HandlerRelease(IUnknown *)
-{
-        return --g_handlerRefCount;
-}
-
-static HRESULT
-HandlerQueryInterface(IUnknown *this, const IID *, void **ppvObject)
-{
-        *ppvObject = this;
-        HandlerAddRef(this);
-        return S_FALSE;
-}
-
-static ICoreWebView2WebMessageReceivedEventHandlerVtbl
-        messageReceivedEventHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)WebView2WebMessageReceivedEventHandlerInvoke};
-
-static ICoreWebView2WebMessageReceivedEventHandler messageReceivedEventHandler =
-        {.lpVtbl = &messageReceivedEventHandlerVtbl};
-
-static ICoreWebView2CreateCoreWebView2ControllerCompletedHandlerVtbl
-        controllerCompletedHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)ControllerCompletedHandlerInvoke};
-
-static ICoreWebView2CreateCoreWebView2ControllerCompletedHandler
-        controllerCompletedHandler = {.lpVtbl =
-                                              &controllerCompletedHandlerVtbl};
-
-static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandlerVtbl
-        environmentCompletedHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)EnvironmentCompletedHandlerInvoke};
-
-static ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler
-        environmentCompletedHandler = {
-                .lpVtbl = &environmentCompletedHandlerVtbl};
-
-static ICoreWebView2ContextMenuRequestedEventHandlerVtbl
-        contextMenuEventHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)WebView2ContextMenuRequestEventHandlerInvoke};
-
-static ICoreWebView2ContextMenuRequestedEventHandler contextMenuEventHandler = {
-        .lpVtbl = &contextMenuEventHandlerVtbl};
-
-static ICoreWebView2CustomItemSelectedEventHandlerVtbl
-        closeMenuSelectedHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)OnCloseContextItemMenuSelected};
-
-static ICoreWebView2CustomItemSelectedEventHandler closeMenuSelectedHandler = {
-        .lpVtbl = &closeMenuSelectedHandlerVtbl};
-
-static ICoreWebView2CustomItemSelectedEventHandlerVtbl
-        moveMenuSelectedHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)OnMoveContextItemMenuSelected};
-
-static ICoreWebView2CustomItemSelectedEventHandler moveMenuSelectedHandler = {
-        .lpVtbl = &moveMenuSelectedHandlerVtbl};
-
-static ICoreWebView2CustomItemSelectedEventHandlerVtbl
-        topMostMenuSelectedHandlerVtbl = {
-                .AddRef = (void *)HandlerAddRef,
-                .Release = (void *)HandlerRelease,
-                .QueryInterface = (void *)HandlerQueryInterface,
-                .Invoke = (void *)OnTopMostContextItemMenuSelected};
-
-static ICoreWebView2CustomItemSelectedEventHandler topMostMenuSelectedHandler =
-        {.lpVtbl = &topMostMenuSelectedHandlerVtbl};
 
 /**
  * @brief Opens the default directory where the widgets are located
@@ -940,7 +822,7 @@ DestroyWidgetWindows()
  * @param args Arguments of the event
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
                                IUnknown *const)
 {
@@ -988,7 +870,7 @@ SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
  * @param args Arguments of the event
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
                               IUnknown *const)
 {
@@ -1078,7 +960,7 @@ SetWindowTopMost(const HWND hWnd, const bool src)
  * @param args Arguments of the event
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
                                  IUnknown *const)
 {
@@ -1248,7 +1130,7 @@ cleanup:
  * @param args Arguments of the caller
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuRequestedEventHandler *const,
         ICoreWebView2 *const sender,
@@ -1534,7 +1416,7 @@ ToggleSettingByName(const char *const src)
  * @param args Arguments of the event handler
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 WebView2WebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *const,
         ICoreWebView2 *const webview,
@@ -1658,7 +1540,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
  * @param arg Argument of the event
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 EnvironmentCompletedHandlerInvoke(const IUnknown *const,
                                   const HRESULT,
                                   const ICoreWebView2Environment *const arg)
@@ -1682,7 +1564,7 @@ EnvironmentCompletedHandlerInvoke(const IUnknown *const,
  * @param arg WebView2 Controller
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+func_status_t
 ControllerCompletedHandlerInvoke(const IUnknown *const,
                                  const HRESULT,
                                  const ICoreWebView2Controller *const arg)
