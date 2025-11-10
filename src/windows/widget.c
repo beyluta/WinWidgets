@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <shlwapi.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
@@ -36,15 +37,29 @@ static constexpr char PROG_NAME[] = "WinWidgets";
 static constexpr uint8_t PROG_NAME_SIZE = lengthof(PROG_NAME);
 
 static constexpr char PROG_SEM_VER[] = "2.0.0";
-static constexpr char PROG_START_PATH[] =
+
+static constexpr char REG_PATH_RUN[] =
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
+static constexpr char REG_PATH_THEME[] =
+        "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 
 static constexpr char CONFIG_NAME[] = "\\config.json";
 static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 
-static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Toggle move";
-static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close";
-static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Toggle always on top";
+static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
+static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close widget";
+static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Always on top";
+static constexpr wchar_t ICO_CTX_MENU_MOVE_LIGHT[] =
+        L"assets/icons/drag_light.png";
+static constexpr wchar_t ICO_CTX_MENU_MOVE_DARK[] =
+        L"assets/icons/drag_dark.png";
+static constexpr wchar_t ICO_CTX_MENU_PIN_LIGHT[] =
+        L"assets/icons/pin_light.png";
+static constexpr wchar_t ICO_CTX_MENU_PIN_DARK[] = L"assets/icons/pin_dark.png";
+static constexpr wchar_t ICO_CTX_MENU_CLOSE_LIGHT[] =
+        L"assets/icons/close_light.png";
+static constexpr wchar_t ICO_CTX_MENU_CLOSE_DARK[] =
+        L"assets/icons/close_dark.png";
 
 static constexpr uint8_t PARENT_INDEX = 0;
 static constexpr uint8_t MAX_ALPHA = UINT8_MAX;
@@ -210,8 +225,7 @@ ModifyAutostartEntry(const bool addEntry)
         strcat(binary, " --silent");
 
         HKEY hKey = nullptr;
-        if (RegOpenKeyEx(
-                    HKEY_CURRENT_USER, PROG_START_PATH, 0, KEY_WRITE, &hKey))
+        if (RegOpenKeyEx(HKEY_CURRENT_USER, REG_PATH_RUN, 0, KEY_WRITE, &hKey))
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -947,12 +961,83 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
 }
 
 /**
- * @brief Adds a new item to the Context Menu
+ * @brief Gets the current theme the user has on their entire system
+ * @param lightTheme True if light theme, false if dark theme
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+GetCurrentUserWindowsLightTheme(bool *const lightTheme)
+{
+        func_status_t status = FUNC_STATUS_OK;
+        HKEY hKey = nullptr;
+        DWORD result = 1;
+        DWORD size = sizeof(result);
+
+        if (RegOpenKeyEx(
+                    HKEY_CURRENT_USER, REG_PATH_THEME, 0, KEY_READ, &hKey) !=
+            ERROR_SUCCESS)
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
+        if (RegQueryValueEx(hKey,
+                            "AppsUseLightTheme",
+                            nullptr,
+                            nullptr,
+                            (LPBYTE)&result,
+                            &size) != ERROR_SUCCESS)
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
+        *lightTheme = result;
+
+cleanup:
+        if (hKey != nullptr)
+        {
+                RegCloseKey(hKey);
+        }
+
+        return status;
+}
+
+/**
+ * @brief Loads the specified icon into the stream argument
+ * @param stream Stream to load the icon as bytes into
+ * @param icon Path of the icon to be loaded
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+GetContextMenuIcon(IStream **stream, const LPWSTR icon)
+{
+        if (SHCreateStreamOnFileEx(icon,
+                                   STGM_READ,
+                                   FILE_ATTRIBUTE_NORMAL,
+                                   FALSE,
+                                   nullptr,
+                                   stream) != S_OK)
+        {
+                return FUNC_STATUS_MEM_ERR;
+        }
+        return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Adds a new item to the Context Menu. There are two types of items that
+ * can be added: 'command' and 'checkbox'. The parameter `checkboxState` can be
+ * nullptr if the item being added is not a checkbox. An icon must however
+ * always be provided even if the type is checkbox.
+ *
  * @param environment Default WebView2 Environment
  * @param items Pointer to the items object
  * @param itemsCount Pointer to the count of items
  * @param token Pointer to the registration token
  * @param label Name of the context menu item
+ * @param kind Type of the item being added
+ * @param checkboxState Pointer to the state of the checkbox
+ * @param iconPath Path to the icon to be displayed
  * @param eventHandler Pointer to the event handler function
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
@@ -966,8 +1051,16 @@ AddContextMenuItem(
         const wchar_t *const label,
         const webview_context_menu_kind_t kind,
         const bool *const checkboxState,
+        const LPWSTR iconPath,
         ICoreWebView2ContextMenuItem *menuItem)
 {
+        func_status_t status = FUNC_STATUS_OK;
+        IStream *stream = nullptr;
+        if (BAD(GetContextMenuIcon(&stream, iconPath)))
+        {
+                status = FUNC_STATUS_WBV_ERR;
+                goto cleanup;
+        }
 
         switch (kind)
         {
@@ -976,11 +1069,12 @@ AddContextMenuItem(
                 if (environment->lpVtbl->CreateContextMenuItem(
                             environment,
                             label,
-                            nullptr,
+                            stream,
                             COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
                             &menuItem) != S_OK)
                 {
-                        return FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WBV_ERR;
+                        goto cleanup;
                 }
                 break;
         }
@@ -993,14 +1087,16 @@ AddContextMenuItem(
                             COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_CHECK_BOX,
                             &menuItem) != S_OK)
                 {
-                        return FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WBV_ERR;
+                        goto cleanup;
                 }
 
                 if (menuItem->lpVtbl->put_IsChecked(
                             menuItem, *checkboxState == true ? TRUE : FALSE) !=
                     S_OK)
                 {
-                        return FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WBV_ERR;
+                        goto cleanup;
                 }
                 break;
         }
@@ -1009,22 +1105,31 @@ AddContextMenuItem(
         if (menuItem->lpVtbl->remove_CustomItemSelected(menuItem, *token) !=
             S_OK)
         {
-                return FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WBV_ERR;
+                goto cleanup;
         }
 
         if (menuItem->lpVtbl->add_CustomItemSelected(
                     menuItem, eventHandler, token) != S_OK)
         {
-                return FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WBV_ERR;
+                goto cleanup;
         }
 
         if (items->lpVtbl->InsertValueAtIndex(items, *itemsCount, menuItem) !=
             S_OK)
         {
-                return FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WBV_ERR;
+                goto cleanup;
         }
 
-        return FUNC_STATUS_OK;
+cleanup:
+        if (stream != nullptr)
+        {
+                stream->lpVtbl->Release(stream);
+        }
+
+        return status;
 }
 
 /**
@@ -1155,6 +1260,30 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2Environment10 *environment =
                 (ICoreWebView2Environment10 *)g_env;
 
+        bool lightTheme = true;
+        if (BAD(GetCurrentUserWindowsLightTheme(&lightTheme)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        static EventRegistrationToken closeEventHandlerToken = {};
+        ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
+        if (BAD(AddContextMenuItem(environment,
+                                   items,
+                                   &itemsCount,
+                                   &closeEventHandlerToken,
+                                   &closeMenuSelectedHandler,
+                                   LBL_CTX_MENU_CLOSE,
+                                   WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
+                                   nullptr,
+                                   lightTheme
+                                           ? (LPWSTR)ICO_CTX_MENU_CLOSE_DARK
+                                           : (LPWSTR)ICO_CTX_MENU_CLOSE_LIGHT,
+                                   closeBtnMenuItem)))
+        {
+                return FUNC_STATUS_ERR;
+        }
+
         static EventRegistrationToken moveEventHandlerToken = {};
         ICoreWebView2ContextMenuItem *moveBtnMenuItem = nullptr;
         if (BAD(AddContextMenuItem(environment,
@@ -1165,6 +1294,8 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_MOVE,
                                    WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
                                    nullptr,
+                                   lightTheme ? (LPWSTR)ICO_CTX_MENU_MOVE_DARK
+                                              : (LPWSTR)ICO_CTX_MENU_MOVE_LIGHT,
                                    moveBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
@@ -1181,32 +1312,14 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                                    LBL_CTX_MENU_TOP_MOST,
                                    WEBVIEW_CONTEXT_MENU_KIND_CHECKBOX,
                                    &isTopMost,
+                                   lightTheme ? (LPWSTR)ICO_CTX_MENU_PIN_DARK
+                                              : (LPWSTR)ICO_CTX_MENU_PIN_LIGHT,
                                    topMostBtnMenuItem)))
         {
                 return FUNC_STATUS_ERR;
         }
 
-        static EventRegistrationToken closeEventHandlerToken = {};
-        ICoreWebView2ContextMenuItem *closeBtnMenuItem = nullptr;
-        if (BAD(AddContextMenuItem(environment,
-                                   items,
-                                   &itemsCount,
-                                   &closeEventHandlerToken,
-                                   &closeMenuSelectedHandler,
-                                   LBL_CTX_MENU_CLOSE,
-                                   WEBVIEW_CONTEXT_MENU_KIND_COMMAND,
-                                   nullptr,
-                                   closeBtnMenuItem)))
-        {
-                return FUNC_STATUS_ERR;
-        }
-
 cleanup:
-        if (closeBtnMenuItem != nullptr)
-        {
-                closeBtnMenuItem->lpVtbl->Release(closeBtnMenuItem);
-        }
-
         if (topMostBtnMenuItem != nullptr)
         {
                 topMostBtnMenuItem->lpVtbl->Release(topMostBtnMenuItem);
@@ -1215,6 +1328,11 @@ cleanup:
         if (moveBtnMenuItem != nullptr)
         {
                 moveBtnMenuItem->lpVtbl->Release(moveBtnMenuItem);
+        }
+
+        if (closeBtnMenuItem != nullptr)
+        {
+                closeBtnMenuItem->lpVtbl->Release(closeBtnMenuItem);
         }
 
         if (items != nullptr)

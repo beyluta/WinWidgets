@@ -67,7 +67,7 @@ corresponding `-dev` packages as well, else you won't be able to compile.
 
 ### Common commands
 
-These are MakeFile commands that work for all supported platforms.
+These are commands that work for all supported platforms.
 Read them carefully to successfully compile the application.
 
 When building for the first time you must run the following command to fetch dependencies:
