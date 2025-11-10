@@ -73,13 +73,13 @@ Read them carefully to successfully compile the application.
 When building for the first time you must run the following command to fetch dependencies:
 
 ```bash
-make init
+git submodule update --init --recursive
 ```
 
 (Optional) Consider running the following when pulling remote changes to update dependencies:
 
 ```bash
-make update
+git submodule update --recursive --remote
 ```
 
 Compile the binary for debugging with the following command:

@@ -1,4 +1,4 @@
-.PHONY: init update debug release run format
+.PHONY: debug release run format
 
 CC = gcc
 BUILDDIR = build
@@ -11,12 +11,6 @@ SRC = main.c \
 RELEASE = -Werror \
 					-Wextra \
 					-Wall
-
-
-init:
-	git submodule update --init --recursive
-update:
-	git submodule update --recursive --remote
 
 # ------- 
 # Building for Windows platform
