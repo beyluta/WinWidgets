@@ -1,3 +1,14 @@
+// ======================= Purpose ==========================
+//
+// Source file with all Windows (platform-specific) code of
+// the application. The Win32 API is used to create and
+// manipulate the state of multiple windows during runtime.
+//
+// The component reponsible for rendering the widgets it the
+// WebView2 library, a native technology, which comes bundled
+// which Windows 11 out of the box.
+//
+// ==========================================================
 #include "widget.h"
 #include "decl_webview.h"
 #include "filesystem.h"
@@ -99,9 +110,9 @@ typedef struct
         const bool appAutostart;
 } application_settings_t;
 
-// ----------------------------------------------------------
-// Global variables to control the state of the application |
-// ----------------------------------------------------------
+// ---------------------------------------------------------------------
+// Global variables to control the state of the application
+// ---------------------------------------------------------------------
 static ICoreWebView2Environment *g_env = nullptr;
 
 static application_settings_t g_settings;
@@ -121,52 +132,24 @@ static volatile bool g_dirChangesDetected = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-#define DEBUG 0
-#if DEBUG
-/**
- * @brief Creates a console window and writes debug messages to it
- * @param message Text to print out
- * @returns true on success, else false on failure
- */
-static bool
-Debug(const char *const message)
-{
-        const size_t messageLen = strlen(message);
-        char newMessage[USHRT_MAX];
+// ---------------------------------------------------------------------
+// Forward declaration of function definitions that will be used later
+// ---------------------------------------------------------------------
+static void CALLBACK
+WinEventProc(HWINEVENTHOOK hWinEventHook,
+             DWORD event,
+             HWND hWnd,
+             LONG idObj,
+             LONG idChild,
+             DWORD dwEventThread,
+             DWORD dwEventTimeMs);
 
-        if (messageLen >= lengthof(newMessage))
-        {
-                return false;
-        }
+static func_status_t
+create_widget_window(ww_window_ctx *const context);
 
-        if (snprintf(newMessage, lengthof(newMessage), "%s\n", message) < 0)
-        {
-                return false;
-        }
-
-        static bool consoleAlloced = false;
-        if (AllocConsole() == 0 && !consoleAlloced)
-        {
-                return false;
-        }
-        consoleAlloced = true;
-
-        HANDLE stdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-        if (stdOut == NULL || stdOut == INVALID_HANDLE_VALUE)
-        {
-                return false;
-        }
-
-        DWORD written = 0;
-        if (!WriteConsoleA(
-                    stdOut, newMessage, strlen(newMessage), &written, NULL))
-        {
-                return false;
-        }
-        return true;
-}
-#endif
-
+// ---------------------------------------------------------------------
+// Function implementations for the Win32 API
+// ---------------------------------------------------------------------
 ULONG
 HandlerAddRef(IUnknown *)
 {
@@ -186,21 +169,6 @@ HandlerQueryInterface(IUnknown *this, const IID *, void **ppvObject)
         HandlerAddRef(this);
         return S_FALSE;
 }
-
-// ---------------------------------------------------------------------
-// Forward declaration of function definitions that will be used later |
-// ---------------------------------------------------------------------
-static void CALLBACK
-WinEventProc(HWINEVENTHOOK hWinEventHook,
-             DWORD event,
-             HWND hWnd,
-             LONG idObj,
-             LONG idChild,
-             DWORD dwEventThread,
-             DWORD dwEventTimeMs);
-
-static func_status_t
-create_widget_window(ww_window_ctx *const context);
 
 /**
  * @brief Opens the default directory where the widgets are located

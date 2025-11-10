@@ -1,3 +1,15 @@
+// ======================= Purpose ==========================
+//
+// Header file cotaining all required function definitions
+// and handler objects that WebView2 requires to work.
+//
+// In a C++ codebase, you would naturally have just a single
+// object which you can instantiate and use its functions and
+// properties. Since this isn't the case in C, we need to
+// create a virtual table of function pointers before we can
+// use the handler objects.
+//
+// ==========================================================
 #ifndef DECL_WEBVIEW_H
 #define DECL_WEBVIEW_H
 

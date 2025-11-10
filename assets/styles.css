@@ -190,7 +190,7 @@ nav .theme-toggle.show-tooltip::after {
 main {
   grid-column: 2;
   padding: 32px 40px;
-  height: calc(100vh - 100px);
+  height: calc(100vh - 86px);
   overflow-y: auto;
   background-color: var(--bg-primary);
 }
@@ -491,16 +491,8 @@ body.dark-mode .setting-item:hover {
   flex-shrink: 0;
 }
 
-body.dark-mode .settings .toggle {
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
 .settings .toggle:hover {
   background-color: rgba(0, 0, 0, 0.2);
-}
-
-body.dark-mode .settings .toggle:hover {
-  background-color: rgba(255, 255, 255, 0.25);
 }
 
 .settings .toggle::before {
