@@ -58,13 +58,7 @@ WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR pCmdLine, int nCmdShow)
         window.filename[len] = '\0';
 
 #if __linux__
-        ww_widget_ctx widgets[MAX_WIDGETS];
-        for (size_t i = 0; i < MAX_WIDGETS; i++)
-        {
-                widgets[i].window_context.index = i;
-        }
-
-        if (ww_init_main(&window, widgets) == true)
+        if (ww_init_main(window))
         {
 #elif _WIN32
         if (ww_init_main(hInstance, nCmdShow, pCmdLine, &window) == true)

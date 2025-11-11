@@ -1,18 +1,27 @@
+// ======================= Purpose ==========================
+//
+// This file contains the Linux source code for the widget-
+// manager and each individual widgets that can be opened
+// during runtime.
+//
+// ==========================================================
 #include "widget.h"
 #include "filesystem.h"
-#include "gdk/gdk.h"
-#include "glib-object.h"
 #include "global.h"
 #include "utils.h"
 #include "parser.h"
 
-#include <cairo/cairo.h>
-#include <gtk/gtk.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 #include <webkit2/webkit2.h>
+
+static constexpr char SIGNAL_DESTROY[] = "destroy";
+static constexpr char SIGNAL_DRAW_WINDOW[] = "draw";
+static constexpr char SIGNAL_CONTEXT_MENU[] = "button-press-event";
+static constexpr char SIGNAL_GET_FILENAMES[] =
+        "script-message-received::on_get_widget_filenames";
+static constexpr char SIGNAL_OPEN_WIDGET[] =
+        "script-message-received::on_open_widget_by_filename";
+static constexpr char SIGNAL_OPEN_DIRECTORY[] =
+        "script-message-received::on_open_default_directory";
 
 static constexpr char LBL_EVT_GET_WIDGETS[] = "on_get_widget_filenames";
 static constexpr char LBL_EVT_OPEN_WIDGET[] = "on_open_widget_by_filename";
@@ -21,17 +30,27 @@ static constexpr char LBL_EVT_OPEN_DIR[] = "on_open_default_directory";
 static constexpr uint8_t EVT_LOOP_TICK_DELAY = 1;
 static constexpr uint8_t MOUSE_CLICK_RIGHT = 3;
 
+static ww_widget_ctx g_widgets[MAX_WIDGETS];
 static size_t g_widgetCount = 1;
 static size_t g_closedWidgets[MAX_WIDGETS] = {};
 
-static bool
-create_widget(ww_window_ctx *context, ww_widget_ctx *widgets);
+typedef struct
+{
+        const size_t width;
+        const size_t height;
+        const size_t x;
+        const size_t y;
+        char title[BUFFSIZE];
+        const bool hideTitleBar;
+        const bool topMost;
+} window_style_t;
 
-static bool
-get_widget_config(const char *filename,
-                  char *const content,
-                  const size_t contentSize,
-                  ww_window_ctx *dest);
+typedef struct
+{
+        ww_widget_ctx *widgets; // All widgets
+        size_t index;           // Index of this specific widget
+        bool *running;          // Only the main window has this
+} widget_destroy_t;
 
 /**
  * @brief Applies the main config of the application. Used for opening widgets
@@ -273,29 +292,6 @@ get_widget_config(const char *filename,
 }
 
 /**
- * @brief Saves the window context to the config file
- * @param window Window context object
- * @returns Status of the operation
- */
-static bool
-save_widget_config(const ww_window_ctx *)
-{
-        return false;
-}
-
-/**
- * Object that stores a pointer to the array of all widgets along with the index
- * of which widget to destroy. This is only used when widgets need to be
- * destroyed.
- */
-typedef struct widget_destroy_obj
-{
-        ww_widget_ctx *widgets; // All widgets
-        size_t index;           // Index of this specific widget
-        bool *running;          // Only the main window has this
-} widget_destroy_obj;
-
-/**
  * @brief Destroy the window of a widget and set the widget as closed
  * @param widget Pointer to the index of the child widget
  * @param data Pointer to the widget context struct
@@ -315,16 +311,13 @@ on_child_destroy(GtkWidget *, void *data)
  * @param data Pointer to the widget destroy struct
  */
 static gboolean
-on_main_destroy(GtkWidget *, const widget_destroy_obj *destroy_data)
+on_main_destroy(GtkWidget *, const widget_destroy_t *destroy_data)
 {
-        const widget_destroy_obj *destroy_obj =
-                (const widget_destroy_obj *)destroy_data;
-
+        const widget_destroy_t *destroy_obj = (widget_destroy_t *)destroy_data;
         if (save_main_config(destroy_obj->widgets))
         {
                 return false;
         }
-
         bool *running = (bool *)destroy_obj->running;
         *running = true;
         return false;
@@ -413,24 +406,21 @@ cleanup:
 }
 
 /**
- * @brief Sets various Gtk window properties passed by window context
- * @param context Window context containing all properties
- * @param window Pointer to the GtkWidget
+ * @brief Sets various Gtk window style properties
+ * @param window Gtk widget of the window
+ * @param context Context containing all styles
  */
-static bool
-set_window_style(ww_window_ctx *context, GtkWidget *window)
+void
+set_window_style(GtkWidget *window, window_style_t context)
 {
-        gtk_window_set_title(GTK_WINDOW(window), context->title);
+        gtk_window_set_title(GTK_WINDOW(window), context.title);
         gtk_window_set_default_size(
-                GTK_WINDOW(window), context->width, context->height);
-        gtk_window_set_decorated(GTK_WINDOW(window),
-                                 context->title_bar == false);
-        gtk_window_move(GTK_WINDOW(window), context->x, context->y);
+                GTK_WINDOW(window), context.width, context.height);
+        gtk_window_set_decorated(GTK_WINDOW(window), context.hideTitleBar);
+        gtk_window_move(GTK_WINDOW(window), context.x, context.y);
 
         set_rgba_visuals(window); // Options below require this
-        gtk_window_set_keep_above(GTK_WINDOW(window),
-                                  context->top_most == false);
-        return false;
+        gtk_window_set_keep_above(GTK_WINDOW(window), context.topMost == false);
 }
 
 /**
@@ -472,7 +462,7 @@ on_top_most_clicked(GtkMenuItem *, void *data)
 static void
 on_close_clicked(GtkMenuItem *, void *data)
 {
-        const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
+        const ww_widget_ctx *ctx = (ww_widget_ctx *)data;
         const GtkWidget *window = ctx->window;
         gtk_window_close(GTK_WINDOW(window));
 }
@@ -504,54 +494,49 @@ on_button_press(GtkWidget *, GdkEventButton *event, void *data)
  * @param widgets Pointer to an array of widgets
  */
 static bool
-create_widget(ww_window_ctx *context, ww_widget_ctx *widgets)
+create_widget(ww_window_ctx context)
 {
         if (g_widgetCount >= MAX_WIDGETS)
         {
                 return true;
         }
 
-        GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        if (set_window_style(context, window) == true)
-        {
-                return true;
-        }
-
         WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
-        ww_widget_ctx *widget_context = &widgets[g_widgetCount];
-        widget_context->window = window;
-        widget_context->window_context.width = context->width;
-        widget_context->window_context.height = context->height;
-        widget_context->window_context.x = context->x;
-        widget_context->window_context.y = context->y;
-        widget_context->window_context.top_most = context->top_most;
-        widget_context->window_context.radius = context->radius;
+        GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        window_style_t style = {.width = context.width,
+                                .height = context.height,
+                                .x = context.x,
+                                .y = context.y,
+                                .topMost = context.top_most,
+                                .hideTitleBar = context.title_bar};
+        const size_t titleLen = strlen(context.title);
+        memcpy(style.title, context.title, titleLen);
+        style.title[titleLen] = '\0';
+        set_window_style(window, style);
 
-        memcpy(widget_context->window_context.title, context->title, BUFFSIZE);
-        widget_context->window_context.title[BUFFSIZE - 1] = '\0';
-
-        memcpy(widget_context->window_context.filename,
-               context->filename,
-               BUFFSIZE);
-        widget_context->window_context.filename[BUFFSIZE - 1] = '\0';
+        ww_widget_ctx *widget_context = &g_widgets[g_widgetCount];
+        ww_window_ctx *window_context = &widget_context->window_context;
+        memcpy(&widget_context->window, &window, sizeof(GtkWidget *));
+        memcpy(window_context, &context, sizeof(ww_window_ctx));
 
         g_signal_connect(window,
-                         "destroy",
+                         SIGNAL_DESTROY,
                          G_CALLBACK(on_child_destroy),
                          widget_context);
-        g_signal_connect(window,
-                         "draw",
-                         G_CALLBACK(on_window_draw),
-                         (ww_window_ctx *)context);
 
-        gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
+        g_signal_connect(window,
+                         SIGNAL_DRAW_WINDOW,
+                         G_CALLBACK(on_window_draw),
+                         (void *)&context);
 
         g_signal_connect(webview,
-                         "button-press-event",
+                         SIGNAL_CONTEXT_MENU,
                          G_CALLBACK(on_button_press),
                          widget_context);
 
-        webkit_web_view_load_uri(webview, context->filename);
+        gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
+
+        webkit_web_view_load_uri(webview, context.filename);
         gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webview));
         gtk_widget_show_all(window);
         g_widgetCount++;
@@ -567,8 +552,8 @@ create_widget(ww_window_ctx *context, ww_widget_ctx *widgets)
  */
 static void
 on_open_widget_by_filename(WebKitUserContentManager *,
-                           WebKitJavascriptResult *result,
-                           ww_widget_ctx *widgets)
+                           WebKitJavascriptResult *result)
+
 {
         JSCValue *value = nullptr;
         void *jsc_value = nullptr;
@@ -599,7 +584,7 @@ on_open_widget_by_filename(WebKitUserContentManager *,
         memcpy(filename, jsc_value, len);
         filename[len] = '\0';
 
-        ww_widget_ctx *widget = &widgets[g_widgetCount];
+        ww_widget_ctx *widget = &g_widgets[g_widgetCount];
         ww_window_ctx window = widget->window_context;
 
         content = (char *)malloc(sizeof(char) * USHRT_MAX);
@@ -608,7 +593,7 @@ on_open_widget_by_filename(WebKitUserContentManager *,
                 goto cleanup;
         }
 
-        create_widget(&window, widgets);
+        create_widget(window);
 
 cleanup:
         if (content != nullptr)
@@ -651,7 +636,7 @@ on_open_default_directory(WebKitUserContentManager *,
  * @param running Pointer to the curent state of the event loop
  */
 static bool
-event_loop(ww_widget_ctx *widgets, bool *running)
+event_loop(bool *running)
 {
         size_t next_tick = time(NULL) + EVT_LOOP_TICK_DELAY;
         while (*running == false)
@@ -675,39 +660,20 @@ event_loop(ww_widget_ctx *widgets, bool *running)
                                 continue; // Skipping closed widgets or if time
                                           // hasn't reached
                         }
-
-                        const ww_widget_ctx *child = &widgets[i];
-                        const GtkWidget *gtk_window =
-                                (GtkWidget *)child->window;
-                        const ww_window_ctx window = child->window_context;
-
-                        size_t x = 0, y = 0, w = 0, h = 0;
-                        gtk_window_get_position(
-                                GTK_WINDOW(gtk_window), (int *)&x, (int *)&y);
-                        gtk_window_get_size(
-                                GTK_WINDOW(gtk_window), (int *)&w, (int *)&h);
-                        size_t *ptr_x = (size_t *)&window.x;
-                        size_t *ptr_y = (size_t *)&window.y;
-                        size_t *ptr_w = (size_t *)&window.width;
-                        size_t *ptr_h = (size_t *)&window.height;
-                        *ptr_x = x;
-                        *ptr_y = y;
-                        *ptr_w = w;
-                        *ptr_h = h;
-
-                        if (save_widget_config(&window))
-                        {
-                                return true;
-                        }
                 }
         }
         return false;
 }
 
 bool
-ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets)
+ww_init_main(ww_window_ctx context)
 {
         gtk_init(NULL, NULL);
+
+        for (size_t i = 0; i < lengthof(g_widgets); i++)
+        {
+                g_widgets[i].window_context.index = i;
+        }
 
         GtkWidget *window = nullptr;
         if ((window = gtk_window_new(GTK_WINDOW_TOPLEVEL)) == nullptr)
@@ -715,10 +681,16 @@ ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets)
                 return true;
         }
 
-        if (set_window_style(context, window) == true)
-        {
-                return true;
-        }
+        window_style_t style = {.width = context.width,
+                                .height = context.height,
+                                .x = context.x,
+                                .y = context.y,
+                                .hideTitleBar = true,
+                                .topMost = context.top_most};
+        const size_t titleLen = strlen(context.title);
+        memcpy(style.title, context.title, titleLen);
+        style.title[titleLen] = '\0';
+        set_window_style(window, style);
 
         WebKitWebView *webview = nullptr;
         if ((webview = WEBKIT_WEB_VIEW(webkit_web_view_new())) == nullptr)
@@ -752,34 +724,36 @@ ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets)
         }
 
         g_signal_connect(manager,
-                         "script-message-received::on_get_widget_filenames",
+                         SIGNAL_GET_FILENAMES,
                          G_CALLBACK(on_get_widget_filenames),
                          webview);
         g_signal_connect(manager,
-                         "script-message-received::on_open_widget_by_filename",
+                         SIGNAL_OPEN_WIDGET,
                          G_CALLBACK(on_open_widget_by_filename),
-                         widgets);
+                         g_widgets);
         g_signal_connect(manager,
-                         "script-message-received::on_open_default_directory",
+                         SIGNAL_OPEN_DIRECTORY,
                          G_CALLBACK(on_open_default_directory),
                          NULL);
 
         static bool running = false;
-        widget_destroy_obj destroy_obj = {.running = &running,
-                                          .widgets = widgets};
-        g_signal_connect(
-                window, "destroy", G_CALLBACK(on_main_destroy), &destroy_obj);
+        widget_destroy_t destroy_obj = {.running = &running,
+                                        .widgets = g_widgets};
+        g_signal_connect(window,
+                         SIGNAL_DESTROY,
+                         G_CALLBACK(on_main_destroy),
+                         &destroy_obj);
 
-        webkit_web_view_load_uri(webview, context->filename);
+        webkit_web_view_load_uri(webview, context.filename);
         gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webview));
         gtk_widget_show_all(window);
 
-        if (apply_main_config(widgets))
+        if (apply_main_config(g_widgets))
         {
                 return true;
         }
 
-        if (event_loop(widgets, &running))
+        if (event_loop(&running))
         {
                 return true;
         }

@@ -2,6 +2,7 @@
 #define WIDGET_H
 
 #include "global.h"
+#include "gtk/gtk.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -57,7 +58,7 @@ typedef struct ww_window_ctx
 typedef struct ww_widget_ctx
 {
         ww_window_ctx window_context;
-        const void *window;
+        const GtkWidget *window;
 } ww_widget_ctx;
 
 /**
@@ -68,7 +69,7 @@ typedef struct ww_widget_ctx
  */
 #if __linux__
 bool
-ww_init_main(ww_window_ctx *context, ww_widget_ctx *widgets);
+ww_init_main(ww_window_ctx context);
 #elif _WIN32
 bool
 ww_init_main(const HINSTANCE hInstance,
