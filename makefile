@@ -1,4 +1,4 @@
-.PHONY: debug release run format
+.PHONY: debug release run prepare
 
 CC = gcc
 BUILDDIR = build
@@ -37,16 +37,23 @@ LDFLAGS := -lole32 \
 SRC := $(SRC) \
 			 src/windows/widget.c
 RESRC = "$(CURDIR)/src/windows/resources.o"
+WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
 
-format:
+prepare:
+	@if not exist "$(CURDIR)/lib/WebView2" ( \
+		mkdir "$(CURDIR)/lib/WebView2" && \
+		curl.exe -L -o "$(CURDIR)/lib/WebView2.zip" "$(WEBVIEWURL)" && \
+		powershell -command "Expand-Archive -Force -Path '$(CURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
+		powershell -command "Remove-Item -Force '$(CURDIR)/lib/WebView2.zip'" \
+	)
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
-debug: format
+debug: prepare
 	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
-release: format
+release: prepare
 	$(CC) $(RESRC) $(SRC) $(ARGS) $(RELEASE) $(LDFLAGS) -o $(OUT)
 run:
 	./$(OUT)
@@ -66,16 +73,16 @@ LDFLAGS = -ldl
 SRC := $(SRC) \
 			 src/linux/widget.c
 
-format:
+prepare:
 	rm -r "$(BUILDDIR)"
 	mkdir -p "$(BUILDDIR)"
 	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
-debug: format
+debug: prepare
 	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
-release: format
+release: prepare
 	$(CC) $(SRC) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
 run:
 	WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 ./$(OUT)	
