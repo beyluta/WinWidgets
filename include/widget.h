@@ -2,12 +2,13 @@
 #define WIDGET_H
 
 #include "global.h"
-#include "gtk/gtk.h"
 #include <stddef.h>
 #include <stdint.h>
 
 #if _WIN32
 #include <minwindef.h>
+#elif __linux__
+#include "gtk/gtk.h"
 #endif
 
 constexpr char TAG_APP_NAME[] = "applicationTitle";
@@ -58,7 +59,11 @@ typedef struct ww_window_ctx
 typedef struct ww_widget_ctx
 {
         ww_window_ctx window_context;
+#if __linux__
         const GtkWidget *window;
+#elif _WIN32
+        const void *window;
+#endif
 } ww_widget_ctx;
 
 /**
