@@ -20,7 +20,7 @@ typedef enum : uint8_t
 {
         FUNC_STATUS_OK,
         FUNC_STATUS_USR_ERR,
-        FUNC_STATUS_WBV_ERR,
+        FUNC_STATUS_WEBVIEW_ERR,
         FUNC_STATUS_MEM_ERR,
         FUNC_STATUS_ERR
 } func_status_t;
@@ -55,7 +55,13 @@ WebView2ContextMenuRequestEventHandlerInvoke(
         ICoreWebView2ContextMenuRequestedEventArgs *const args);
 
 func_status_t
-WebView2WebMessageReceivedEventHandlerInvoke(
+ManagerWebMessageReceivedEventHandlerInvoke(
+        ICoreWebView2WebMessageReceivedEventHandler *const handler,
+        ICoreWebView2 *const webview,
+        ICoreWebView2WebMessageReceivedEventArgs *const args);
+
+func_status_t
+WidgetWebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *const handler,
         ICoreWebView2 *const webview,
         ICoreWebView2WebMessageReceivedEventArgs *const args);
@@ -89,9 +95,13 @@ OnTopMostContextItemMenuSelected(ICoreWebView2ContextMenuItem *const sender,
                 .Invoke = (void *)func};                                       \
         type name = {.lpVtbl = &name##Vtbl};
 
-CREATE_WEBVIEW_HANDLER(WebView2WebMessageReceivedEventHandlerInvoke,
+CREATE_WEBVIEW_HANDLER(ManagerWebMessageReceivedEventHandlerInvoke,
                        ICoreWebView2WebMessageReceivedEventHandler,
-                       messageReceivedEventHandler);
+                       managerMessageReceivedEventHandler);
+
+CREATE_WEBVIEW_HANDLER(WidgetWebMessageReceivedEventHandlerInvoke,
+                       ICoreWebView2WebMessageReceivedEventHandler,
+                       widgetMessageReceivedEventHandler);
 
 CREATE_WEBVIEW_HANDLER(WebView2ContextMenuRequestEventHandlerInvoke,
                        ICoreWebView2ContextMenuRequestedEventHandler,

@@ -16,6 +16,7 @@
 #include "json.h"
 #include "parser.h"
 #include "utils.h"
+#include "decl_sysinfo.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
@@ -34,8 +35,6 @@
 #define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
 static constexpr char PROG_NAME[] = "WinWidgets";
-static constexpr uint8_t PROG_NAME_SIZE = lengthof(PROG_NAME);
-
 static constexpr char PROG_SEM_VER[] = "2.0.0";
 
 static constexpr char REG_PATH_RUN[] =
@@ -71,6 +70,8 @@ static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
 static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
+static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition"};
+
 typedef enum : uint8_t
 {
         STATE_ORDER_BOTTOM,
@@ -79,11 +80,16 @@ typedef enum : uint8_t
 
 typedef enum : uint8_t
 {
-        EVT_OPEN_DEFAULT_DIR,
-        EVT_GET_WGT_FILENAMES,
-        EVT_OPEN_WGT_FILENAME,
-        EVT_TOGGLE_SETTING,
-        EVT_THEME_CHANGED,
+        EVENT_OPEN_DEFAULT_DIR,
+        EVENT_GET_WGT_FILENAMES,
+        EVENT_OPEN_WGT_FILENAME,
+        EVENT_TOGGLE_SETTING,
+        EVENT_THEME_CHANGED
+} manager_events_t;
+
+typedef enum : uint8_t
+{
+        EVENT_GET_MOUSE_POSITION,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -130,6 +136,7 @@ static application_settings_t g_settings;
 static webview_widget_t g_widgets[MAX_WIDGETS] = {};
 static HWND g_parentHwnd = nullptr;
 static HWND g_hWndTable[MAX_WIDGETS] = {};
+static uint8_t g_eventTable[MAX_WIDGETS] = {};
 
 static size_t g_hWndSelectedHash = {};
 static size_t g_nCmdShow = {};
@@ -1003,28 +1010,27 @@ cleanup:
  * @brief Loads the specified icon into the stream argument
  * @param stream Stream to load the icon as bytes into
  * @param icon Path of the icon to be loaded
- * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t
+static void
 GetContextMenuIcon(IStream **stream, const char *const icon)
 {
         char path[BUFFSIZE];
         if (ww_get_executable_path(path, lengthof(path)))
         {
-                return FUNC_STATUS_MEM_ERR;
+                return;
         }
 
         char parentDir[BUFFSIZE];
         if (!ww_dir_up(path, lengthof(path), parentDir, lengthof(path)))
         {
-                return FUNC_STATUS_MEM_ERR;
+                return;
         }
         strcat(parentDir, icon);
 
         wchar_t wIconPath[BUFFSIZE];
         if (mbstowcs(wIconPath, parentDir, lengthof(parentDir)) == (size_t)-1)
         {
-                return FUNC_STATUS_MEM_ERR;
+                return;
         }
 
         if (SHCreateStreamOnFileEx(wIconPath,
@@ -1034,10 +1040,10 @@ GetContextMenuIcon(IStream **stream, const char *const icon)
                                    nullptr,
                                    stream) != S_OK)
         {
-                return FUNC_STATUS_MEM_ERR;
+                return;
         }
 
-        return FUNC_STATUS_OK;
+        return;
 }
 
 /**
@@ -1072,11 +1078,7 @@ AddContextMenuItem(
 {
         func_status_t status = FUNC_STATUS_OK;
         IStream *stream = nullptr;
-        if (BAD(GetContextMenuIcon(&stream, iconPath)))
-        {
-                status = FUNC_STATUS_WBV_ERR;
-                goto cleanup;
-        }
+        GetContextMenuIcon(&stream, iconPath);
 
         switch (kind)
         {
@@ -1089,7 +1091,7 @@ AddContextMenuItem(
                             COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_COMMAND,
                             &menuItem) != S_OK)
                 {
-                        status = FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WEBVIEW_ERR;
                         goto cleanup;
                 }
                 break;
@@ -1103,7 +1105,7 @@ AddContextMenuItem(
                             COREWEBVIEW2_CONTEXT_MENU_ITEM_KIND_CHECK_BOX,
                             &menuItem) != S_OK)
                 {
-                        status = FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WEBVIEW_ERR;
                         goto cleanup;
                 }
 
@@ -1111,7 +1113,7 @@ AddContextMenuItem(
                             menuItem, *checkboxState == true ? TRUE : FALSE) !=
                     S_OK)
                 {
-                        status = FUNC_STATUS_WBV_ERR;
+                        status = FUNC_STATUS_WEBVIEW_ERR;
                         goto cleanup;
                 }
                 break;
@@ -1121,21 +1123,21 @@ AddContextMenuItem(
         if (menuItem->lpVtbl->remove_CustomItemSelected(menuItem, *token) !=
             S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WEBVIEW_ERR;
                 goto cleanup;
         }
 
         if (menuItem->lpVtbl->add_CustomItemSelected(
                     menuItem, eventHandler, token) != S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WEBVIEW_ERR;
                 goto cleanup;
         }
 
         if (items->lpVtbl->InsertValueAtIndex(items, *itemsCount, menuItem) !=
             S_OK)
         {
-                status = FUNC_STATUS_WBV_ERR;
+                status = FUNC_STATUS_WEBVIEW_ERR;
                 goto cleanup;
         }
 
@@ -1516,7 +1518,7 @@ ToggleSettingByName(const char *const src)
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
 func_status_t
-WebView2WebMessageReceivedEventHandlerInvoke(
+ManagerWebMessageReceivedEventHandlerInvoke(
         ICoreWebView2WebMessageReceivedEventHandler *const,
         ICoreWebView2 *const webview,
         ICoreWebView2WebMessageReceivedEventArgs *const args)
@@ -1578,13 +1580,13 @@ WebView2WebMessageReceivedEventHandlerInvoke(
 
         switch (eventId)
         {
-        case EVT_OPEN_DEFAULT_DIR:
+        case EVENT_OPEN_DEFAULT_DIR:
                 if (BAD(OpenDefaultDirectory()))
                 {
                         return FUNC_STATUS_ERR;
                 }
                 break;
-        case EVT_GET_WGT_FILENAMES:
+        case EVENT_GET_WGT_FILENAMES:
                 if (BAD(AppendWidgetsToDOM(webview)))
                 {
                         return FUNC_STATUS_ERR;
@@ -1595,7 +1597,7 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                         return FUNC_STATUS_ERR;
                 }
                 break;
-        case EVT_OPEN_WGT_FILENAME:
+        case EVENT_OPEN_WGT_FILENAME:
         {
                 char content[USHRT_MAX];
                 if (BAD(OpenWidgetByFilename(argument,
@@ -1609,12 +1611,12 @@ WebView2WebMessageReceivedEventHandlerInvoke(
                 }
                 break;
         }
-        case EVT_TOGGLE_SETTING:
+        case EVENT_TOGGLE_SETTING:
         {
                 ToggleSettingByName(argument);
                 break;
         }
-        case EVT_THEME_CHANGED:
+        case EVENT_THEME_CHANGED:
         {
                 BOOL themeDark = strcmp(argument, "dark") == 0 ? TRUE : FALSE;
                 if (FAILED(DwmSetWindowAttribute(g_parentHwnd,
@@ -1630,6 +1632,115 @@ WebView2WebMessageReceivedEventHandlerInvoke(
         }
 
         return FUNC_STATUS_OK;
+}
+
+/**
+ * @brief Used to load event ids into a table. This is needed because the user
+ * can choose to do poll for changes from inside a widget. At least it seems
+ * faster than doing strcmp.
+ */
+static void
+InitEventTable()
+{
+        for (size_t i = 0; i < lengthof(WGT_EVENTS_ARR); i++)
+        {
+                const size_t hash = GetHashFromString(
+                        WGT_EVENTS_ARR[i], HASH_PRIME, MAX_WIDGETS);
+                g_eventTable[hash] = i;
+        }
+}
+
+/**
+ * @brief Get the corresponding event id from the event table
+ * @param src Name of the event to get the id of
+ */
+static uint8_t
+GetEventIdFromTable(const char *const src)
+{
+        return g_eventTable[GetHashFromString(src, HASH_PRIME, MAX_WIDGETS)];
+}
+
+/**
+ * @brief Handles JavaScript messages from each individual widget
+ * @param handler Reference to itself
+ * @param webview Pointer to the webview instance
+ * @param args Arguments of the function
+ */
+func_status_t
+WidgetWebMessageReceivedEventHandlerInvoke(
+        ICoreWebView2WebMessageReceivedEventHandler *const,
+        ICoreWebView2 *const webview,
+        ICoreWebView2WebMessageReceivedEventArgs *const args)
+{
+        func_status_t status = FUNC_STATUS_OK;
+        LPWSTR wMessage = nullptr;
+        if (args->lpVtbl->TryGetWebMessageAsString(args, &wMessage) != S_OK)
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
+        }
+
+        char message[BUFFSIZE];
+        const size_t wMessageLen = wcslen(wMessage);
+        if (wMessageLen >= lengthof(message))
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
+        }
+        message[wMessageLen] = '\0';
+
+        if (wcstombs(message, wMessage, wMessageLen) == (size_t)-1)
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
+        }
+
+        switch (GetEventIdFromTable(message))
+        {
+        case EVENT_GET_MOUSE_POSITION:
+        {
+                size_t x, y;
+                if (SYSINFO_CODE_FAIL(GetMousePosition(&x, &y)))
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+
+                char response[BUFFSIZE];
+                const size_t bytes =
+                        snprintf(response,
+                                 lengthof(response),
+                                 "%s(%zu,%zu)",
+                                 WGT_EVENTS_ARR[EVENT_GET_MOUSE_POSITION],
+                                 x,
+                                 y);
+
+                wchar_t wResponse[BUFFSIZE];
+                if (mbstowcs(wResponse, response, bytes) == (size_t)-1)
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+                wResponse[bytes] = '\0';
+
+                if (webview->lpVtbl->ExecuteScript(
+                            webview, wResponse, nullptr) != S_OK)
+                {
+                        status = FUNC_STATUS_WEBVIEW_ERR;
+                        goto cleanup;
+                }
+
+                break;
+        }
+        }
+
+cleanup:
+        if (wMessage != nullptr)
+        {
+                CoTaskMemFree(wMessage);
+        }
+
+        return status;
 }
 
 /*
@@ -1762,8 +1873,11 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
         const webview_widget_t widget = g_widgets[g_widgetCount];
         const ww_window_ctx windowCtx = widget.context;
 
-        if (window->lpVtbl->add_WebMessageReceived(
-                    window, &messageReceivedEventHandler, &token) != S_OK)
+        ICoreWebView2WebMessageReceivedEventHandler *mHandler =
+                windowCtx.child ? &widgetMessageReceivedEventHandler
+                                : &managerMessageReceivedEventHandler;
+        if (window->lpVtbl->add_WebMessageReceived(window, mHandler, &token) !=
+            S_OK)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
@@ -2577,7 +2691,7 @@ create_widget_manager(ww_window_ctx *const context)
         nId.uCallbackMessage = PROG_WM_ICONNOTIFY;
         nId.hIcon = hInvisIcon;
         nId.uVersion = NOTIFYICON_VERSION_4;
-        memcpy(nId.szTip, PROG_NAME, PROG_NAME_SIZE);
+        memcpy(nId.szTip, PROG_NAME, lengthof(PROG_NAME));
         Shell_NotifyIcon(NIM_ADD, &nId);
 
         // Creating the real window
@@ -2696,6 +2810,8 @@ ww_init_main(const HINSTANCE hInstance,
                 comInitialized = false;
                 goto cleanup;
         }
+
+        InitEventTable();
 
         const HWND hWndDesktop = GetDesktopWindow();
         static size_t g_screenWidth;

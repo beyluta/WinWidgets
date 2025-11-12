@@ -7,6 +7,7 @@ SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
 			src/parser.c \
+			src/impl_sysinfo.c \
 			lib/minimal-json-c-parser/src/json.c
 RELEASE = -Werror \
 					-Wextra \

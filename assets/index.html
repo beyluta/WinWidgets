@@ -142,6 +142,23 @@
         </p>
       </blockquote>
     </div>
+
+    <div class="dev-section">
+      <h3>System functions</h3>
+      <span>
+        Widgets can call lower level system functions to get and set data.
+      </span>
+      <blockquote>
+        <p>
+            function GetMousePosition(x, y) {
+              // Do something with x and y
+            }
+
+            // Tell WinWidgets that we want to get the global Position of the mouse
+            window.chrome.webview.postMessage('GetMousePosition');
+        </p>
+      </blockquote>
+    </div>
   </main>
 </body>
 
