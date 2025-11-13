@@ -1,133 +1,153 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="applicationTitle" value="Calendar" />
-<meta name="windowSize" value="320 350" />
-<meta name="windowLocation" value="0 0" />
-<meta name="windowBorderRadius" value="12" />
-<meta name="topMost" value="false">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="applicationTitle" content="Mini Calendar">
+  <meta name="windowSize" content="320 120">
+  <meta name="windowLocation" content="0 0">
+  <title>Mini Calendar</title>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- Font Awesome for arrows -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
 
-<style>
-  :root {
-    --mica-dark: rgba(20, 20, 20, 0.75);
-    --text-color: #f0f0f0;
-    --accent: rgba(240,240,240,0.3);
-    --radius: 16px;
-    --backdrop-blur: 70px;
-    --font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  }
+  <style>
+    @font-face {
+      font-family: "Segoe UI";
+      src: local("Segoe UI"), local("SegoeUI"), local("Segoe UI Variable");
+    }
 
-  html, body {
-    margin: 0;
-    height: 100%;
-    width: 100%;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    font-family: var(--font-family);
-  }
+    :root {
+      --bg-color:    rgba(32, 32, 32, 0.95);
+      --border-color:#2A2A2A;
+      --hover-border:#0078D7;
+      --text-color:  #FFFFFF;
+      --today-bg:#004080;   /* blue‑ish background for the real today */
+    }
 
-  .widget {
-    width: 100%;
-    height: 100%;
-    background: var(--mica-dark);
-    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
-    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
-    border-radius: var(--radius);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    color: var(--text-color);
-  }
+    html, body { height:100%; margin:0; padding:0; }
+    body {
+      overflow: hidden;
+      display:flex; align-items:center; justify-content:center;
+      color:var(--text-color);
+      font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    }
+    #widget {
+      width:100%; height:100%;
+      max-width:320px; max-height:120px;
+      border:2px solid var(--border-color);
+      border-radius:var(--windowBorderRadius,12px);
+      box-sizing:border-box;
+      background:var(--bg-color);
+      display:flex; align-items:center; justify-content:center;
+      gap:0.8rem;
+      transition:border-color .2s ease;
+    }
+    #widget:hover { border-color:var(--hover-border); }
 
-  .month-year {
-    text-align: center;
-    font-weight: 600;
-    margin-bottom: 8px;
-    font-size: 1.2em;
-    color: var(--text-color);
-  }
+    .nav { cursor:pointer; opacity:0.6; font-size:1.4rem; }
+    .nav:hover { opacity:1; }
 
-  .weekdays, .days {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    text-align: center;
-  }
+    .day-box {
+      text-align:center;
+      min-width:70px;
+      padding:0.4rem 0;
+      border-radius:4px;
+    }
+    .day-number { font-size:2rem; font-weight:600; }
+    .day-name   { font-size:0.9rem; opacity:0.7; }
 
-  .weekdays div {
-    font-weight: 500;
-    color: var(--text-color);
-    margin-bottom: 4px;
-  }
-
-  .days div {
-    padding: 6px 0;
-    border-radius: 6px;
-    margin-bottom: 2px;
-    color: var(--text-color);
-  }
-
-  .days div.today {
-    background-color: var(--accent);
-    color: var(--text-color);
-  }
-
-  .days div:hover {
-    background-color: rgba(255,255,255,0.08);
-    cursor: pointer;
-  }
-</style>
+    /* only the box that actually contains today gets the blue background */
+    .today-box { background:var(--today-bg); }
+  </style>
 </head>
 
-<body role="region" aria-label="Calendar Widget">
-  <div class="widget" id="calendar">
-    <div class="month-year" id="monthYear">---</div>
-    <div class="weekdays">
-      <div>S</div><div>M</div><div>T</div><div>W</div>
-      <div>T</div><div>F</div><div>S</div>
+<body>
+  <div id="widget">
+    <i id="prevBtn" class="fa-solid fa-chevron-left nav"></i>
+
+    <div class="day-box" id="prevDay">
+      <div class="day-number">‑‑</div>
+      <div class="day-name">Prev</div>
     </div>
-    <div class="days" id="daysGrid"></div>
+
+    <div class="day-box" id="today">
+      <div class="day-number">‑‑</div>
+      <div class="day-name">Today</div>
+    </div>
+
+    <div class="day-box" id="nextDay">
+      <div class="day-number">‑‑</div>
+      <div class="day-name">Next</div>
+    </div>
+
+    <i id="nextBtn" class="fa-solid fa-chevron-right nav"></i>
   </div>
 
   <script>
-    const monthYearEl = document.getElementById('monthYear');
-    const daysGrid = document.getElementById('daysGrid');
+    const ONE_DAY = 24 * 60 * 60 * 1000;
 
-    function renderCalendar() {
-      const now = new Date();
-      const month = now.getMonth();
-      const year = now.getFullYear();
-      const today = now.getDate();
+    function fmt(date) {
+      return {
+        number: date.getDate(),
+        name: date.toLocaleDateString(undefined, { weekday: 'short' })
+      };
+    }
 
-      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      monthYearEl.textContent = `${months[month]} ${year}`;
+    // true if two Date objects represent the same calendar day
+    function isSameDay(a, b) {
+      return a.getFullYear() === b.getFullYear() &&
+             a.getMonth()    === b.getMonth() &&
+             a.getDate()     === b.getDate();
+    }
 
-      const firstDay = new Date(year, month, 1).getDay();
-      const totalDays = new Date(year, month + 1, 0).getDate();
+    function render(base) {
+      const prev = new Date(base.getTime() - ONE_DAY);
+      const next = new Date(base.getTime() + ONE_DAY);
+      const realToday = new Date();               // actual today
 
-      daysGrid.innerHTML = '';
+      const prevInfo  = fmt(prev);
+      const todayInfo = fmt(base);
+      const nextInfo  = fmt(next);
 
-      for(let i = 0; i < firstDay; i++) {
-        const emptyDiv = document.createElement('div');
-        daysGrid.appendChild(emptyDiv);
-      }
+      // fill the three boxes
+      document.querySelector('#prevDay .day-number').textContent = prevInfo.number;
+      document.querySelector('#prevDay .day-name').textContent   = prevInfo.name;
 
-      for(let d = 1; d <= totalDays; d++) {
-        const dayDiv = document.createElement('div');
-        dayDiv.textContent = d;
-        if(d === today) dayDiv.classList.add('today');
-        daysGrid.appendChild(dayDiv);
+      document.querySelector('#today .day-number').textContent = todayInfo.number;
+      document.querySelector('#today .day-name').textContent   = todayInfo.name;
+
+      document.querySelector('#nextDay .day-number').textContent = nextInfo.number;
+      document.querySelector('#nextDay .day-name').textContent   = nextInfo.name;
+
+      // ---- highlight the box that actually contains the real today ----
+      // clear any previous highlight
+      document.querySelectorAll('.day-box').forEach(el => el.classList.remove('today-box'));
+
+      if (isSameDay(realToday, prev)) {
+        document.getElementById('prevDay').classList.add('today-box');
+      } else if (isSameDay(realToday, base)) {
+        document.getElementById('today').classList.add('today-box');
+      } else if (isSameDay(realToday, next)) {
+        document.getElementById('nextDay').classList.add('today-box');
       }
     }
 
-    renderCalendar();
+    let current = new Date();   // start with today
+    render(current);
+
+    // Arrow navigation – the blue box stays on the real today
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      current = new Date(current.getTime() - ONE_DAY);
+      render(current);
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      current = new Date(current.getTime() + ONE_DAY);
+      render(current);
+    });
   </script>
 </body>
 </html>

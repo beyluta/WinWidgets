@@ -3,7 +3,7 @@
 
 static constexpr char META_TOKEN_TAG[] = "meta";
 static constexpr char META_TOKEN_NAME[] = "name";
-static constexpr char META_TOKEN_VALUE[] = "value";
+static constexpr char META_TOKEN_CONTENT[] = "content";
 
 static size_t
 parse_delimited_tokens_from(const char *const src,
@@ -70,9 +70,10 @@ parse_tokens_from(const char *const src,
                                                 src,
                                                 srcLen,
                                                 i + 1,
-                                                META_TOKEN_VALUE,
-                                                (sizeof(META_TOKEN_VALUE) /
-                                                 sizeof(META_TOKEN_VALUE[0])) -
+                                                META_TOKEN_CONTENT,
+                                                (sizeof(META_TOKEN_CONTENT) /
+                                                 sizeof(META_TOKEN_CONTENT
+                                                                [0])) -
                                                         1,
                                                 nullptr,
                                                 dest,

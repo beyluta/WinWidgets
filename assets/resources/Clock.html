@@ -1,118 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="applicationTitle" value="Clock" />
-<meta name="windowSize" value="200 200" />
-<meta name="windowLocation" value="0 0" />
-<meta name="windowBorderRadius" value="50%" />
-<meta name="topMost" value="false" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="applicationTitle" content="Digital Watch">
+  <meta name="windowSize" content="200 120">
+  <meta name="windowLocation" content="0 0">
+  <title>Digital Clock</title>
 
-<style>
-  :root {
-    --mica-dark: rgba(20, 20, 20, 0.75);
-    --text-color: rgba(240, 240, 240, 0.95);
-    --backdrop-blur: 70px;
-    --accent: #00A4EF;
-    --hand-hour: rgba(200, 200, 200, 0.9);
-    --hand-minute: rgba(200, 200, 200, 0.7);
-    --hand-second: rgba(0, 164, 239, 0.9);
-  }
+  <!-- Font Awesome (optional – keep if you want an icon) -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
 
-  html, body {
-    margin: 0;
-    height: 100%;
-    width: 100%;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
-  }
+  <!-- UI font -->
+  <style>
+    @font-face {
+      font-family: "Segoe UI";
+      src: local("Segoe UI"), local("SegoeUI"), local("Segoe UI Variable");
+      font-weight: 400;
+      font-style: normal;
+    }
 
-  .clock {
-    width: 95%;
-    height: 95%;
-    border-radius: 50%;
-    background: var(--mica-dark);
-    backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
-    -webkit-backdrop-filter: blur(var(--backdrop-blur)) saturate(160%) brightness(0.9);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
+    :root {
+      --bg-color:    rgba(32, 32, 32, 0.95);
+      --border-color:#2A2A2A;
+      --hover-border:#0078D7;
+      --text-color:  #FFFFFF;
+    }
 
-  .hand {
-    position: absolute;
-    transform-origin: bottom center;
-    bottom: 50%;
-    left: 50%;
-  }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
 
-  .hour {
-    width: 6px;
-    height: 60px;
-    background: var(--hand-hour);
-    border-radius: 3px;
-  }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-color);
+      font-family: "Segoe UI", system-ui, -apple-system,
+                   "Helvetica Neue", Arial, sans-serif;
+    }
 
-  .minute {
-    width: 4px;
-    height: 85px;
-    background: var(--hand-minute);
-    border-radius: 2px;
-  }
+    #widget {
+      width: 100%;
+      height: 100%;
+      max-width: 200px;   /* matches windowSize width */
+      max-height: 120px;  /* matches windowSize height */
+      border: 2px solid var(--border-color);
+      border-radius: var(--windowBorderRadius, 12px);
+      box-sizing: border-box;
+      background: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: border-color .2s ease;
+    }
 
-  .second {
-    width: 2px;
-    height: 90px;
-    background: var(--hand-second);
-    border-radius: 1px;
-  }
+    #widget:hover { border-color: var(--hover-border); }
 
-  .center-dot {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    background: var(--accent);
-    border-radius: 50%;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-  }
-</style>
+    #time {
+      font-size: 2rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+  </style>
 </head>
 
-<body role="region" aria-label="Clock Widget">
-  <div class="clock">
-    <div class="hand hour" id="hour-hand"></div>
-    <div class="hand minute" id="minute-hand"></div>
-    <div class="hand second" id="second-hand"></div>
-    <div class="center-dot"></div>
+<body>
+  <div id="widget">
+    <div id="time">--:--:--</div>
   </div>
 
   <script>
-    function updateTime() {
+    // Pad single‑digit numbers with a leading zero
+    const pad = n => n.toString().padStart(2, '0');
+
+    function updateClock() {
       const now = new Date();
-      const seconds = now.getSeconds();
-      const minutes = now.getMinutes();
-      const hours = now.getHours();
-
-      const secondDeg = (seconds / 60) * 360;
-      const minuteDeg = (minutes / 60 + seconds / 3600) * 360;
-      const hourDeg = ((hours % 12) / 12 + minutes / 720) * 360;
-
-      document.getElementById('second-hand').style.transform = `translate(-50%, 0) rotate(${secondDeg}deg)`;
-      document.getElementById('minute-hand').style.transform = `translate(-50%, 0) rotate(${minuteDeg}deg)`;
-      document.getElementById('hour-hand').style.transform = `translate(-50%, 0) rotate(${hourDeg}deg)`;
+      const h = pad(now.getHours());
+      const m = pad(now.getMinutes());
+      const s = pad(now.getSeconds());
+      document.getElementById('time').textContent = `${h}:${m}:${s}`;
     }
 
-    setInterval(updateTime, 1000);
-    updateTime();
+    // Initial render then every second
+    updateClock();
+    setInterval(updateClock, 1000);
   </script>
 </body>
 </html>

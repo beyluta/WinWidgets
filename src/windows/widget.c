@@ -440,7 +440,7 @@ OpenWidgetByFilename(const char *const path,
                 .prevWidth = DEF_PREV_WIDTH,
                 .prevHeight = DEF_PREV_HEIGHT,
                 .x = x == nullptr ? DEF_X : *x,
-                .y = y == nullptr ? DEF_HEIGHT : *y,
+                .y = y == nullptr ? DEF_Y : *y,
                 .child = DEF_CHILD,
                 .top_most = topMost == nullptr ? DEF_TOPMOST : *topMost,
                 .radius = DEF_RADIUS};
@@ -1531,43 +1531,42 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         ICoreWebView2 *const webview,
         ICoreWebView2WebMessageReceivedEventArgs *const args)
 {
-        // Getting the message sent from JavaScript
-        LPWSTR wMessage;
-        args->lpVtbl->TryGetWebMessageAsString(args, &wMessage);
-
-        // Now we need to conver this message to the standard C char str
-        size_t ret = WideCharToMultiByte(
-                CP_UTF8, 0, wMessage, -1, nullptr, 0, nullptr, nullptr);
-        if (ret == 0)
+        func_status_t status = FUNC_STATUS_OK;
+        LPWSTR wMessage = nullptr;
+        if (args->lpVtbl->TryGetWebMessageAsString(args, &wMessage) != S_OK)
         {
-                return FUNC_STATUS_MEM_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         char cMessage[BUFFSIZE];
-        ret = WideCharToMultiByte(
-                CP_UTF8, 0, wMessage, -1, cMessage, ret, nullptr, nullptr);
-        if (ret == 0)
+        const size_t wMessageLen = wcslen(wMessage);
+        if (wcstombs(cMessage, wMessage, wMessageLen) == (size_t)-1)
         {
-                return FUNC_STATUS_MEM_ERR;
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
         }
+        cMessage[wMessageLen] = '\0';
 
-        // The result is returned as a JSON string, parse the string here
         string_json_t dataString;
         if (ConvertStringToJson(cMessage, &dataString) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         string_json_t eventIdStr;
         if (GetProperty(dataString, &eventIdStr, "eventId") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         string_json_t argsJson;
         if (GetProperty(dataString, &argsJson, "args") != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         // Each event has an associated id to trigger default functions. Some
@@ -1577,13 +1576,15 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         if (ConvertJsonToStandardType(eventIdStr, JSON_INT, &eventId) !=
             FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         char argument[BUFFSIZE];
         if (ConvertJsonToString(argsJson, argument) != FUNC_SUCCESS)
         {
-                return FUNC_STATUS_ERR;
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
         }
 
         switch (eventId)
@@ -1591,31 +1592,42 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         case EVENT_OPEN_DEFAULT_DIR:
                 if (BAD(OpenDefaultDirectory()))
                 {
-                        return FUNC_STATUS_ERR;
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
                 }
                 break;
         case EVENT_GET_WGT_FILENAMES:
                 if (BAD(AppendWidgetsToDOM(webview)))
                 {
-                        return FUNC_STATUS_ERR;
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
                 }
 
                 if (BAD(AppendSettingsToDOM(webview)))
                 {
-                        return FUNC_STATUS_ERR;
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
                 }
                 break;
         case EVENT_OPEN_WGT_FILENAME:
         {
                 char content[USHRT_MAX];
+                size_t x, y;
+                if (SYSINFO_CODE_FAIL(GetMousePosition(&x, &y)))
+                {
+                        x = 0;
+                        y = 0;
+                }
+
                 if (BAD(OpenWidgetByFilename(argument,
-                                             nullptr,
-                                             nullptr,
+                                             &x,
+                                             &y,
                                              nullptr,
                                              content,
                                              lengthof(content))))
                 {
-                        return FUNC_STATUS_ERR;
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
                 }
                 break;
         }
@@ -1632,14 +1644,20 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                                                  &themeDark,
                                                  sizeof(themeDark))))
                 {
-                        return FUNC_STATUS_ERR;
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
                 }
 
                 break;
         }
         }
 
-        return FUNC_STATUS_OK;
+cleanup:
+        if (wMessage != nullptr)
+        {
+                CoTaskMemFree(wMessage);
+        }
+        return status;
 }
 
 /**
@@ -1728,7 +1746,7 @@ WidgetWebMessageReceivedEventHandlerInvoke(
         }
         case EVENT_GET_CURRENT_KEY_PRESSED:
         {
-                uint8_t keyCode;
+                uint8_t keyCode = 0;
                 if (SYSINFO_CODE_FAIL(GetCurrentKeyPressed(&keyCode)))
                 {
                         status = FUNC_STATUS_ERR;
