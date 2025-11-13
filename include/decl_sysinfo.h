@@ -25,9 +25,17 @@ typedef enum : uint8_t
  * @brief Gets the global position of the mouse
  * @param x Position on the x axis
  * @param y Position on the y axis
- * @returns true if successful, else false on failure
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
  */
 sysinfo_code_t
 GetMousePosition(size_t *const x, size_t *const y);
+
+/**
+ * @brief Get information about the current key pressed
+ * @param code Code of the key pressed up to 255
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+GetCurrentKeyPressed(uint8_t *const code);
 
 #endif

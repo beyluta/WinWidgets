@@ -70,7 +70,8 @@ static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
 static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
-static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition"};
+static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
+                                                    "GetCurrentKeyPressed"};
 
 typedef enum : uint8_t
 {
@@ -90,6 +91,7 @@ typedef enum : uint8_t
 typedef enum : uint8_t
 {
         EVENT_GET_MOUSE_POSITION,
+        EVENT_GET_CURRENT_KEY_PRESSED,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -1695,6 +1697,10 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                 goto cleanup;
         }
 
+        char response[BUFFSIZE];
+        wchar_t wResponse[lengthof(response)];
+        size_t bytes = 0;
+
         switch (GetEventIdFromTable(message))
         {
         case EVENT_GET_MOUSE_POSITION:
@@ -1706,32 +1712,43 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                         goto cleanup;
                 }
 
-                char response[BUFFSIZE];
-                const size_t bytes =
-                        snprintf(response,
+                bytes = snprintf(response,
                                  lengthof(response),
                                  "%s(%zu,%zu)",
                                  WGT_EVENTS_ARR[EVENT_GET_MOUSE_POSITION],
                                  x,
                                  y);
-
-                wchar_t wResponse[BUFFSIZE];
-                if (mbstowcs(wResponse, response, bytes) == (size_t)-1)
+                break;
+        }
+        case EVENT_GET_CURRENT_KEY_PRESSED:
+        {
+                uint8_t keyCode;
+                if (SYSINFO_CODE_FAIL(GetCurrentKeyPressed(&keyCode)))
                 {
                         status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
-                wResponse[bytes] = '\0';
 
-                if (webview->lpVtbl->ExecuteScript(
-                            webview, wResponse, nullptr) != S_OK)
-                {
-                        status = FUNC_STATUS_WEBVIEW_ERR;
-                        goto cleanup;
-                }
-
+                bytes = snprintf(response,
+                                 lengthof(response),
+                                 "%s(%d)",
+                                 WGT_EVENTS_ARR[EVENT_GET_CURRENT_KEY_PRESSED],
+                                 keyCode);
                 break;
         }
+        }
+
+        if (mbstowcs(wResponse, response, bytes) == (size_t)-1)
+        {
+                status = FUNC_STATUS_MEM_ERR;
+                goto cleanup;
+        }
+        wResponse[bytes] = '\0';
+
+        if (webview->lpVtbl->ExecuteScript(webview, wResponse, nullptr) != S_OK)
+        {
+                status = FUNC_STATUS_WEBVIEW_ERR;
+                goto cleanup;
         }
 
 cleanup:

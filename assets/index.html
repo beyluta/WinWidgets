@@ -146,7 +146,7 @@
     <div class="dev-section">
       <h3>System functions</h3>
       <span>
-        Widgets can call lower level system functions to get and set data.
+        Use the following signature to get the global mouse position:
       </span>
       <blockquote>
         <p>
@@ -156,6 +156,20 @@
 
             // Tell WinWidgets that we want to get the global Position of the mouse
             window.chrome.webview.postMessage('GetMousePosition');
+        </p>
+      </blockquote>
+
+      <span>
+        Use this to get the code of the current key pressed:
+      </span>
+      <blockquote>
+        <p>
+            function GetCurrentKeyPressed(keyCode) {
+              // Do something with the keyCode
+            }
+
+            // Tell WinWidgets that we want to get the global Position of the mouse
+            window.chrome.webview.postMessage('GetCurrentKeyPressed');
         </p>
       </blockquote>
     </div>
