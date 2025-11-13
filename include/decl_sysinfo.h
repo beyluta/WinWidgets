@@ -18,7 +18,8 @@ typedef enum : uint8_t
 {
         SYSINFO_CODE_SUCCESS,
         SYSINFO_CODE_NOT_IMPLEMENTED,
-        SYSINFO_CODE_OS_ERROR
+        SYSINFO_CODE_OS_ERROR,
+        SYSINFO_CODE_ERROR
 } sysinfo_code_t;
 
 /**
@@ -37,5 +38,26 @@ GetMousePosition(size_t *const x, size_t *const y);
  */
 sysinfo_code_t
 GetCurrentKeyPressed(uint8_t *const code);
+
+/**
+ * @brief Toggles any audio playing from a stream
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+ToggleMediaPlayback();
+
+/**
+ * @brief Jumps to the media audio stream
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+NextMediaTrack();
+
+/**
+ * @brief Jumps to the media audio stream
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+PreviousMediaTrack();
 
 #endif

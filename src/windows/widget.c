@@ -71,7 +71,10 @@ static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
 static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
-                                                    "GetCurrentKeyPressed"};
+                                                    "GetCurrentKeyPressed",
+                                                    "ToggleMediaPlayback",
+                                                    "NextMediaTrack",
+                                                    "PreviousMediaTrack"};
 
 typedef enum : uint8_t
 {
@@ -92,6 +95,9 @@ typedef enum : uint8_t
 {
         EVENT_GET_MOUSE_POSITION,
         EVENT_GET_CURRENT_KEY_PRESSED,
+        EVENT_TOGGLE_MEDIA_PLAYBACK,
+        EVENT_NEXT_MEDIA_TRACK,
+        EVENT_PREVIOUS_MEDIA_TRACK,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -1735,6 +1741,30 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                                  WGT_EVENTS_ARR[EVENT_GET_CURRENT_KEY_PRESSED],
                                  keyCode);
                 break;
+        }
+        case EVENT_TOGGLE_MEDIA_PLAYBACK:
+        {
+                if (SYSINFO_CODE_FAIL(ToggleMediaPlayback()))
+                {
+                        status = FUNC_STATUS_ERR;
+                }
+                goto cleanup;
+        }
+        case EVENT_NEXT_MEDIA_TRACK:
+        {
+                if (SYSINFO_CODE_FAIL(NextMediaTrack()))
+                {
+                        status = FUNC_STATUS_ERR;
+                }
+                goto cleanup;
+        }
+        case EVENT_PREVIOUS_MEDIA_TRACK:
+        {
+                if (SYSINFO_CODE_FAIL(PreviousMediaTrack()))
+                {
+                        status = FUNC_STATUS_ERR;
+                }
+                goto cleanup;
         }
         }
 

@@ -13,6 +13,9 @@
 #include <windows.h>
 
 static constexpr uint16_t STATE_KEY_HELD = 0x8000;
+static constexpr uint16_t STATE_KEY_MEDIA_TOGGLE = 0xB3;
+static constexpr uint16_t STATE_KEY_MEDIA_NEXT = 0xB0;
+static constexpr uint16_t STATE_KEY_MEDIA_PREV = 0xB1;
 #endif
 
 sysinfo_code_t
@@ -44,8 +47,50 @@ GetCurrentKeyPressed(uint8_t *const code)
                 if (GetAsyncKeyState(i) & STATE_KEY_HELD)
                 {
                         *code = i;
+                        return SYSINFO_CODE_SUCCESS;
                 }
         }
+#endif
+        return SYSINFO_CODE_ERROR;
+}
+
+sysinfo_code_t
+ToggleMediaPlayback()
+{
+#if __linux__
+        return SYSINFO_CODE_NOT_IMPLEMENTED;
+#elif _WIN32
+        keybd_event(STATE_KEY_MEDIA_TOGGLE, 0, 0, 0);
+#endif
+        return SYSINFO_CODE_SUCCESS;
+}
+
+/**
+ * @brief Jumps to the media audio stream
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+NextMediaTrack()
+{
+#if __linux__
+        return SYSINFO_CODE_NOT_IMPLEMENTED;
+#elif _WIN32
+        keybd_event(STATE_KEY_MEDIA_NEXT, 0, 0, 0);
+#endif
+        return SYSINFO_CODE_SUCCESS;
+}
+
+/**
+ * @brief Jumps to the media audio stream
+ * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
+ */
+sysinfo_code_t
+PreviousMediaTrack()
+{
+#if __linux__
+        return SYSINFO_CODE_NOT_IMPLEMENTED;
+#elif _WIN32
+        keybd_event(STATE_KEY_MEDIA_PREV, 0, 0, 0);
 #endif
         return SYSINFO_CODE_SUCCESS;
 }

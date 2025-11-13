@@ -172,6 +172,22 @@
             window.chrome.webview.postMessage('GetCurrentKeyPressed');
         </p>
       </blockquote>
+
+      <span>
+        Use these to control any active media stream such as video or audio
+      </span>
+      <blockquote>
+        <p>
+            // Tell WinWidgets to stop/resume playback
+            window.chrome.webview.postMessage('ToggleMediaPlayback');
+
+            // Tell WinWidgets to go to the next track
+            window.chrome.webview.postMessage('NextMediaTrack');
+
+            // Tell WinWidgets to go to the previous track
+            window.chrome.webview.postMessage('PreviousMediaTrack');
+        </p>
+      </blockquote>
     </div>
   </main>
 </body>
