@@ -11,7 +11,7 @@ Get2DValue(const char *const src, size_t *const a, size_t *const b)
         for (size_t i = 0; i < size; i++)
         {
                 const char c = src[i];
-                if (c == widget_char_space)
+                if (c == widget_char_space || c == widget_char_comma)
                 {
                         memcpy(substrA, src, i);
                         substrA[i] = '\0';

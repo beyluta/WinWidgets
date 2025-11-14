@@ -13,6 +13,7 @@ typedef enum : uint8_t
 {
         widget_char_space = 32,
         widget_char_quote = 34,
+        widget_char_comma = 44,
         widget_char_slash = 47,
         widget_char_b_slash = 92,
         widget_char_gt = 62

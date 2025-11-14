@@ -146,7 +146,17 @@
     <div class="dev-section">
       <h3>System functions</h3>
       <span>
-        Use the following signature to get the global mouse position:
+        Use this to move the selected widget to a specific position
+      </span>
+      <blockquote>
+        <p>
+            // Tell WinWidgets that we want to move the current selected widget
+            window.chrome.webview.postMessage('MoveWindowToPosition(500, 500)');
+        </p>
+      </blockquote>
+
+      <span>
+        Use this to get the global mouse position:
       </span>
       <blockquote>
         <p>

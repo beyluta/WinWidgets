@@ -12,6 +12,10 @@
 
 #include <stdint.h>
 
+#if _WIN32
+#include <windef.h>
+#endif
+
 #define SYSINFO_CODE_FAIL(expression) ((expression) > 0)
 
 typedef enum : uint8_t
@@ -59,5 +63,15 @@ NextMediaTrack();
  */
 sysinfo_code_t
 PreviousMediaTrack();
+
+/**
+ * @brief Moves the widget window to a specific position
+ */
+sysinfo_code_t
+#if __linux__
+MoveWindowToPosition(const size_t x, const size_t y);
+#elif __WIN32
+MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y);
+#endif
 
 #endif

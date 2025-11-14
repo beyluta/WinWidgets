@@ -74,7 +74,8 @@ static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
                                                     "GetCurrentKeyPressed",
                                                     "ToggleMediaPlayback",
                                                     "NextMediaTrack",
-                                                    "PreviousMediaTrack"};
+                                                    "PreviousMediaTrack",
+                                                    "MoveWindowToPosition"};
 
 typedef enum : uint8_t
 {
@@ -98,6 +99,7 @@ typedef enum : uint8_t
         EVENT_TOGGLE_MEDIA_PLAYBACK,
         EVENT_NEXT_MEDIA_TRACK,
         EVENT_PREVIOUS_MEDIA_TRACK,
+        EVENT_MOVE_WINDOW_TO_POSITION,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -832,29 +834,6 @@ OnCloseContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
         return FUNC_STATUS_OK;
 }
 
-/**
- * @brief Sets the position of a window by its HWND
- * @param hWnd Handle to the window
- * @param x Position on the x axis
- * @param y Position on the y axis
- * @returns FUNC_STATUS_OK on success, else a numeric error code
- */
-static func_status_t
-SetWindowPosition(const HWND hWnd, const ssize_t x, const ssize_t y)
-{
-        if (!SetWindowPos(hWnd,
-                          0,
-                          x,
-                          y,
-                          0,
-                          0,
-                          SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE))
-        {
-                return FUNC_STATUS_ERR;
-        }
-        return FUNC_STATUS_OK;
-}
-
 /*
  * @brief Triggers when the move menu item is selected. Its purpose is to track
  * the position of the user cursor and move the window accordingly.
@@ -883,7 +862,7 @@ OnMoveContextItemMenuSelected(ICoreWebView2ContextMenuItem *const,
                         return FUNC_STATUS_ERR;
                 }
 
-                if (BAD(SetWindowPosition(
+                if (SYSINFO_CODE_FAIL(MoveWindowToPosition(
                             handle,
                             position.x - (rect.right - rect.left) / 2,
                             position.y - (rect.bottom - rect.top) / 2)))
@@ -1223,6 +1202,45 @@ cleanup:
 }
 
 /**
+ * @brief Get the unique hash for this webview component
+ * @param webview The core Webview component
+ * @returns -1 on error, else the hash of the component
+ */
+ssize_t
+GetHashFromWebview(ICoreWebView2 *webview)
+{
+        WCHAR buffer[BUFFSIZE];
+        LPWSTR string = buffer;
+        if (webview->lpVtbl->get_Source(webview, &string) != S_OK)
+        {
+                return -1;
+        }
+
+        char filename[BUFFSIZE];
+        const size_t stringLen = wcslen(string);
+        if (stringLen >= lengthof(filename))
+        {
+                return -1;
+        }
+
+        if (wcstombs(filename, string, stringLen) == (size_t)-1)
+        {
+                return -1;
+        }
+        filename[stringLen] = '\0';
+
+        ReplaceChars(filename, widget_char_slash, widget_char_b_slash);
+
+        char out[BUFFSIZE];
+        if (!TrimStart(filename, out, FILE_PREFIX_OFFSET))
+        {
+                return -1;
+        }
+
+        return GetHashFromString(out, HASH_PRIME, MAX_WIDGETS);
+}
+
+/**
  * @brief Gets called whenver the Context Menu opens
  * @param this Reference to the event handler
  * @param sender Webview2 core object
@@ -1256,30 +1274,12 @@ WebView2ContextMenuRequestEventHandlerInvoke(
                 goto cleanup;
         }
 
-        WCHAR pathWcharPtr[BUFFSIZE];
-        LPWSTR pathPtr = pathWcharPtr;
-        if (sender->lpVtbl->get_Source(sender, &pathPtr) != S_OK)
+        const ssize_t hash = GetHashFromWebview(sender);
+        if (hash < 0)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
-
-        char pathCharPtr[BUFFSIZE];
-        if (wcstombs(pathCharPtr, pathPtr, lengthof(pathCharPtr)) == (size_t)-1)
-        {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
-        }
-
-        ReplaceChars(pathCharPtr, widget_char_slash, widget_char_b_slash);
-        char out[BUFFSIZE];
-        if (!TrimStart(pathCharPtr, out, FILE_PREFIX_OFFSET))
-        {
-                status = FUNC_STATUS_ERR;
-                goto cleanup;
-        }
-
-        const size_t hash = GetHashFromString(out, HASH_PRIME, MAX_WIDGETS);
         const HWND hWndSelected = g_hWndTable[hash];
         g_hWndSelectedHash = hash;
 
@@ -1713,19 +1713,44 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                 status = FUNC_STATUS_MEM_ERR;
                 goto cleanup;
         }
-        message[wMessageLen] = '\0';
 
         if (wcstombs(message, wMessage, wMessageLen) == (size_t)-1)
         {
                 status = FUNC_STATUS_MEM_ERR;
                 goto cleanup;
         }
+        message[wMessageLen] = '\0';
+
+        char eventId[BUFFSIZE];
+        char arguments[BUFFSIZE];
+        size_t argumentsLen = 0;
+        size_t i = 0;
+        for (; i <= wMessageLen; i++)
+        {
+                if (i == wMessageLen || message[i] == '(')
+                {
+                        memcpy(eventId, message, i);
+                        eventId[i] = '\0';
+                }
+
+                if (message[i] == '(')
+                {
+                        argumentsLen = wMessageLen - i;
+                        if (argumentsLen < 2)
+                        {
+                                break;
+                        }
+
+                        memcpy(arguments, &message[i + 1], argumentsLen - 1);
+                        arguments[argumentsLen - 2] = '\0';
+                        break;
+                }
+        }
 
         char response[BUFFSIZE];
-        wchar_t wResponse[lengthof(response)];
         size_t bytes = 0;
 
-        switch (GetEventIdFromTable(message))
+        switch (GetEventIdFromTable(eventId))
         {
         case EVENT_GET_MOUSE_POSITION:
         {
@@ -1784,8 +1809,35 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                 }
                 goto cleanup;
         }
+        case EVENT_MOVE_WINDOW_TO_POSITION:
+        {
+                size_t x, y;
+                if (!Get2DValue(arguments, &x, &y))
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+
+                const ssize_t hash = GetHashFromWebview(webview);
+                if (hash < 0)
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+
+                g_hWndSelectedHash = hash;
+                const HWND hWndSelected = g_hWndTable[hash];
+
+                if (SYSINFO_CODE_FAIL(MoveWindowToPosition(hWndSelected, x, y)))
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+                goto cleanup;
+        }
         }
 
+        wchar_t wResponse[lengthof(response)];
         if (mbstowcs(wResponse, response, bytes) == (size_t)-1)
         {
                 status = FUNC_STATUS_MEM_ERR;
@@ -1862,10 +1914,8 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
                 controller->lpVtbl->AddRef(controller);
         }
 
-        // Browser settings
-        ICoreWebView2_11 *window =
-                (ICoreWebView2_11 *)g_widgets[g_widgetCount].window;
-
+        webview_widget_t *widget = &g_widgets[g_widgetCount];
+        ICoreWebView2_11 *window = (ICoreWebView2_11 *)widget->window;
         COREWEBVIEW2_COLOR transparency = {0, 0, 0, 0};
         controller->lpVtbl->put_DefaultBackgroundColor(controller,
                                                        transparency);
@@ -1935,12 +1985,11 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
          *  2- Event handler to detect when the context menu opens
          */
         EventRegistrationToken token;
-        const webview_widget_t widget = g_widgets[g_widgetCount];
-        const ww_window_ctx windowCtx = widget.context;
+        const ww_window_ctx context = widget->context;
 
         ICoreWebView2WebMessageReceivedEventHandler *mHandler =
-                windowCtx.child ? &widgetMessageReceivedEventHandler
-                                : &managerMessageReceivedEventHandler;
+                context.child ? &widgetMessageReceivedEventHandler
+                              : &managerMessageReceivedEventHandler;
         if (window->lpVtbl->add_WebMessageReceived(window, mHandler, &token) !=
             S_OK)
         {
@@ -1949,7 +1998,7 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
         }
 
         // Only children should have the context menu
-        if (windowCtx.child == true)
+        if (context.child == true)
         {
                 if (window->lpVtbl->add_ContextMenuRequested(
                             window, &contextMenuEventHandler, &token) != S_OK)
@@ -1961,8 +2010,8 @@ ControllerCompletedHandlerInvoke(const IUnknown *const,
 
         // Converting the URI to a widestr so that we can pass to Navigate(...)
         wchar_t path[BUFFSIZE];
-        const size_t pathLen = strlen(windowCtx.filename);
-        if (mbstowcs(path, windowCtx.filename, pathLen) == (size_t)-1)
+        const size_t pathLen = strlen(context.filename);
+        if (mbstowcs(path, context.filename, pathLen) == (size_t)-1)
         {
                 status = FUNC_STATUS_MEM_ERR;
                 goto cleanup;
@@ -2076,7 +2125,8 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
                         const ssize_t width = desktop.right * -1;
                         const ssize_t height = desktop.bottom * -1;
-                        if (BAD(SetWindowPosition(hWnd, width, height)))
+                        if (SYSINFO_CODE_FAIL(
+                                    MoveWindowToPosition(hWnd, width, height)))
                         {
                                 return S_FALSE;
                         }

@@ -94,3 +94,27 @@ PreviousMediaTrack()
 #endif
         return SYSINFO_CODE_SUCCESS;
 }
+
+/**
+ * @brief Moves the widget window to a specific position
+ */
+sysinfo_code_t
+#if __linux__
+MoveWindowToPosition(const size_t x, const size_t y)
+{
+#elif _WIN32
+MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y)
+{
+        if (!SetWindowPos(hWnd,
+                          nullptr,
+                          x,
+                          y,
+                          0,
+                          0,
+                          SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE))
+        {
+                return SYSINFO_CODE_OS_ERROR;
+        }
+#endif
+        return SYSINFO_CODE_SUCCESS;
+}
