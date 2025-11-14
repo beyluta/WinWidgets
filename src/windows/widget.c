@@ -1008,10 +1008,12 @@ GetContextMenuIcon(IStream **stream, const char *const icon)
         }
 
         char parentDir[BUFFSIZE];
-        if (!ww_dir_up(path, lengthof(path), parentDir, lengthof(path)))
+        const size_t pathLen = strlen(path);
+        if (!ww_dir_up(path, pathLen, parentDir, lengthof(parentDir)))
         {
                 return;
         }
+
         strcat(parentDir, icon);
 
         wchar_t wIconPath[BUFFSIZE];
