@@ -14,6 +14,8 @@
 
 #if _WIN32
 #include <windef.h>
+#elif __linux__
+#include <stddef.h>
 #endif
 
 #define SYSINFO_CODE_FAIL(expression) ((expression) > 0)

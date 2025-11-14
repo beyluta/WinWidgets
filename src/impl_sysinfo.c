@@ -19,11 +19,13 @@ static constexpr uint16_t STATE_KEY_MEDIA_PREV = 0xB1;
 #endif
 
 sysinfo_code_t
-GetMousePosition(size_t *const x, size_t *const y)
-{
 #if __linux__
+GetMousePosition(size_t *const, size_t *const)
+{
         return SYSINFO_CODE_NOT_IMPLEMENTED;
 #elif _WIN32
+GetMousePosition(size_t *const x, size_t *const y)
+{
         POINT point;
         if (!GetCursorPos(&point))
         {
@@ -37,11 +39,13 @@ GetMousePosition(size_t *const x, size_t *const y)
 }
 
 sysinfo_code_t
-GetCurrentKeyPressed(uint8_t *const code)
-{
 #if __linux__
+GetCurrentKeyPressed(uint8_t *const)
+{
         return SYSINFO_CODE_NOT_IMPLEMENTED;
 #elif _WIN32
+GetCurrentKeyPressed(uint8_t *const code)
+{
         for (uint16_t i = 0; i <= UINT8_MAX; i++)
         {
                 if (GetAsyncKeyState(i) & STATE_KEY_HELD)
@@ -100,7 +104,7 @@ PreviousMediaTrack()
  */
 sysinfo_code_t
 #if __linux__
-MoveWindowToPosition(const size_t x, const size_t y)
+MoveWindowToPosition(const size_t, const size_t)
 {
 #elif _WIN32
 MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y)
