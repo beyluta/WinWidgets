@@ -34,15 +34,11 @@
  */
 #define BAD(expression) ((expression) > FUNC_STATUS_USR_ERR)
 
-static constexpr char PROG_NAME[] = "WinWidgets";
-static constexpr char PROG_SEM_VER[] = "2.0.0";
-
 static constexpr char REG_PATH_RUN[] =
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run";
 static constexpr char REG_PATH_THEME[] =
         "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize";
 
-static constexpr char CONFIG_NAME[] = "\\config.json";
 static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 
 static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
@@ -129,13 +125,6 @@ typedef struct
         const bool topMost;
         char filename[BUFFSIZE];
 } stack_item_t;
-
-typedef struct
-{
-        const bool widgetAutostart;
-        const bool fullscreenHide;
-        const bool appAutostart;
-} application_settings_t;
 
 // ---------------------------------------------------------------------
 // Global variables to control the state of the application
@@ -361,8 +350,8 @@ SaveConfigurationToFile()
                 return FUNC_STATUS_ERR;
         }
         strncat(directory,
-                CONFIG_NAME,
-                strlen(directory) + strlen(CONFIG_NAME));
+                PROG_CFG_NAME,
+                strlen(directory) + strlen(PROG_CFG_NAME));
 
         if (ww_write_to_file(directory, json, WRITE_OVERWRITE))
         {
@@ -577,7 +566,7 @@ LoadConfigurationFromFile()
                 return FUNC_STATUS_ERR;
         }
         ReplaceChars(absolutePath, widget_char_slash, widget_char_b_slash);
-        strcat(absolutePath, CONFIG_NAME);
+        strcat(absolutePath, PROG_CFG_NAME);
 
         if (access(absolutePath, F_OK) != 0)
         {
@@ -2522,7 +2511,7 @@ OnDirectoryChangedReload(void *)
                         wcstombs(filename, info->FileName, len);
                         filename[len] = '\0';
 
-                        if (strcmp(filename, &CONFIG_NAME[1]) == 0)
+                        if (strcmp(filename, &PROG_CFG_NAME[1]) == 0)
                         {
                                 canUpdateChanges = false;
                         }

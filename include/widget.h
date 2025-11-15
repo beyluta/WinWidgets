@@ -11,6 +11,10 @@
 #include "gtk/gtk.h"
 #endif
 
+constexpr char PROG_NAME[] = "WinWidgets";
+constexpr char PROG_SEM_VER[] = "2.0.0";
+constexpr char PROG_CFG_NAME[] = "/config.json";
+
 constexpr char TAG_APP_NAME[] = "applicationTitle";
 constexpr char TAG_APP_TOPMOST[] = "topMost";
 constexpr char TAG_WIN_SIZE[] = "windowSize";
@@ -51,6 +55,19 @@ typedef struct ww_window_ctx
         double opacity;
         double radius;
 } ww_window_ctx;
+
+/*
+ * @brief Settings that apply for the entire application.
+ * These can't be changed directly once set but can be modified via their
+ * pointers. This has been done like this so it is hard to accidentally change
+ * these settings.
+ */
+typedef struct
+{
+        const bool widgetAutostart;
+        const bool fullscreenHide;
+        const bool appAutostart;
+} application_settings_t;
 
 /**
  * @brief Widget context structure for widgets.
