@@ -41,6 +41,14 @@ This is what makes this project interesting:
 - 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
 - ⌨️ Have better control over your widget's window with built-in front-end tags
 
+## Screenshots
+
+![Purple Theme](assets/imgs/purple_theme.png)
+
+![Calm Theme](assets/imgs/calm_theme.png)
+
+![Default Theme](assets/imgs/default_theme.png)
+
 ## Support
 
 These are the platforms officially supported by WinWidgets. Note that the software may
