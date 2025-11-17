@@ -150,7 +150,7 @@ static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
 // ---------------------------------------------------------------------
-// Forward declaration of function definitions that will be used later
+// Forward declaration of functions that will be used later
 // ---------------------------------------------------------------------
 static void CALLBACK
 WinEventProc(HWINEVENTHOOK hWinEventHook,
@@ -417,7 +417,7 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
  * @param content Pointer to the widget content string
  * @returns FUNC_STATUS_OK on success, else a numeric error code
  */
-static func_status_t __attribute__((optimize("01")))
+static func_status_t
 OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
@@ -552,6 +552,110 @@ Pop()
 }
 
 /**
+ * @brief Helper function that parses and adds widgets to the stack
+ * @param src JSON string with all widgets inside of it
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+ParseLastSessionWidgets(const string_json_t src)
+{
+        size_t start = 0;
+        for (size_t i = 0; i < src.length; i++)
+        {
+                if (src.str[i] == '{' && start == 0)
+                {
+                        start = i;
+                }
+
+                if (src.str[i] == '}')
+                {
+                        char obj[JSONBUFFSIZE];
+                        GetSubstring(src.str, obj, start, i);
+
+                        string_json_t jsonObj;
+                        if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        string_json_t jsonPath;
+                        if (GetProperty(jsonObj, &jsonPath, "path") !=
+                            FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        char path[BUFFSIZE];
+                        if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        string_json_t jsonPosition;
+                        if (GetProperty(jsonObj, &jsonPosition, "position") !=
+                            FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        char position[BUFFSIZE];
+                        if (ConvertJsonToString(jsonPosition, position) !=
+                            FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        const char *const prefix = "file:\\\\%s";
+                        if (strlen(path) + strlen(prefix) >= BUFFSIZE)
+                        {
+                                return FUNC_STATUS_MEM_ERR;
+                        }
+
+                        char prefixPath[BUFFSIZE];
+                        if (snprintf(prefixPath,
+                                     lengthof(prefixPath),
+                                     prefix,
+                                     path) < 0)
+                        {
+                                return FUNC_STATUS_MEM_ERR;
+                        }
+
+                        size_t x, y;
+                        if (!Get2DValue(position, &x, &y))
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        string_json_t jsonTopMost;
+                        if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
+                            FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        char topMost[BUFFSIZE];
+                        if (ConvertJsonToString(jsonTopMost, topMost) !=
+                            FUNC_SUCCESS)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
+
+                        stack_item_t item = {
+                                .x = x,
+                                .y = y,
+                                .topMost = strcmp(topMost, "true") == 0};
+                        memcpy(item.filename, prefixPath, strlen(prefixPath));
+                        item.filename[strlen(prefixPath)] = '\0';
+                        Push(item);
+
+                        start = 0;
+                }
+        }
+
+        return FUNC_STATUS_OK;
+}
+
+/**
  * @brief Loads all configurations from the JSON file. Opens widgets that were
  * previously opened and apply settings from the last session.
  *
@@ -668,101 +772,7 @@ LoadConfigurationFromFile()
                 return FUNC_STATUS_OK;
         }
 
-        size_t start = 0;
-        for (size_t i = 0; i < lastSessionWidgets.length; i++)
-        {
-                if (lastSessionWidgets.str[i] == '{' && start == 0)
-                {
-                        start = i;
-                }
-
-                if (lastSessionWidgets.str[i] == '}')
-                {
-                        char obj[JSONBUFFSIZE];
-                        GetSubstring(lastSessionWidgets.str, obj, start, i);
-
-                        string_json_t jsonObj;
-                        if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        string_json_t jsonPath;
-                        if (GetProperty(jsonObj, &jsonPath, "path") !=
-                            FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        char path[BUFFSIZE];
-                        if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        string_json_t jsonPosition;
-                        if (GetProperty(jsonObj, &jsonPosition, "position") !=
-                            FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        char position[BUFFSIZE];
-                        if (ConvertJsonToString(jsonPosition, position) !=
-                            FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        const char *const prefix = "file:\\\\%s";
-                        if (strlen(path) + strlen(prefix) >= BUFFSIZE)
-                        {
-                                return FUNC_STATUS_MEM_ERR;
-                        }
-
-                        char prefixPath[BUFFSIZE];
-                        if (snprintf(prefixPath,
-                                     lengthof(prefixPath),
-                                     prefix,
-                                     path) < 0)
-                        {
-                                return FUNC_STATUS_MEM_ERR;
-                        }
-
-                        size_t x, y;
-                        if (!Get2DValue(position, &x, &y))
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        string_json_t jsonTopMost;
-                        if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
-                            FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        char topMost[BUFFSIZE];
-                        if (ConvertJsonToString(jsonTopMost, topMost) !=
-                            FUNC_SUCCESS)
-                        {
-                                return FUNC_STATUS_ERR;
-                        }
-
-                        // Loading each individual child into the stack
-                        stack_item_t item = {
-                                .x = x,
-                                .y = y,
-                                .topMost = strcmp(topMost, "true") == 0};
-                        memcpy(item.filename, prefixPath, strlen(prefixPath));
-                        item.filename[strlen(prefixPath)] = '\0';
-                        Push(item);
-
-                        start = 0;
-                }
-        }
-
-        return FUNC_STATUS_OK;
+        return ParseLastSessionWidgets(lastSessionWidgets);
 }
 
 /**
