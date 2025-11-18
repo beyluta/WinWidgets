@@ -12,8 +12,6 @@
 #include "parser.h"
 #include "json.h"
 
-#include <webkit2/webkit2.h>
-
 static constexpr char SIGNAL_DESTROY[] = "destroy";
 static constexpr char SIGNAL_DRAW_WINDOW[] = "draw";
 static constexpr char SIGNAL_ACTIVATE[] = "activate";
@@ -119,25 +117,6 @@ save_main_config()
         }
 
         return true;
-}
-
-/**
- * @brief Sets the window to use an RGBA visual if available, enabling
- * transparency and compositing effects. If the screen supports compositing and
- * an RGBA visual is available, it sets the window's visual accordingly. Also
- * marks the window as app-paintable to allow custom drawing with transparency.
- * @param window GtkWidget pointer to the window to configure
- */
-static void
-set_rgba_visuals(GtkWidget *const window)
-{
-        GdkScreen *screen = gtk_widget_get_screen(window);
-        GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
-        if (visual != NULL && gdk_screen_is_composited(screen))
-        {
-                gtk_widget_set_visual(window, visual);
-        }
-        gtk_widget_set_app_paintable(window, TRUE);
 }
 
 /**
@@ -371,45 +350,39 @@ on_main_destroy(const GtkWidget *const, bool *const running)
  * @brief Event that is called when the Widget window is drawn
  * @param widget Pointer to the GtkWidget
  * @param cr Cairo object with information about the rendering device
+ * @param data User data
  * @param context Window context with information about the widget to be drawn
  */
-static void
-on_window_draw(GtkWidget *const widget,
-               cairo_t *const,
-               const ww_window_ctx *const pUserData)
+static gboolean
+on_window_draw(GtkWidget *widget, cairo_t *, gpointer data)
 {
-        ww_window_ctx *context = (ww_window_ctx *)pUserData;
+        ww_window_ctx *context = (ww_window_ctx *)data;
         cairo_surface_t *shape_surface = nullptr;
         cairo_t *shape_cr = nullptr;
         cairo_region_t *shape_region = nullptr;
 
-        // Bounds of the gtk window
         GtkAllocation allocation;
         gtk_widget_get_allocation(widget, &allocation);
 
-        // Initializing cairo objects
         if ((shape_surface = cairo_image_surface_create(
                      CAIRO_FORMAT_A1, allocation.width, allocation.height)) ==
             nullptr)
         {
-                return;
+                return false;
         }
 
         if ((shape_cr = cairo_create(shape_surface)) == nullptr)
         {
-                return;
+                return false;
         }
 
-        // Setting the properties of the shape
         cairo_set_operator(shape_cr, CAIRO_OPERATOR_SOURCE);
         cairo_set_source_rgba(shape_cr, 0, 0, 0, 0);
         cairo_paint(shape_cr);
 
-        // Setting the properties of the inner shape content
         cairo_set_operator(shape_cr, CAIRO_OPERATOR_OVER);
         cairo_set_source_rgba(shape_cr, 0, 0, 0, 1);
 
-        // Setting the roundness
         const double max_radius =
                 MIN(allocation.width, allocation.height) / 2.0;
         const double border_radius = context->radius;
@@ -425,7 +398,6 @@ on_window_draw(GtkWidget *const widget,
         cairo_close_path(shape_cr);
         cairo_fill(shape_cr);
 
-        // Creating and applying the shape region
         if ((shape_region = gdk_cairo_region_create_from_surface(
                      shape_surface)) == nullptr)
         {
@@ -449,7 +421,8 @@ cleanup:
         {
                 cairo_region_destroy(shape_region);
         }
-        return;
+
+        return false;
 }
 
 /**
@@ -465,7 +438,6 @@ set_window_style(GtkWidget *const window, const window_style_t context)
         gtk_window_set_default_size(gWindow, context.width, context.height);
         gtk_window_set_decorated(gWindow, context.hideTitleBar);
         gtk_window_move(gWindow, context.x, context.y);
-        set_rgba_visuals(window);
 }
 
 /**
@@ -541,7 +513,6 @@ on_button_press(const GtkWidget *const,
 /**
  * @brief Creates a single widget based on the context object provided
  * @param context Properties of the widget window
- * @param widgets Pointer to an array of widgets
  * @returns true if successful, else false
  */
 static bool
@@ -552,8 +523,10 @@ create_widget(const ww_window_ctx context)
                 return false;
         }
 
-        WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
         GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        WebKitWebView *webview = g_widgets[g_widgetCount].webview;
+        webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
+
         window_style_t style = {.width = context.width,
                                 .height = context.height,
                                 .x = context.x,
@@ -578,18 +551,19 @@ create_widget(const ww_window_ctx context)
         g_signal_connect(window,
                          SIGNAL_DRAW_WINDOW,
                          G_CALLBACK(on_window_draw),
-                         window_context);
+                         widget_context);
 
         g_signal_connect(webview,
                          SIGNAL_CONTEXT_MENU,
                          G_CALLBACK(on_button_press),
                          widget_context);
 
-        gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
-
         webkit_web_view_load_uri(webview, context.filename);
+
         gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(webview));
+        gtk_widget_add_events(GTK_WIDGET(webview), GDK_BUTTON_PRESS_MASK);
         gtk_widget_show_all(window);
+
         g_widgetCount++;
 
         return true;
@@ -863,7 +837,7 @@ event_loop(const bool *const running)
         size_t next_tick = time(NULL) + EVT_LOOP_TICK_DELAY;
         while (*running)
         {
-                if (!gtk_main_iteration_do(TRUE))
+                if (!gtk_main_iteration_do(true))
                 {
                         return false;
                 }

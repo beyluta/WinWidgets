@@ -8,7 +8,8 @@
 #if _WIN32
 #include <minwindef.h>
 #elif __linux__
-#include "gtk/gtk.h"
+#include <gtk/gtk.h>
+#include <webkit2/webkit2.h>
 #endif
 
 constexpr char PROG_NAME[] = "WinWidgets";
@@ -78,6 +79,7 @@ typedef struct ww_widget_ctx
         ww_window_ctx window_context;
 #if __linux__
         const GtkWidget *window;
+        WebKitWebView *webview;
 #elif _WIN32
         const void *window;
 #endif
