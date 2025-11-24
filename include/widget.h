@@ -20,14 +20,11 @@ constexpr char TAG_APP_NAME[] = "applicationTitle";
 constexpr char TAG_APP_TOPMOST[] = "topMost";
 constexpr char TAG_WIN_SIZE[] = "windowSize";
 constexpr char TAG_WIN_LOCATION[] = "windowLocation";
-constexpr char TAG_WIN_PREV[] = "previewSize";
 constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
 constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 
 constexpr uint16_t DEF_WIDTH = 500;
 constexpr uint16_t DEF_HEIGHT = 500;
-constexpr uint16_t DEF_PREV_WIDTH = DEF_WIDTH;
-constexpr uint16_t DEF_PREV_HEIGHT = DEF_HEIGHT;
 constexpr uint16_t DEF_X = 0;
 constexpr uint16_t DEF_Y = 0;
 constexpr uint16_t DEF_OPACITY = 1;
@@ -43,8 +40,6 @@ typedef struct ww_window_ctx
 {
         size_t width;
         size_t height;
-        size_t prevWidth;
-        size_t prevHeight;
         size_t x;
         size_t y;
         size_t index;
@@ -58,16 +53,15 @@ typedef struct ww_window_ctx
 } ww_window_ctx;
 
 /*
- * @brief Settings that apply for the entire application.
- * These can't be changed directly once set but can be modified via their
- * pointers. This has been done like this so it is hard to accidentally change
- * these settings.
+ * @brief Settings that apply for the entire application. Please do not modify
+ * them directly. Create a helper function that changes their values and saves
+ * the new state to the configuration file.
  */
 typedef struct
 {
-        const bool widgetAutostart;
-        const bool fullscreenHide;
-        const bool appAutostart;
+        bool widgetAutostart;
+        bool fullscreenHide;
+        bool appAutostart;
 } application_settings_t;
 
 /**

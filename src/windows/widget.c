@@ -362,7 +362,7 @@ SaveConfigurationToFile()
 }
 /**
  * @brief Changes some setting from the application settings. This function
- * serves as a sort of getter-setter for the settings. Settings must only be
+ * serves as a sort of setter for the settings. Settings must only be
  * changed in this function.
  *
  * @param setting Setting to change
@@ -379,21 +379,18 @@ ChangeApplicationSetting(application_runtime_setting_t setting,
         {
         case APPLICATION_SETTING_FULLSCREEN:
         {
-                const bool *ptr = &g_settings.fullscreenHide;
-                memcpy((bool *)ptr, &value, sizeof(bool));
+                g_settings.fullscreenHide = value;
                 break;
         }
         case APPLICATION_SETTING_AUTOSTART:
         {
-                const bool *ptr = &g_settings.appAutostart;
-                memcpy((bool *)ptr, &value, sizeof(bool));
+                g_settings.appAutostart = value;
                 ModifyAutostartEntry(value);
                 break;
         }
         case APPLICATION_SETTING_START_WIDGETS:
         {
-                const bool *ptr = &g_settings.widgetAutostart;
-                memcpy((bool *)ptr, &value, sizeof(bool));
+                g_settings.widgetAutostart = value;
                 break;
         }
         }
@@ -428,8 +425,6 @@ OpenWidgetByFilename(const char *const path,
         ww_window_ctx context = {
                 .width = DEF_WIDTH,
                 .height = DEF_HEIGHT,
-                .prevWidth = DEF_PREV_WIDTH,
-                .prevHeight = DEF_PREV_HEIGHT,
                 .x = x == nullptr ? DEF_X : *x,
                 .y = y == nullptr ? DEF_Y : *y,
                 .child = DEF_CHILD,
@@ -476,14 +471,6 @@ OpenWidgetByFilename(const char *const path,
                 const bool isSet = Get2DValue(buf, &xPos, &yPos);
                 context.x = isSet ? xPos : DEF_X;
                 context.y = isSet ? yPos : DEF_Y;
-        }
-
-        if (ww_begin_parsing(content, lengthof(buf), TAG_WIN_PREV, buf, bufLen))
-        {
-                size_t width, height;
-                const bool isSet = Get2DValue(buf, &width, &height);
-                context.prevWidth = isSet ? width : DEF_X;
-                context.prevHeight = isSet ? height : DEF_Y;
         }
 
         if (ww_begin_parsing(

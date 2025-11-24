@@ -1,3 +1,9 @@
+// ======================= Purpose ==========================
+//
+// Utilitity functions for various platform agnostic logic.
+// These are mainly for modifying data in-place.
+//
+// ==========================================================
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
