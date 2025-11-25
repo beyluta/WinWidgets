@@ -71,4 +71,12 @@ GetSubstring(const char *const src,
              const size_t start,
              const size_t end);
 
+/**
+ * @brief Gets whether a string is comprised of only digits
+ * @param src String to evaluate
+ * @returns `true` if string is only digits, else `false` if it has chars
+ */
+bool
+isStringDigit(const char *const src, const size_t len);
+
 #endif

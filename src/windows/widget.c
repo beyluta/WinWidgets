@@ -449,13 +449,14 @@ OpenWidgetByFilename(const char *const path,
         char buf[BUFFSIZE] = {};
         const size_t bufLen = lengthof(buf);
 
-        if (ww_begin_parsing(content, lengthof(buf), TAG_APP_NAME, buf, bufLen))
+        if (ww_begin_parsing(content, bufLen, TAG_APP_NAME, buf, bufLen))
         {
                 memcpy(context.title, buf, lengthof(buf));
                 context.title[lengthof(buf) - 1] = '\0';
         }
 
-        if (ww_begin_parsing(content, lengthof(buf), TAG_WIN_SIZE, buf, bufLen))
+        if (ww_begin_parsing(content, bufLen, TAG_WIN_SIZE, buf, bufLen) &&
+            isStringDigit(buf, bufLen))
         {
                 size_t width, height;
                 const bool isSet = Get2DValue(buf, &width, &height);
@@ -463,9 +464,8 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (ww_begin_parsing(
-                    content, lengthof(buf), TAG_WIN_LOCATION, buf, bufLen) &&
-            x == nullptr && y == nullptr)
+        if (ww_begin_parsing(content, bufLen, TAG_WIN_LOCATION, buf, bufLen) &&
+            x == nullptr && y == nullptr && isStringDigit(buf, bufLen))
         {
                 size_t xPos, yPos;
                 const bool isSet = Get2DValue(buf, &xPos, &yPos);
@@ -473,15 +473,14 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (ww_begin_parsing(
-                    content, lengthof(buf), TAG_APP_TOPMOST, buf, bufLen) &&
+        if (ww_begin_parsing(content, bufLen, TAG_APP_TOPMOST, buf, bufLen) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (ww_begin_parsing(
-                    content, lengthof(buf), TAG_WIN_BORD_RAD, buf, bufLen))
+        if (ww_begin_parsing(content, bufLen, TAG_WIN_BORD_RAD, buf, bufLen) &&
+            isStringDigit(buf, bufLen))
         {
                 const double radius = strtod(buf, nullptr);
                 context.radius = radius;

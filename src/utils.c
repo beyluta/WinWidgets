@@ -82,3 +82,16 @@ GetSubstring(const char *const src,
         memcpy(dest, &src[start], maxSize);
         dest[maxSize] = '\0';
 }
+
+bool
+isStringDigit(const char *const src, const size_t len)
+{
+        for (size_t i = 0; i < len; i++)
+        {
+                if (src[i] >= 48 && src[i] <= 57)
+                {
+                        return true;
+                }
+        }
+        return false;
+}
