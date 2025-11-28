@@ -1104,5 +1104,5 @@ ww_init_main(const ww_window_ctx context)
 cleanup:
         destroy_system_tray();
 
-        return false;
+        return status;
 }
