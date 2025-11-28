@@ -31,7 +31,15 @@ static constexpr char LBL_EVT_GET_WIDGETS[] = "on_get_widget_filenames";
 static constexpr char LBL_EVT_OPEN_WIDGET[] = "on_open_widget_by_filename";
 static constexpr char LBL_EVT_OPEN_DIR[] = "on_open_default_directory";
 
-static constexpr uint8_t MOUSE_CLICK_RIGHT = 3;
+static constexpr char PATH_ICON[] = "/assets/imgs/icon.png";
+
+static constexpr uint8_t UPDATE_TICK_MS = 25;
+
+typedef enum : uint8_t
+{
+        MOUSE_CLICK_LEFT = 1,
+        MOUSE_CLICK_RIGHT = 3
+} mouse_click_t;
 
 typedef struct
 {
@@ -56,7 +64,11 @@ static ww_widget_ctx g_widgets[MAX_WIDGETS];
 static system_tray_t g_tray = {.exitBtn = nullptr,
                                .indicator = nullptr,
                                .menu = nullptr};
+
 static size_t g_widgetCount = 1;
+
+static pthread_t g_dragEventThread;
+static volatile bool g_dragEventRun;
 
 /**
  * @brief Saves the main config of the application with information about the
@@ -537,6 +549,105 @@ on_close_clicked(const GtkMenuItem *const, const void *const data)
 }
 
 /**
+ * @brief Gets the current global mouse position. Only works as long as the
+ * cursor is hovering over a window that belongs to this program's main thread.
+ *
+ * @param x Pointer to a memory allocated variable
+ * @param y Pointer to a memory allocated variable
+ */
+static void
+get_mouse_position(size_t *const x, size_t *const y)
+{
+        gint giX, giY;
+
+        GdkDisplay *display = nullptr;
+        if ((display = gdk_display_get_default()) == nullptr)
+        {
+                return;
+        }
+
+        GdkSeat *seat = nullptr;
+        if ((seat = gdk_display_get_default_seat(display)) == nullptr)
+        {
+                return;
+        }
+
+        GdkDevice *mouse = nullptr;
+        if ((mouse = gdk_seat_get_pointer(seat)) == nullptr)
+        {
+                return;
+        }
+
+        GdkWindow *window = nullptr;
+        if ((window = gdk_display_get_default_group(display)) == nullptr)
+        {
+                return;
+        }
+
+        gdk_window_get_device_position(window, mouse, &giX, &giY, nullptr);
+
+        *x = giX;
+        *y = giY;
+}
+
+/**
+ * @brief Gets the current time in millliseconds
+ * @returns Timestamp in ms
+ */
+static size_t
+get_time_now_ms()
+{
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        return (size_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+/**
+ * @brief Runs on a separate thread to contiously update the location of the
+ * window. Window is made to follow the rough coordinates of the mouse.
+ *
+ * @param arg Widget context
+ */
+static void *
+on_update_window_position(void *const arg)
+{
+        const ww_widget_ctx *const widget = (ww_widget_ctx *)arg;
+        double oldTime = 0;
+        while (g_dragEventRun)
+        {
+                size_t newTime = get_time_now_ms();
+                if (newTime < oldTime)
+                        continue;
+
+                size_t x, y;
+                get_mouse_position(&x, &y);
+                gtk_window_move(GTK_WINDOW(widget->window),
+                                x - (widget->window_context.width / 2),
+                                y - (widget->window_context.height / 2));
+
+                oldTime = newTime + UPDATE_TICK_MS;
+        }
+        return nullptr;
+}
+
+/**
+ * @brief Moves the window along with the mouse until you left click again
+ * @param data Context of the widget
+ */
+static void
+on_move_clicked(const GtkMenuItem *const, void *const data)
+{
+        if (g_dragEventRun == true)
+        {
+                return;
+        }
+
+        g_dragEventRun = true;
+        g_dragEventThread = pthread_create(
+                &g_dragEventThread, nullptr, on_update_window_position, data);
+}
+
+/**
  * @brief Creates the options when right clicking on Widgets
  * @param window Pointer to the GtkWidget
  * @param event Information about the event triggered
@@ -547,15 +658,35 @@ on_button_press(const GtkWidget *const,
                 const GdkEventButton *const event,
                 void *const data)
 {
-        if (event->type == GDK_BUTTON_PRESS &&
-            event->button == MOUSE_CLICK_RIGHT)
+        if (event->type == GDK_BUTTON_PRESS)
         {
-                GtkWidget *menu = gtk_menu_new();
-                create_menu_item(menu, "Top Most", on_top_most_clicked, data);
-                create_menu_item(menu, "Close Widget", on_close_clicked, data);
-                gtk_menu_popup_at_pointer(GTK_MENU(menu), (GdkEvent *)event);
-                return TRUE;
+                switch ((mouse_click_t)event->button)
+                {
+                case MOUSE_CLICK_RIGHT:
+                {
+                        GtkWidget *menu = gtk_menu_new();
+                        create_menu_item(menu,
+                                         LBL_CTX_MENU_TOP_MOST,
+                                         on_top_most_clicked,
+                                         data);
+                        create_menu_item(
+                                menu, LBL_CTX_MENU_MOVE, on_move_clicked, data);
+                        create_menu_item(menu,
+                                         LBL_CTX_MENU_CLOSE,
+                                         on_close_clicked,
+                                         data);
+                        gtk_menu_popup_at_pointer(GTK_MENU(menu),
+                                                  (GdkEvent *)event);
+                        return TRUE;
+                }
+                case MOUSE_CLICK_LEFT:
+                {
+                        g_dragEventRun = false;
+                        return TRUE;
+                }
+                }
         }
+
         return FALSE;
 }
 
@@ -927,19 +1058,33 @@ on_application_close_widgets()
 static void
 init_system_tray(bool *const running)
 {
+        char buffer[BUFFSIZE];
+        if (ww_get_executable_path(buffer, lengthof(buffer)))
+        {
+                return;
+        }
+
+        if (!ww_dir_up(buffer, lengthof(buffer), buffer, lengthof(buffer)))
+        {
+                return;
+        }
+
+        if (strlen(buffer) + lengthof(PATH_ICON) >= lengthof(buffer))
+        {
+                return;
+        }
+        strcat(buffer, PATH_ICON);
+
         if ((g_tray.indicator = app_indicator_new(
                      PROG_NAME,
-                     "/home/beyluta/Projects/WinWidgets/assets/imgs/"
-                     "icon.png",
+                     buffer,
                      APP_INDICATOR_CATEGORY_APPLICATION_STATUS)) == nullptr)
         {
                 return;
         }
 
         app_indicator_set_status(g_tray.indicator, APP_INDICATOR_STATUS_ACTIVE);
-        app_indicator_set_icon(
-                g_tray.indicator,
-                "/home/beyluta/Projects/WinWidgets/assets/imgs/icon.png");
+        app_indicator_set_icon(g_tray.indicator, buffer);
 
         if ((g_tray.menu = gtk_menu_new()) == nullptr)
         {

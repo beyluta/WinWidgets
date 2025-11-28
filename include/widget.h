@@ -26,6 +26,16 @@ constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
 constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
+#if _WIN32
+constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
+constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close widget";
+constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Always on top";
+#elif __linux__
+constexpr char LBL_CTX_MENU_MOVE[] = "Move";
+constexpr char LBL_CTX_MENU_CLOSE[] = "Close widget";
+constexpr char LBL_CTX_MENU_TOP_MOST[] = "Always on top";
+#endif
+
 constexpr uint16_t DEF_WIDTH = 500;
 constexpr uint16_t DEF_HEIGHT = 500;
 constexpr uint16_t DEF_X = 0;

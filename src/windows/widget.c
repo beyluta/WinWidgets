@@ -41,10 +41,6 @@ static constexpr char REG_PATH_THEME[] =
 
 static constexpr char FAVICON_PATH[] = "assets/icons/favicon.ico";
 
-static constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
-static constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close widget";
-static constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Always on top";
-
 static constexpr char ICO_DRAG_LIGHT[] = "\\assets\\icons\\drag_light.png";
 static constexpr char ICO_DRAG_DARK[] = "\\assets\\icons\\drag_dark.png";
 static constexpr char ICO_PIN_LIGHT[] = "\\assets\\icons\\pin_light.png";
