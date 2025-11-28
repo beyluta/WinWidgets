@@ -7,7 +7,7 @@ SRC = main.c \
 			src/filesystem.c \
 			src/utils.c \
 			src/parser.c \
-			src/impl_sysinfo.c \
+			src/sysinfo.c \
 			lib/minimal-json-c-parser/src/json.c
 RELEASE = -Werror \
 					-Wextra \
@@ -63,7 +63,7 @@ run:
 # Building for Linux platform
 # --------
 else ifeq($(UNAME), Linux)
-GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.1`
+GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 webkit2gtk-4.1`
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-O2 \

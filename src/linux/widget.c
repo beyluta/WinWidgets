@@ -12,12 +12,14 @@
 #include "parser.h"
 #include "json.h"
 
+#include <libappindicator/app-indicator.h>
+
 static constexpr char SIGNAL_DESTROY[] = "destroy";
 static constexpr char SIGNAL_DRAW_WINDOW[] = "draw";
 static constexpr char SIGNAL_ACTIVATE[] = "activate";
 static constexpr char SIGNAL_CONFIGURE[] = "configure-event";
+static constexpr char SIGNAL_BUTTON_PRESS[] = "button-press-event";
 
-static constexpr char SIGNAL_CONTEXT_MENU[] = "button-press-event";
 static constexpr char SIGNAL_GET_FILENAMES[] =
         "script-message-received::on_get_widget_filenames";
 static constexpr char SIGNAL_OPEN_WIDGET[] =
@@ -42,8 +44,18 @@ typedef struct
         const bool topMost;
 } window_style_t;
 
+typedef struct
+{
+        AppIndicator *indicator;
+        GtkWidget *menu;
+        GtkWidget *exitBtn;
+} system_tray_t;
+
 static application_settings_t g_settings;
 static ww_widget_ctx g_widgets[MAX_WIDGETS];
+static system_tray_t g_tray = {.exitBtn = nullptr,
+                               .indicator = nullptr,
+                               .menu = nullptr};
 static size_t g_widgetCount = 1;
 
 /**
@@ -473,6 +485,7 @@ set_window_style(GtkWidget *const window, const window_style_t context)
         gtk_window_set_decorated(gWindow, context.hideTitleBar);
         gtk_window_set_keep_above(gWindow, context.topMost);
         gtk_window_move(gWindow, context.x, context.y);
+        gtk_window_set_skip_taskbar_hint(gWindow, true);
 }
 
 /**
@@ -596,7 +609,7 @@ create_widget(const ww_window_ctx context)
                          window_context);
 
         g_signal_connect(webview,
-                         SIGNAL_CONTEXT_MENU,
+                         SIGNAL_BUTTON_PRESS,
                          G_CALLBACK(on_button_press),
                          widget_context);
 
@@ -884,6 +897,90 @@ on_open_default_directory(const WebKitUserContentManager *const,
 }
 
 /**
+ * @brief Used when the system tray icon's exit option is pressed.
+ * @param data Pointer to the state of the event loop
+ */
+static void
+on_application_exit(const GtkMenuItem *const, void *const data)
+{
+        bool *running = (bool *)data;
+        *running = false;
+}
+
+/**
+ * @brief Closes all open widgets of the application
+ */
+static void
+on_application_close_widgets()
+{
+        for (size_t i = 1; i < g_widgetCount; i++)
+        {
+                const ww_widget_ctx widget = g_widgets[i];
+                gtk_window_close(GTK_WINDOW(widget.window));
+        }
+}
+
+/**
+ * @brief Initializes the system tray icon for the application.
+ * @param running State of the main event loop
+ */
+static void
+init_system_tray(bool *const running)
+{
+        if ((g_tray.indicator = app_indicator_new(
+                     PROG_NAME,
+                     "/home/beyluta/Projects/WinWidgets/assets/imgs/"
+                     "icon.png",
+                     APP_INDICATOR_CATEGORY_APPLICATION_STATUS)) == nullptr)
+        {
+                return;
+        }
+
+        app_indicator_set_status(g_tray.indicator, APP_INDICATOR_STATUS_ACTIVE);
+        app_indicator_set_icon(
+                g_tray.indicator,
+                "/home/beyluta/Projects/WinWidgets/assets/imgs/icon.png");
+
+        if ((g_tray.menu = gtk_menu_new()) == nullptr)
+        {
+                return;
+        }
+
+        create_menu_item(
+                g_tray.menu, LBL_SYSTRAY_EXIT, on_application_exit, running);
+        create_menu_item(g_tray.menu,
+                         LBL_SYSTRAY_CLOSE,
+                         on_application_close_widgets,
+                         nullptr);
+
+        app_indicator_set_menu(g_tray.indicator, GTK_MENU(g_tray.menu));
+
+        gtk_widget_show_all(g_tray.menu);
+}
+
+/**
+ * @brief Used to destroy the resources for the system tray
+ */
+static void
+destroy_system_tray()
+{
+        if (g_tray.exitBtn != nullptr)
+        {
+                gtk_widget_destroy(g_tray.exitBtn);
+        }
+
+        if (g_tray.menu != nullptr)
+        {
+                gtk_widget_destroy(g_tray.menu);
+        }
+
+        if (g_tray.indicator != nullptr)
+        {
+                g_object_unref(g_tray.indicator);
+        }
+}
+
+/**
  * @brief Main event loop of the application
  * @param running True if the event loop should continue to run
  * @returns true if successful, else false
@@ -905,7 +1002,12 @@ event_loop(const bool *const running)
 bool
 ww_init_main(const ww_window_ctx context)
 {
+        bool running = true;
+        bool status = false;
+
         gtk_init(nullptr, nullptr);
+
+        init_system_tray(&running);
 
         for (size_t i = 0; i < lengthof(g_widgets); i++)
         {
@@ -915,7 +1017,8 @@ ww_init_main(const ww_window_ctx context)
         GtkWidget *window = nullptr;
         if ((window = gtk_window_new(GTK_WINDOW_TOPLEVEL)) == nullptr)
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
 
         window_style_t style = {.width = context.width,
@@ -927,38 +1030,45 @@ ww_init_main(const ww_window_ctx context)
         const size_t titleLen = strlen(context.title);
         memcpy(style.title, context.title, titleLen);
         style.title[titleLen] = '\0';
+
         set_window_style(window, style);
 
         WebKitWebView *webview = nullptr;
         if ((webview = WEBKIT_WEB_VIEW(webkit_web_view_new())) == nullptr)
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
 
         WebKitUserContentManager *manager = nullptr;
         if ((manager = webkit_web_view_get_user_content_manager(webview)) ==
             nullptr)
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
 
         if (!webkit_user_content_manager_register_script_message_handler(
                     manager, LBL_EVT_GET_WIDGETS))
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
 
         if (!webkit_user_content_manager_register_script_message_handler(
                     manager, LBL_EVT_OPEN_WIDGET))
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
 
         if (!webkit_user_content_manager_register_script_message_handler(
                     manager, LBL_EVT_OPEN_DIR))
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
+
         g_signal_connect(manager,
                          SIGNAL_GET_FILENAMES,
                          G_CALLBACK(on_get_widget_filenames),
@@ -972,7 +1082,6 @@ ww_init_main(const ww_window_ctx context)
                          G_CALLBACK(on_open_default_directory),
                          nullptr);
 
-        static bool running = true;
         g_signal_connect(
                 window, SIGNAL_DESTROY, G_CALLBACK(on_main_destroy), &running);
 
@@ -982,13 +1091,18 @@ ww_init_main(const ww_window_ctx context)
 
         if (!apply_main_config())
         {
-                return false;
+                status = false;
+                goto cleanup;
         }
 
         if (!event_loop(&running))
         {
-                return true;
+                status = true;
+                goto cleanup;
         }
+
+cleanup:
+        destroy_system_tray();
 
         return false;
 }

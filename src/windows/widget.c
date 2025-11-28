@@ -16,7 +16,7 @@
 #include "json.h"
 #include "parser.h"
 #include "utils.h"
-#include "decl_sysinfo.h"
+#include "sysinfo.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
@@ -63,8 +63,6 @@ static constexpr uint16_t PROG_WM_ICONNOTIFY = WM_APP + 1;
 
 static constexpr uint8_t UID_SYSTRAY_EXIT = 0;
 static constexpr uint8_t UID_SYSTRAY_CLOSE = 1;
-static constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
-static constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
 
 static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
                                                     "GetCurrentKeyPressed",

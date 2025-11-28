@@ -23,6 +23,9 @@ constexpr char TAG_WIN_LOCATION[] = "windowLocation";
 constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
 constexpr char TAG_WIN_OPACITY[] = "windowOpacity";
 
+constexpr char LBL_SYSTRAY_EXIT[] = "Exit application";
+constexpr char LBL_SYSTRAY_CLOSE[] = "Close widgets";
+
 constexpr uint16_t DEF_WIDTH = 500;
 constexpr uint16_t DEF_HEIGHT = 500;
 constexpr uint16_t DEF_X = 0;

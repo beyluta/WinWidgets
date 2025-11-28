@@ -6,7 +6,7 @@
 // not support a function, it should return some error value.
 //
 // ==========================================================
-#include "decl_sysinfo.h"
+#include "sysinfo.h"
 
 #if _WIN32
 #include <windef.h>
