@@ -63,7 +63,7 @@ run:
 # Building for Linux platform
 # --------
 else ifeq($(UNAME), Linux)
-GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 webkit2gtk-4.1`
+GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 x11 webkit2gtk-4.1`
 ARGS := -Iinclude \
 				-Ilib/minimal-json-c-parser/include \
 				-O2 \
@@ -86,5 +86,5 @@ debug: prepare
 release: prepare
 	$(CC) $(SRC) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
 run:
-	WEBKIT_DISABLE_COMPOSITING_MODE=1 GDK_BACKEND=x11 ./$(OUT)	
+	./$(OUT)	
 endif

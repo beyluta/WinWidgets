@@ -13,8 +13,14 @@
 #include "json.h"
 
 #include <libappindicator/app-indicator.h>
+#include <gdk/gdkx.h>
+#include <X11/Xatom.h>
+
+static constexpr char ENV_COMPOSITING[] = "WEBKIT_DISABLE_COMPOSITING_MODE";
+static constexpr char ENV_BACKEND[] = "GDK_BACKEND";
 
 static constexpr char SIGNAL_DESTROY[] = "destroy";
+static constexpr char SIGNAL_REALIZE[] = "realize";
 static constexpr char SIGNAL_DRAW_WINDOW[] = "draw";
 static constexpr char SIGNAL_ACTIVATE[] = "activate";
 static constexpr char SIGNAL_CONFIGURE[] = "configure-event";
@@ -58,6 +64,12 @@ typedef struct
         GtkWidget *menu;
         GtkWidget *exitBtn;
 } system_tray_t;
+
+typedef enum : uint8_t
+{
+        DISPLAY_SERVER_X11,
+        DISPLAY_SERVER_WAYLAND,
+} display_server_t;
 
 static application_settings_t g_settings;
 static ww_widget_ctx g_widgets[MAX_WIDGETS];
@@ -484,6 +496,96 @@ cleanup:
 }
 
 /**
+ * @brief Gets the current backend that the app has been started under. Right
+ * now the value is hardcoded to be x11 since Wayland still doesn't support all
+ * features needed for the program to work correctly.
+ *
+ * @returns either X11 or Wayland depending on the environment built
+ */
+static display_server_t
+get_display_server()
+{
+        const char *const name = getenv(ENV_BACKEND);
+        return strcmp(name, "x11") ? DISPLAY_SERVER_X11
+                                   : DISPLAY_SERVER_WAYLAND;
+}
+
+/**
+ * @brief Sets the type of the window to either Desktop or Normal based on the
+ * top most flag inside the data struct.
+ *
+ * @param gtkWidget Widget of the affected window
+ * @param data Pointer to the widget context struct
+ */
+static void
+on_window_realize(GtkWidget *const gtkWidget, const ww_widget_ctx *const data)
+{
+        switch (get_display_server())
+        {
+        case DISPLAY_SERVER_WAYLAND:
+        {
+                gtk_window_set_keep_above(GTK_WINDOW(gtkWidget),
+                                          data->window_context.top_most);
+                break;
+        }
+        case DISPLAY_SERVER_X11:
+        {
+                GdkWindow *gdkWindow = gtk_widget_get_window(gtkWidget);
+                Display *display = GDK_WINDOW_XDISPLAY(gdkWindow);
+                Window xWindow = GDK_WINDOW_XID(gdkWindow);
+
+                Atom a_type =
+                        XInternAtom(display, "_NET_WM_WINDOW_TYPE", False);
+
+                Atom a_type_desktop;
+                if (!data->window_context.top_most)
+                {
+                        a_type_desktop = XInternAtom(
+                                display, "_NET_WM_WINDOW_TYPE_DESKTOP", False);
+                }
+                else
+                {
+                        a_type_desktop = XInternAtom(
+                                display, "_NET_WM_WINDOW_TYPE_NORMAL", False);
+                }
+
+                Atom a_state = XInternAtom(display, "_NET_WM_STATE", False);
+
+                if (a_type == None || a_type_desktop == None || a_state == None)
+                {
+                        return;
+                }
+
+                Atom type = a_type_desktop;
+                XChangeProperty(display,
+                                xWindow,
+                                a_type,
+                                XA_ATOM,
+                                32,
+                                PropModeReplace,
+                                (unsigned char *)&type,
+                                1);
+
+                Atom a_strut = XInternAtom(display, "_NET_WM_STRUT", False);
+                Atom a_strut_partial =
+                        XInternAtom(display, "_NET_WM_STRUT_PARTIAL", False);
+                if (a_strut != None)
+                        XDeleteProperty(display, xWindow, a_strut);
+                if (a_strut_partial != None)
+                        XDeleteProperty(display, xWindow, a_strut_partial);
+
+                XSetWindowAttributes attrs;
+                attrs.override_redirect = False;
+                XChangeWindowAttributes(
+                        display, xWindow, CWOverrideRedirect, &attrs);
+
+                XFlush(display);
+                break;
+        }
+        }
+}
+
+/**
  * @brief Sets various Gtk window style properties
  * @param window Gtk widget of the window
  * @param context Context containing all styles
@@ -495,9 +597,9 @@ set_window_style(GtkWidget *const window, const window_style_t context)
         gtk_window_set_title(gWindow, context.title);
         gtk_window_set_default_size(gWindow, context.width, context.height);
         gtk_window_set_decorated(gWindow, context.hideTitleBar);
-        gtk_window_set_keep_above(gWindow, context.topMost);
         gtk_window_move(gWindow, context.x, context.y);
         gtk_window_set_skip_taskbar_hint(gWindow, true);
+        gtk_window_set_skip_pager_hint(gWindow, true);
 }
 
 /**
@@ -528,10 +630,9 @@ static void
 on_top_most_clicked(const GtkMenuItem *const, const void *const data)
 {
         const ww_widget_ctx *ctx = (const ww_widget_ctx *)data;
-        const GtkWidget *window = ctx->window;
         bool *top_most = (bool *)&ctx->window_context.top_most;
         *top_most = !(*top_most);
-        gtk_window_set_keep_above(GTK_WINDOW(window), *top_most);
+        on_window_realize(ctx->window, ctx);
         save_main_config();
 }
 
@@ -619,7 +720,7 @@ on_update_window_position(void *const arg)
                 if (newTime < oldTime)
                         continue;
 
-                size_t x, y;
+                size_t x = 0, y = 0;
                 get_mouse_position(&x, &y);
                 gtk_window_move(GTK_WINDOW(widget->window),
                                 x - (widget->window_context.width / 2),
@@ -727,6 +828,11 @@ create_widget(const ww_window_ctx context)
         g_signal_connect(window,
                          SIGNAL_DESTROY,
                          G_CALLBACK(on_child_destroy),
+                         widget_context);
+
+        g_signal_connect(window,
+                         SIGNAL_REALIZE,
+                         G_CALLBACK(on_window_realize),
                          widget_context);
 
         g_signal_connect(window,
@@ -1147,6 +1253,9 @@ event_loop(const bool *const running)
 bool
 ww_init_main(const ww_window_ctx context)
 {
+        setenv(ENV_COMPOSITING, "1", true);
+        setenv(ENV_BACKEND, "x11", true);
+
         bool running = true;
         bool status = false;
 
