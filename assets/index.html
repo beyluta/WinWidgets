@@ -121,11 +121,11 @@
           &lt;html&gt;
           &lt;head&gt;
 
-          &lt;meta name="applicationTitle" value="myWidget" /&gt;
-          &lt;meta name="windowSize" value="800 500" /&gt;
-          &lt;meta name="windowLocation" value="300 300" /&gt;
-          &lt;meta name="windowBorderRadius" value="500" /&gt;
-          &lt;meta name="topMost" value="true" /&gt;
+          &lt;meta name="applicationTitle" content="myWidget" /&gt;
+          &lt;meta name="windowSize" content="800 500" /&gt;
+          &lt;meta name="windowLocation" content="300 300" /&gt;
+          &lt;meta name="windowBorderRadius" content="500" /&gt;
+          &lt;meta name="topMost" content="true" /&gt;
 
           &lt;/head&gt;
           &lt;/html&gt;
@@ -150,8 +150,8 @@
       </span>
       <blockquote>
         <p>
-            // Tell WinWidgets that we want to move the current selected widget
-            window.chrome.webview.postMessage('MoveWindowToPosition(500, 500)');
+          // Tell WinWidgets that we want to move the current selected widget
+          window.chrome.webview.postMessage('MoveWindowToPosition(500, 500)');
         </p>
       </blockquote>
 
@@ -160,12 +160,12 @@
       </span>
       <blockquote>
         <p>
-            function GetMousePosition(x, y) {
-              // Do something with x and y
-            }
+          function GetMousePosition(x, y) {
+          // Do something with x and y
+          }
 
-            // Tell WinWidgets that we want to get the global Position of the mouse
-            window.chrome.webview.postMessage('GetMousePosition');
+          // Tell WinWidgets that we want to get the global Position of the mouse
+          window.chrome.webview.postMessage('GetMousePosition');
         </p>
       </blockquote>
 
@@ -174,12 +174,12 @@
       </span>
       <blockquote>
         <p>
-            function GetCurrentKeyPressed(keyCode) {
-              // Do something with the keyCode
-            }
+          function GetCurrentKeyPressed(keyCode) {
+          // Do something with the keyCode
+          }
 
-            // Tell WinWidgets that we want to get the global current key press
-            window.chrome.webview.postMessage('GetCurrentKeyPressed');
+          // Tell WinWidgets that we want to get the global current key press
+          window.chrome.webview.postMessage('GetCurrentKeyPressed');
         </p>
       </blockquote>
 
@@ -188,14 +188,14 @@
       </span>
       <blockquote>
         <p>
-            // Tell WinWidgets to stop/resume playback
-            window.chrome.webview.postMessage('ToggleMediaPlayback');
+          // Tell WinWidgets to stop/resume playback
+          window.chrome.webview.postMessage('ToggleMediaPlayback');
 
-            // Tell WinWidgets to go to the next track
-            window.chrome.webview.postMessage('NextMediaTrack');
+          // Tell WinWidgets to go to the next track
+          window.chrome.webview.postMessage('NextMediaTrack');
 
-            // Tell WinWidgets to go to the previous track
-            window.chrome.webview.postMessage('PreviousMediaTrack');
+          // Tell WinWidgets to go to the previous track
+          window.chrome.webview.postMessage('PreviousMediaTrack');
         </p>
       </blockquote>
     </div>
