@@ -1183,6 +1183,49 @@ cleanup:
 }
 
 /**
+ * @brief Removes all "%20" encoding from the string if present. Replaces it
+ * with a white space character
+ *
+ * @param src Source string to be evaluated
+ * @param dest Destination pointer to save string to
+ * @param destLen Max length of the destination string
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+RemoveSpaceEncoding(char *const src, char *const dest, const size_t destLen)
+{
+        size_t iDest = 0;
+
+        const size_t srcLen = strlen(src);
+
+        for (size_t i = 0; i < srcLen; i++)
+        {
+                const char c = src[i];
+
+                if (iDest > destLen)
+                {
+                        return FUNC_STATUS_MEM_ERR;
+                }
+
+                if (c != '%' || i + 2 > srcLen)
+                {
+                        dest[iDest++] = c;
+                        continue;
+                }
+
+                if (src[i + 1] == '2' && src[i + 2] == '0')
+                {
+                        dest[iDest++] = ' ';
+                        i += 2;
+                }
+        }
+
+        dest[iDest] = '\0';
+
+        return FUNC_STATUS_OK;
+}
+
+/**
  * @brief Get the unique hash for this webview component
  * @param webview The core Webview component
  * @returns -1 on error, else the hash of the component
@@ -1212,13 +1255,20 @@ GetHashFromWebview(ICoreWebView2 *webview)
 
         ReplaceChars(filename, widget_char_slash, widget_char_b_slash);
 
-        char out[BUFFSIZE];
-        if (!TrimStart(filename, out, FILE_PREFIX_OFFSET))
+        char output[BUFFSIZE];
+        if (!TrimStart(filename, output, FILE_PREFIX_OFFSET))
         {
                 return -1;
         }
 
-        return GetHashFromString(out, HASH_PRIME, MAX_WIDGETS);
+        char decodedOutput[BUFFSIZE];
+        if (BAD(RemoveSpaceEncoding(
+                    output, decodedOutput, lengthof(decodedOutput))))
+        {
+                return -1;
+        }
+
+        return GetHashFromString(decodedOutput, HASH_PRIME, MAX_WIDGETS);
 }
 
 /**
