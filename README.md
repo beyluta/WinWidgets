@@ -66,7 +66,13 @@ This is a brief guide for all supported platforms to compile and run the applica
 
 ### Windows prerequisites
 
-For Windows 11 you need to install `mingw64` and put in inside the `Path` environment variable.
+Download the following dependencies for Windows 11 with the following
+`Chocolatey` command. Optionally you can download them manually and put
+in your PATH environment variable.
+
+```bash
+choco install mingw make llvm
+```
 
 ### Linux prerequisites
 
