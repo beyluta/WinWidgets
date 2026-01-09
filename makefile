@@ -75,7 +75,7 @@ SRC := $(SRC) \
 			 src/linux/widget.c
 
 prepare:
-	rm -r "$(BUILDDIR)"
+	rm -rf "$(BUILDDIR)"
 	mkdir -p "$(BUILDDIR)"
 	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
 	clang-format -i $(CURDIR)/src/*.c \

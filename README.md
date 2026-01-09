@@ -1,8 +1,6 @@
-<div id="top"></div>
-
 <p align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="https://img.shields.io/badge/Version-2.0.0-green" alt="WinWidgets version" />
+    <img src="https://img.shields.io/github/v/release/beyluta/WinWidgets?label=Version&color=green" alt="version badge">
   </a>
 </p>
 
@@ -32,14 +30,47 @@
 
 ## About
 
-**WinWidgets** makes web-based desktop widgets easy to develop. Using `HTML`, `CSS`, and `JavaScript` create your own widgets on the fly.
+**WinWidgets** makes web-based desktop widgets easy to develop.
+Use a mix of `HTML`, `CSS`, and `JavaScript` to create your own widgets on the fly.
 
 This is what makes this project interesting:
 
-- 🧰 Focus on creating your widgets with all the usual web tools to your disposal
-- 👆 Develop complex widgets using a high-level programming language (JS)
-- 🖱️ Develop your widgets from anywhere then simply drag and drop to easily port it over
-- ⌨️ Have better control over your widget's window with built-in front-end tags
+- 🧰 Focus on creating your widgets with all the usual web tools to your disposal.
+- ⚙️ Develop complex widgets using JavaScript.
+- 🖱️ Create your widgets from any tool or resource, then import it here.
+- ⌨️ Listen to operating system events and act on them programmatically.
+
+## Support
+
+These are the platforms officially supported by WinWidgets.
+
+| Platform | Availability | Supported Version |
+| -------- | ------------ | ----------------- |
+| Windows  | ✅           | Windows 11        |
+| Linux    | ⚠️ (W.I.P)   | Arch              |
+| MacOS    | ❌           | N/A               |
+
+> The software may run on operating systems or distributions not
+> listed here but it isn't guaranteed.
+
+## Widget development
+
+Inside the application, you will find a tab "development". It includes a guide about
+widget development in WinWidgets.
+
+You may also have a look in this repository under
+`assets/resources/` for some sample Widgets:
+
+```bash
+/WinWidgets/
+  | ...
+  | assets/
+    \_ resourcers/
+        | ...
+        | Clock.html
+        | Calendar.html
+        | Battery.html
+```
 
 ## Screenshots
 
@@ -48,17 +79,6 @@ This is what makes this project interesting:
 ![Calm Theme](assets/imgs/calm_theme.png)
 
 ![Default Theme](assets/imgs/default_theme.png)
-
-## Support
-
-These are the platforms officially supported by WinWidgets. Note that the software may
-run on operating systems or distributions not listed here but it isn't guaranteed.
-
-| Platform | Availability | Supported Version |
-| -------- | ------------ | ----------------- |
-| Linux    | ✅           | Arch              |
-| Windows  | ✅           | Windows 11        |
-| MacOS    | ❌           | N/A               |
 
 ## Building
 
