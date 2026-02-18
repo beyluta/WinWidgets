@@ -96,8 +96,9 @@ choco install mingw make llvm
 
 ### Linux prerequisites
 
-For Linux you need the packages `cairo` and `webkitgtk-6.0`. Make sure to get their
-corresponding `-dev` packages as well, else you won't be able to compile.
+For Linux you need the packages `gtk-3.0`, `appindicator3` and `webkitgtk-4.1`.
+Make sure to get their corresponding `-dev` packages as well or else you
+won't be able to compile.
 
 ### Common commands
 

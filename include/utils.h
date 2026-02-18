@@ -9,6 +9,8 @@
  */
 #define lengthof(pointer) (sizeof(pointer) / (sizeof(pointer[0])))
 
+typedef char *string;
+
 typedef enum : uint8_t
 {
         widget_char_space = 32,

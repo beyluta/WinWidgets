@@ -175,15 +175,10 @@ call_js_function(const char *const func,
                  const char *const arg,
                  const gpointer user_data)
 {
-        char command[BUFFSIZE];
-        const char format[] = "window.%s && window.%s(%s);";
-        const size_t totalLen =
-                strlen(func) * 2 + strlen(arg) + lengthof(format);
-        if (totalLen >= lengthof(command))
-        {
-                return;
-        }
+        const string format = "window.%s && window.%s(%s);";
+        const size_t totalLen = strlen(func) * 2 + strlen(arg) + strlen(format);
 
+        char command[totalLen];
         if (snprintf(command, totalLen, format, func, func, arg) < 0)
         {
                 return;
