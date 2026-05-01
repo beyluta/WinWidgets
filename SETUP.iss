@@ -51,9 +51,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "build\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "build\WinWidgets.exe.WebView2\*"; DestDir: "{app}\WinWidgets.exe.WebView2"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "build\*.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "build\*.yaml"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\*.yaml"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Code]
