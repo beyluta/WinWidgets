@@ -41,7 +41,8 @@ LDFLAGS := -lole32 \
 					 -lzip \
 					 -lz \
 					 -lWebView2Loader \
-					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
+					 -lpthread \
+					 -lstdc++
 SRC := $(SRC) \
 			 src/windows/widget.c \
 			 src/windows/remres.c \
@@ -54,14 +55,14 @@ prepare:
 	@if not exist "$(CURDIR)/lib/WebView2" ( \
 		mkdir "$(CURDIR)/lib/WebView2" && \
 		curl.exe -L -o "$(CURDIR)/lib/WebView2.zip" "$(WEBVIEWURL)" && \
-		powershell -command "Expand-Archive -Force -Path '$eCURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
+		powershell -command "Expand-Archive -Force -Path '$(CURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
 		powershell -command "Remove-Item -Force '$(CURDIR)/lib/WebView2.zip'" \
 	)
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
-	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
-	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILDDIR)\" /Y
+	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)"
+	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILDDIR)" /Y
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
 debug: prepare
 	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
