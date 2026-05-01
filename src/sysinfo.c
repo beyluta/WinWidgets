@@ -16,13 +16,24 @@ static constexpr uint16_t STATE_KEY_HELD = 0x8000;
 static constexpr uint16_t STATE_KEY_MEDIA_TOGGLE = 0xB3;
 static constexpr uint16_t STATE_KEY_MEDIA_NEXT = 0xB0;
 static constexpr uint16_t STATE_KEY_MEDIA_PREV = 0xB1;
+#elif __linux__
+#include "gdk/gdk.h"
 #endif
 
 sysinfo_code_t
 #if __linux__
-GetMousePosition(size_t *const, size_t *const)
+GetMousePosition(gint *const x, gint *const y)
 {
-        return SYSINFO_CODE_NOT_IMPLEMENTED;
+        GdkDisplay *display = gdk_display_get_default();
+        if (display == nullptr)
+        {
+                return SYSINFO_CODE_ERROR;
+        }
+
+        GdkSeat *seat = gdk_display_get_default_seat(display);
+        GdkDevice *device = gdk_seat_get_pointer(seat);
+        GdkScreen *screen;
+        gdk_device_get_position(device, &screen, x, y);
 #elif _WIN32
 GetMousePosition(size_t *const x, size_t *const y)
 {

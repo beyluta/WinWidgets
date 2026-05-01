@@ -17,6 +17,7 @@ constexpr char PROG_SEM_VER[] = "2.0.0";
 constexpr char PROG_CFG_NAME[] = "/config.json";
 
 constexpr char TAG_APP_NAME[] = "applicationTitle";
+constexpr char TAG_SHOW_TITLE_BAR[] = "windowShowTitleBar";
 constexpr char TAG_APP_TOPMOST[] = "topMost";
 constexpr char TAG_WIN_SIZE[] = "windowSize";
 constexpr char TAG_WIN_LOCATION[] = "windowLocation";
@@ -44,6 +45,7 @@ constexpr uint16_t DEF_OPACITY = 1;
 constexpr uint16_t DEF_RADIUS = 0;
 constexpr bool DEF_CHILD = true;
 constexpr bool DEF_TOPMOST = false;
+constexpr bool DEF_SHOW_TITLE_BAR = false;
 
 /**
  * @brief Window context structure for widgets.

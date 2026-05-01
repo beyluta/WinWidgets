@@ -16,6 +16,7 @@
 #include <windef.h>
 #elif __linux__
 #include <stddef.h>
+#include <gdk/gdk.h>
 #endif
 
 #define SYSINFO_CODE_FAIL(expression) ((expression) > 0)
@@ -43,7 +44,11 @@ typedef struct
  * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
  */
 sysinfo_code_t
+#if _WIN32
 GetMousePosition(size_t *const x, size_t *const y);
+#elif __linux__
+GetMousePosition(gint *const x, gint *const y);
+#endif
 
 /**
  * @brief Get information about the current key pressed

@@ -2,11 +2,21 @@
 #define FILESYSTEM_H
 
 #include "global.h"
+#include "utils.h"
 #include <stddef.h>
 #include <sys/types.h>
 
 constexpr unsigned char WRITE_APPEND = 0;
 constexpr unsigned char WRITE_OVERWRITE = 1;
+
+typedef struct ww_file_t ww_file_t;
+
+struct ww_file_t
+{
+        string name;
+        ww_file_t *next;
+        size_t length;
+};
 
 /**
  * @brief Gets the default HTML file for the wigets manager
@@ -121,5 +131,20 @@ ww_dir_up(const char *const src,
           const size_t srcLen,
           char *const dest,
           const size_t destLen);
+
+/**
+ * @brief Gets all files from a directory
+ * @param src Directory to get the files from
+ * @returns A struct containing a list of files
+ */
+ww_file_t *
+ww_get_all_files_from_directory(const string src);
+
+/**
+ * @brief Frees all files fetched from directory
+ * @brief src all files fetched from directory
+ */
+void
+ww_free_all_files_from_directory(ww_file_t *src);
 
 #endif

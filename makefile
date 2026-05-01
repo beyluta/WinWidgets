@@ -3,12 +3,16 @@
 CC = gcc
 BUILDDIR = build
 OUT = $(BUILDDIR)/WinWidgets
-SRC = main.c \
-			src/filesystem.c \
+SRC = src/filesystem.c \
 			src/utils.c \
 			src/parser.c \
 			src/sysinfo.c \
-			lib/minimal-json-c-parser/src/json.c
+			lib/minimal-json-c-parser/src/json.c \
+			lib/string-builder/src/string-builder.c \
+			lib/c-yaml-parser/src/cyaml.c
+INCL = -Ilib/minimal-json-c-parser/include \
+			 -Ilib/string-builder/include \
+			 -Ilib/c-yaml-parser/include
 RELEASE = -Werror \
 					-Wextra \
 					-Wall
@@ -20,8 +24,6 @@ ifeq ($(OS), Windows_NT)
 MINGW64 := C:/tools/msys64/mingw64
 ARGS := -Iinclude \
 				-Iinclude/windows \
-				-Ilib/minimal-json-c-parser/include \
-				-Ilib/c-yaml-parser/include \
 				-I$(MINGW64)/include \
 				-L$(MINGW64)/lib \
 				-Llib/WebView2/build/native/x64 \
@@ -44,10 +46,10 @@ LDFLAGS := -lole32 \
 					 -lpthread \
 					 -lstdc++
 SRC := $(SRC) \
+			 main.c \
 			 src/windows/widget.c \
 			 src/windows/remres.c \
-			 src/windows/config.c \
-			 lib/c-yaml-parser/src/cyaml.c
+			 src/windows/config.c
 RESRC = "$(CURDIR)/src/windows/resources.o"
 WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
 
@@ -65,9 +67,9 @@ prepare:
 	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILDDIR)" /Y
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
 debug: prepare
-	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
+	$(CC) $(RESRC) $(SRC) $(INCL) $(ARGS) $(LDFLAGS) -g -o $(OUT)
 release: prepare
-	$(CC) $(RESRC) $(SRC) $(ARGS) $(RELEASE) $(LDFLAGS) -o $(OUT)
+	$(CC) $(RESRC) $(SRC) $(INCL) $(ARGS) $(RELEASE) $(LDFLAGS) -o $(OUT)
 run:
 	./$(OUT)
 
@@ -77,14 +79,15 @@ run:
 else ifeq($(UNAME), Linux)
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 x11 webkit2gtk-4.1`
 ARGS := -Iinclude \
-				-Ilib/minimal-json-c-parser/include \
+				-Iinclude/linux \
 				-O2 \
 				-xc \
 				-std=c23 \
 				-D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl
 SRC := $(SRC) \
-			 src/linux/widget.c
+			 src/linux/widget.c \
+			 src/linux/c_window.c
 
 prepare:
 	rm -rf "$(BUILDDIR)"
@@ -94,9 +97,9 @@ prepare:
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
 debug: prepare
-	$(CC) $(SRC) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
+	$(CC) $(SRC) $(INCL) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -g -o $(OUT)
 release: prepare
-	$(CC) $(SRC) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
+	$(CC) $(SRC) $(INCL) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
 run:
 	./$(OUT)	
 endif

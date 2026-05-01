@@ -1,5 +1,6 @@
 #include "filesystem.h"
 #include "global.h"
+#include "utils.h"
 #include <dirent.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -433,4 +434,102 @@ ww_dir_up(const char *const src,
         dest[i] = '\0';
 
         return true;
+}
+
+ww_file_t *
+ww_get_all_files_from_directory(const string src)
+{
+        DIR *directory = opendir(src);
+        if (directory == nullptr)
+        {
+                fprintf(stderr, "Failed to open directory %s\n", src);
+                return nullptr;
+        }
+
+        ww_file_t *root = nullptr;
+        ww_file_t *prev = nullptr;
+        size_t depth = 0;
+        const struct dirent *dir = NULL;
+        while ((dir = readdir(directory)) != NULL)
+        {
+                if (dir->d_name[0] == '.' ||
+                    str_ends_with(dir->d_name, ".html"))
+                {
+                        continue;
+                }
+
+                ww_file_t *file = (ww_file_t *)malloc(sizeof(ww_file_t));
+                if (file == nullptr)
+                {
+                        closedir(directory);
+                        fprintf(stderr,
+                                "Memory allocation for file entry has "
+                                "failed\n");
+                        exit(1);
+                }
+
+                string name = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1));
+                if (name == nullptr)
+                {
+                        free(file);
+                        closedir(directory);
+                        fprintf(stderr,
+                                "Filename memory region in the heap could not "
+                                "be ensured\n");
+                        exit(1);
+                }
+
+                if (root == nullptr)
+                {
+                        root = file;
+                }
+
+                if (prev != nullptr)
+                {
+                        prev->next = file;
+                }
+
+                const size_t name_size = strlen(dir->d_name);
+                if (name_size >= MAX_STR_SIZE)
+                {
+                        free(name);
+                        free(file);
+                        fprintf(stderr,
+                                "File name is greater than allowed by the "
+                                "memory in the heap\n");
+                        continue;
+                }
+
+                strncpy(name, dir->d_name, name_size);
+                name[name_size] = '\0';
+
+                file->name = name;
+                file->next = nullptr;
+                file->length = name_size;
+                prev = file;
+                depth++;
+        }
+
+        closedir(directory);
+
+        return root;
+}
+
+void
+ww_free_all_files_from_directory(ww_file_t *src)
+{
+        ww_file_t *node = src;
+        while (node != nullptr)
+        {
+                ww_file_t *next = node->next;
+
+                if (node->name != nullptr)
+                {
+                        free(node->name);
+                        node->name = nullptr;
+                }
+
+                free(node);
+                node = next;
+        }
 }

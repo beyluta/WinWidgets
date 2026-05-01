@@ -9,7 +9,14 @@
  */
 #define lengthof(pointer) (sizeof(pointer) / (sizeof(pointer[0])))
 
+constexpr uint8_t MAX_BUFFER_SIZE = 255;
+constexpr uint16_t MAX_STR_SIZE = 4096;
+constexpr uint16_t MAX_FILE_SIZE = 65535;
+
 typedef char *string;
+typedef char string8_t[MAX_BUFFER_SIZE];
+typedef char string12_t[MAX_STR_SIZE];
+typedef char string16_t[MAX_FILE_SIZE];
 
 typedef enum : uint8_t
 {
