@@ -2,14 +2,13 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "WinWidgets"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.0"
 #define MyAppPublisher "Beyluta"
 #define MyAppURL "https://github.com/beyluta/WinWidgets"
 #define MyAppExeName "WinWidgets.exe"
 #define MyAppFavicon "assets\icons\favicon.ico"
 #define MyAppLicenseFile "LICENSE"
 #define MyAppOutputDir "build"
-#define MyAppResources "assets\resources"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -53,6 +52,8 @@ Source: "build\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "build\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "build\WinWidgets.exe.WebView2\*"; DestDir: "{app}\WinWidgets.exe.WebView2"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "build\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "build\*.yaml"; DestDir: "{app}"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Code]
@@ -81,7 +82,6 @@ end;
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssInstall then
-    CopyDir('{#MyAppResources}', ExpandConstant('{userdocs}\Widgets'));
 end;
 
 [Icons]

@@ -13,13 +13,18 @@ RELEASE = -Werror \
 					-Wextra \
 					-Wall
 
-# ------- 
+# ---------------------------------------------------------------------------
 # Building for Windows platform
-# --------
+# ---------------------------------------------------------------------------
 ifeq ($(OS), Windows_NT)
+MINGW64 := C:/tools/msys64/mingw64
 ARGS := -Iinclude \
 				-Iinclude/windows \
 				-Ilib/minimal-json-c-parser/include \
+				-Ilib/c-yaml-parser/include \
+				-I$(MINGW64)/include \
+				-L$(MINGW64)/lib \
+				-Llib/WebView2/build/native/x64 \
 				-isystem lib/WebView2/build/native/include \
 				-O3 \
 				-xc \
@@ -32,11 +37,16 @@ LDFLAGS := -lole32 \
 					 -ldxguid \
 					 -ldwmapi \
 					 -lshlwapi \
-					 -Llib/WebView2/build/native/x64 \
+					 -lcurl \
+					 -lzip \
+					 -lz \
 					 -lWebView2Loader \
 					 -static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic
 SRC := $(SRC) \
-			 src/windows/widget.c
+			 src/windows/widget.c \
+			 src/windows/remres.c \
+			 src/windows/config.c \
+			 lib/c-yaml-parser/src/cyaml.c
 RESRC = "$(CURDIR)/src/windows/resources.o"
 WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
 
@@ -44,13 +54,14 @@ prepare:
 	@if not exist "$(CURDIR)/lib/WebView2" ( \
 		mkdir "$(CURDIR)/lib/WebView2" && \
 		curl.exe -L -o "$(CURDIR)/lib/WebView2.zip" "$(WEBVIEWURL)" && \
-		powershell -command "Expand-Archive -Force -Path '$(CURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
+		powershell -command "Expand-Archive -Force -Path '$eCURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
 		powershell -command "Remove-Item -Force '$(CURDIR)/lib/WebView2.zip'" \
 	)
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)\"
+	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILDDIR)\" /Y
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
 debug: prepare
 	$(CC) $(RESRC) $(SRC) $(ARGS) $(LDFLAGS) -o $(OUT)
@@ -59,9 +70,9 @@ release: prepare
 run:
 	./$(OUT)
 
-# ------- 
+# ---------------------------------------------------------------------------
 # Building for Linux platform
-# --------
+# ---------------------------------------------------------------------------
 else ifeq($(UNAME), Linux)
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 x11 webkit2gtk-4.1`
 ARGS := -Iinclude \

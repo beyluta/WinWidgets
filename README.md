@@ -86,13 +86,23 @@ This is a brief guide for all supported platforms to compile and run the applica
 
 ### Windows prerequisites
 
-Download the following dependencies for Windows 11 with the following
-`Chocolatey` command. Optionally you can download them manually and put
-in your PATH environment variable.
+Download the following applications using Chocolatey:
 
 ```bash
-choco install mingw make llvm
-```
+choco install git msys2 mingw make llvm
+````
+
+> You may also download them manually. If you choose to do so:
+`msys2` and `mingw` must be in the PATH environment variables.
+
+After installing, open the MSYS2 terminal application and install these dependencies:
+
+```bash
+pacman -S mingw-w64-x86_64-curl mingw-w64-x86_64-libzip
+````
+
+`curl` and its dependencies will be installed by default in `C:/tools/msys64`. Verify
+this path is correct and update the `MINGW64` variable in the makefile if needed.
 
 ### Linux prerequisites
 

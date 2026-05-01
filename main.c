@@ -6,6 +6,9 @@
 
 #if _WIN32
 #include <minwindef.h>
+#include <limits.h>
+#include "remres.h"
+#include "config.h"
 #endif
 
 #if __linux__
@@ -17,12 +20,21 @@ int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR pCmdLine, int nCmdShow)
 {
 #endif
-        char temp[BUFFSIZE];
-        if (ww_default_widgets_dir(temp) == true)
+        char def_dir[PATH_MAX];
+        if (ww_default_widgets_dir(def_dir) == true)
         {
                 fprintf(stderr,
                         "Failed to create the default widgets directory\n");
                 return EXIT_REASON_IO_FAILURE;
+        }
+
+        char url[255];
+        if (ww_read_resource_string("remoteUrl", url, sizeof(url) - 1) > 0)
+        {
+                char archive[PATH_MAX];
+                ww_get_default_resource_from_remote(
+                        url, def_dir, archive, sizeof(archive) - 1);
+                ww_unzip_archive(archive);
         }
 
         char html[BUFFSIZE];
