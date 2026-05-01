@@ -53,25 +53,6 @@ These are the platforms officially supported by WinWidgets.
 > The software may run on operating systems or distributions not
 > listed here but it isn't guaranteed.
 
-## Widget development
-
-Inside the application, you will find a tab "development". It includes a guide about
-widget development in WinWidgets.
-
-You may also have a look in this repository under
-`assets/resources/` for some sample Widgets:
-
-```bash
-/WinWidgets/
-  | ...
-  | assets/
-    \_ resourcers/
-        | ...
-        | Clock.html
-        | Calendar.html
-        | Battery.html
-```
-
 ## Screenshots
 
 ![Purple Theme](assets/imgs/purple_theme.png)
