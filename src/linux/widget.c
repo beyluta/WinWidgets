@@ -207,9 +207,8 @@ window_child_new(window_t *const parent,
         }
 
         child->vtable->set_url(child, url);
-        // child->vtable->register_event_mouse_motion(child, on_mouse_move);
-        // child->vtable->register_event_mouse_press(child,
-        // on_mouse_button_press);
+        child->vtable->register_event_mouse_motion(child, on_mouse_move);
+        child->vtable->register_event_mouse_press(child, on_mouse_button_press);
         child->vtable->register_event_context_menu(
                 child, on_context_menu_item_selected);
 
