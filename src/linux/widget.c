@@ -81,13 +81,14 @@ parse_and_get_value(const string html,
 }
 
 static void
-on_mouse_move(void *const data)
+on_mouse_move(void *const data, const size_t x, const size_t y)
 {
-        // window_t *self = (window_t *)data;
-        // gint x, y;
-        // GetMousePosition(&x, &y);
-        // printf("Mouse position is %d and %d\n", x, y);
-        // printf("Mouse moved!\n");
+        window_t *self = (window_t *)data;
+
+        if (self->vtable->get_state(self, WINDOW_STATE_MOVING))
+        {
+                self->vtable->set_position(self, x, y);
+        }
 }
 
 static void
@@ -99,16 +100,12 @@ on_mouse_button_press(void *const data,
         switch (code)
         {
         default:
-        case WINDOW_MOUSE_PRESS_EVENT_RIGHT:
+        case WINDOW_MOUSE_PRESS_EVENT_LEFT:
         {
+                self->vtable->clear_state(self, WINDOW_STATE_MOVING);
                 break;
         }
         }
-
-        // gint x, y;
-        // GetMousePosition(&x, &y);
-        // printf("Mouse position is %d and %d\n", x, y);
-        // printf("Mouse moved!\n");
 }
 
 static void
@@ -122,6 +119,7 @@ on_context_menu_item_selected(void *const data,
         default:
         case WINDOW_CONTEXT_MENU_SELECTION_MOVE:
         {
+                self->vtable->set_state(self, WINDOW_STATE_MOVING);
                 break;
         }
         case WINDOW_CONTEXT_MENU_SELECTION_TOPMOST:

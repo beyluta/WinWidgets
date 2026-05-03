@@ -4,7 +4,6 @@
 // the linux platform.
 //
 // ==========================================================
-#include "gtk/gtk.h"
 #include "widget.h"
 #include "c_window.h"
 
@@ -19,12 +18,14 @@ struct window_private_t
         WebKitWebView *webview;
         WebKitUserContentManager *manager;
         void (*cb_mouse_button_press)(void *, const uint8_t);
+        void (*cb_mouse_move)(void *, const size_t, const size_t);
         void (*cb_context_menu_open)(void *,
                                      const ww_window_context_menu_selection_t);
+        ww_window_state_t state;
 };
 
 static size_t
-c_window_generate_guid()
+c_window_generate_id()
 {
         static bool initialized = false;
         if (!initialized)
@@ -217,6 +218,12 @@ c_set_title(window_t *self, string title)
         gtk_window_set_title(window, title);
 }
 
+static void
+c_set_state(window_t *self, ww_window_state_t state_flag)
+{
+        self->private->state = self->private->state | state_flag;
+}
+
 static void *
 c_get_webview(window_t *self)
 {
@@ -233,6 +240,18 @@ static void *
 c_get_window(window_t *self)
 {
         return self->private->window;
+}
+
+static bool
+c_get_state(window_t *self, ww_window_state_t state)
+{
+        return (self->private->state & state) == state;
+}
+
+static void
+c_clear_state(window_t *self, ww_window_state_t state)
+{
+        self->private->state = self->private->state & (~state);
 }
 
 static void
@@ -258,12 +277,25 @@ c_register_event_callback(window_t *self,
         g_signal_connect(instance, buffer, G_CALLBACK(cb), data);
 }
 
+static gboolean
+on_mouse_move(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+{
+        window_t *self = (window_t *)data;
+        const size_t x = (size_t)event->x_root - (self->width / 2);
+        const size_t y = (size_t)event->y_root - (self->height / 2);
+        self->private->cb_mouse_move(self, x, y);
+        return FALSE;
+}
+
 static void
-c_register_event_mouse_motion(window_t *self, void (*cb)(void *))
+c_register_event_mouse_motion(window_t *self,
+                              void (*cb)(void *, const size_t, const size_t))
 {
         GtkWidget *window = self->private->window;
         gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
-        g_signal_connect(window, "motion-notify-event", G_CALLBACK(cb), self);
+        self->private->cb_mouse_move = cb;
+        g_signal_connect(
+                window, "motion-notify-event", G_CALLBACK(on_mouse_move), self);
 }
 
 static gboolean
@@ -438,9 +470,12 @@ static window_vtable_t c_window_vtable = {
         .set_hide_from_taskbar = c_set_hide_from_taskbar,
         .set_hide_from_pager = c_set_hide_from_pager,
         .set_title = c_set_title,
+        .set_state = c_set_state,
         .get_webview = c_get_webview,
         .get_manager = c_get_manager,
         .get_window = c_get_window,
+        .get_state = c_get_state,
+        .clear_state = c_clear_state,
         .register_event_callback = c_register_event_callback,
         .register_event_mouse_motion = c_register_event_mouse_motion,
         .register_event_mouse_press = c_register_event_mouse_press,
@@ -519,9 +554,10 @@ ww_window_new(window_t options)
         private->url = nullptr;
         private->next = nullptr;
         private->parent = nullptr;
+        private->state = WINDOW_STATE_NONE;
 
         window->title = title;
-        window->guid = c_window_generate_guid();
+        window->guid = c_window_generate_id();
         window->private = private;
         window->vtable = &c_window_vtable;
 
