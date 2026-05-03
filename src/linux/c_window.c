@@ -4,14 +4,9 @@
 // the linux platform.
 //
 // ==========================================================
-#include "gdk/gdk.h"
-#include "glib.h"
-#include "widget.h"
-#include "glib-object.h"
 #include "gtk/gtk.h"
+#include "widget.h"
 #include "c_window.h"
-#include "webkit/WebKitUserContentManager.h"
-#include <stdint.h>
 
 // Private members
 
@@ -24,6 +19,8 @@ struct window_private_t
         WebKitWebView *webview;
         WebKitUserContentManager *manager;
         void (*cb_mouse_button_press)(void *, const uint8_t);
+        void (*cb_context_menu_open)(void *,
+                                     const ww_window_context_menu_selection_t);
 };
 
 static size_t
@@ -50,8 +47,10 @@ c_window_destroy_private_members(window_private_t *private)
 }
 
 static void
-c_window_destroy(window_t *self)
+on_window_destroy(GtkWidget *window, gpointer data)
 {
+        window_t *self = (window_t *)data;
+
         if (self->title != nullptr)
         {
                 free(self->title);
@@ -70,6 +69,17 @@ c_window_destroy(window_t *self)
                 free(self);
                 self = nullptr;
         }
+}
+
+static void
+c_window_destroy(window_t *self)
+{
+        GtkWidget *window = self->private->window;
+        g_signal_connect(self->private->window,
+                         "destroy",
+                         G_CALLBACK(on_window_destroy),
+                         self);
+        gtk_window_close(GTK_WINDOW(window));
 }
 
 static void
@@ -92,7 +102,9 @@ c_set_url(window_t *self, string url)
         if (url_size >= MAX_STR_SIZE)
         {
                 free(temp_url);
-                fprintf(stderr, "URL size is greater than allowed by the heap memory region\n");
+                fprintf(stderr,
+                        "URL size is greater than allowed by the heap memory "
+                        "region\n");
                 exit(1);
         }
 
@@ -111,7 +123,8 @@ c_destroy_window(void *, void *data)
         {
                 window_t *prev = nullptr;
 
-                for (window_t *node = self->private->parent; node != nullptr; node = node->private->next)
+                for (window_t *node = self->private->parent; node != nullptr;
+                     node = node->private->next)
                 {
 
                         if (self->guid != node->guid)
@@ -147,15 +160,21 @@ c_show(window_t *self)
         self->vtable->set_hide_from_taskbar(self, !self->is_child);
 
         webkit_web_view_load_uri(self->private->webview, self->private->url);
-        gtk_container_add(GTK_CONTAINER(self->private->window), GTK_WIDGET(self->private->webview));
+        gtk_container_add(GTK_CONTAINER(self->private->window),
+                          GTK_WIDGET(self->private->webview));
 
-        g_signal_connect(self->private->window, "destroy", G_CALLBACK(c_destroy_window), self);
+        g_signal_connect(self->private->window,
+                         "destroy",
+                         G_CALLBACK(c_destroy_window),
+                         self);
 
         gtk_widget_show_all(self->private->window);
 
         if (self->is_child)
         {
-                gtk_window_set_transient_for(GTK_WINDOW(self->private->window), GTK_WINDOW(self->private->parent->private->window));
+                gtk_window_set_transient_for(
+                        GTK_WINDOW(self->private->window),
+                        GTK_WINDOW(self->private->parent->private->window));
         }
         else
         {
@@ -217,7 +236,11 @@ c_get_window(window_t *self)
 }
 
 static void
-c_register_event_callback(window_t *self, void *instance, string event, void (*cb)(void *, void *, void *), void *data)
+c_register_event_callback(window_t *self,
+                          void *instance,
+                          string event,
+                          void (*cb)(void *, void *, void *),
+                          void *data)
 {
         const string prefix = "script-message-received::";
         const size_t totalLen = strlen(prefix) + strlen(event);
@@ -229,7 +252,8 @@ c_register_event_callback(window_t *self, void *instance, string event, void (*c
         char buffer[MAX_STR_SIZE + 1];
         snprintf(buffer, totalLen + 1, "%s%s", prefix, event);
 
-        webkit_user_content_manager_register_script_message_handler(self->private->manager, event);
+        webkit_user_content_manager_register_script_message_handler(
+                self->private->manager, event);
 
         g_signal_connect(instance, buffer, G_CALLBACK(cb), data);
 }
@@ -251,26 +275,135 @@ c_on_mouse_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 
 static void
-c_register_event_mouse_press(window_t *self, void (*cb)(void *, const ww_window_mouse_press_event_t))
+c_register_event_mouse_press(window_t *self,
+                             void (*cb)(void *,
+                                        const ww_window_mouse_press_event_t))
 {
         GtkWidget *window = GTK_WIDGET(self->private->webview);
-        gtk_widget_add_events(window, GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
+        gtk_widget_add_events(window,
+                              GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
         self->private->cb_mouse_button_press = cb;
-        g_signal_connect(window, "button-press-event", G_CALLBACK(c_on_mouse_button_press), self);
-        printf("Event registered\n");
+        g_signal_connect(window,
+                         "button-press-event",
+                         G_CALLBACK(c_on_mouse_button_press),
+                         self);
+}
+
+static gboolean
+c_on_context_menu_item_move_selected(GAction *action,
+                                     GVariant *target,
+                                     gpointer data)
+{
+        window_t *self = (window_t *)data;
+        self->private->cb_context_menu_open(self,
+                                            WINDOW_CONTEXT_MENU_SELECTION_MOVE);
+        return FALSE;
+}
+
+static gboolean
+c_on_context_menu_item_topmost_selected(GAction *action,
+                                        GVariant *target,
+                                        gpointer data)
+{
+        window_t *self = (window_t *)data;
+        self->private->cb_context_menu_open(
+                self, WINDOW_CONTEXT_MENU_SELECTION_TOPMOST);
+        return FALSE;
+}
+
+static gboolean
+c_on_context_menu_item_close_selected(GAction *action,
+                                      GVariant *target,
+                                      gpointer data)
+{
+        window_t *self = (window_t *)data;
+        self->private->cb_context_menu_open(
+                self, WINDOW_CONTEXT_MENU_SELECTION_CLOSE);
+        return FALSE;
+}
+
+static GSimpleAction *
+c_create_and_append_menu_item(const string label,
+                              const ww_window_context_menu_selection_t,
+                              WebKitContextMenu *context_menu,
+                              window_t *const self,
+                              gboolean (*cb)(GAction *, GVariant *, gpointer))
+{
+
+        GSimpleAction *action = g_simple_action_new(label, NULL);
+        WebKitContextMenuItem *item = webkit_context_menu_item_new_from_gaction(
+                (GAction *)action, label, NULL);
+        webkit_context_menu_append(context_menu, item);
+        g_signal_connect(action, "activate", G_CALLBACK(cb), self);
+        return action;
+}
+
+static gboolean
+c_on_context_menu_open(WebKitWebView *webview,
+                       WebKitContextMenu *context_menu,
+                       GdkEvent *event,
+                       WebKitHitTestResult *hit_test_result,
+                       gpointer user_data)
+{
+        window_t *self = (window_t *)user_data;
+
+        webkit_context_menu_remove_all(context_menu);
+
+        GSimpleAction *action_move = c_create_and_append_menu_item(
+                "Move",
+                WINDOW_CONTEXT_MENU_SELECTION_MOVE,
+                context_menu,
+                self,
+                c_on_context_menu_item_move_selected);
+
+        GSimpleAction *action_topmost = c_create_and_append_menu_item(
+                "Toggle Topmost",
+                WINDOW_CONTEXT_MENU_SELECTION_TOPMOST,
+                context_menu,
+                self,
+                c_on_context_menu_item_topmost_selected);
+
+        GSimpleAction *action_close = c_create_and_append_menu_item(
+                "Close",
+                WINDOW_CONTEXT_MENU_SELECTION_CLOSE,
+                context_menu,
+                self,
+                c_on_context_menu_item_close_selected);
+
+        g_object_unref(action_move);
+        g_object_unref(action_topmost);
+        g_object_unref(action_close);
+
+        return FALSE;
+}
+
+static void
+c_register_event_context_menu(
+        window_t *self,
+        void (*cb)(void *, const ww_window_context_menu_selection_t))
+{
+        GtkWidget *window = GTK_WIDGET(self->private->webview);
+        gtk_widget_add_events(window,
+                              GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
+        self->private->cb_context_menu_open = cb;
+        g_signal_connect(window,
+                         "context-menu",
+                         G_CALLBACK(c_on_context_menu_open),
+                         self);
 }
 
 static void
 c_run_javascript(window_t *self, string script)
 {
-        webkit_web_view_evaluate_javascript(WEBKIT_WEB_VIEW(self->private->webview),
-                                            script,
-                                            -1,
-                                            nullptr,
-                                            nullptr,
-                                            nullptr,
-                                            nullptr,
-                                            nullptr);
+        webkit_web_view_evaluate_javascript(
+                WEBKIT_WEB_VIEW(self->private->webview),
+                script,
+                -1,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr,
+                nullptr);
 }
 
 static void
@@ -311,6 +444,7 @@ static window_vtable_t c_window_vtable = {
         .register_event_callback = c_register_event_callback,
         .register_event_mouse_motion = c_register_event_mouse_motion,
         .register_event_mouse_press = c_register_event_mouse_press,
+        .register_event_context_menu = c_register_event_context_menu,
         .run_javascript = c_run_javascript,
         .add_child = c_add_child,
         .destroy_chain = c_destroy_chain};
@@ -323,15 +457,19 @@ ww_window_new(window_t options)
         window_t *window = (window_t *)malloc(sizeof(window_t));
         if (window == nullptr)
         {
-                fprintf(stderr, "Memory allocation for new window instance failed\n");
+                fprintf(stderr,
+                        "Memory allocation for new window instance failed\n");
                 exit(1);
         }
 
-        window_private_t *private = (window_private_t *)malloc(sizeof(window_private_t));
+        window_private_t *private =
+                (window_private_t *)malloc(sizeof(window_private_t));
         if (private == nullptr)
         {
                 free(window);
-                fprintf(stderr, "Private member region of window could not be instantiated\n");
+                fprintf(stderr,
+                        "Private member region of window could not be "
+                        "instantiated\n");
                 exit(1);
         }
 
@@ -340,7 +478,8 @@ ww_window_new(window_t options)
         {
                 free(private);
                 free(window);
-                fprintf(stderr, "Memory allocation for window title has failed\n");
+                fprintf(stderr,
+                        "Memory allocation for window title has failed\n");
                 exit(1);
         }
 
@@ -350,7 +489,9 @@ ww_window_new(window_t options)
                 free(title);
                 free(private);
                 free(window);
-                fprintf(stderr, "Title name is greater or lesser than allowed by the heap memory region\n");
+                fprintf(stderr,
+                        "Title name is greater or lesser than allowed by the "
+                        "heap memory region\n");
                 exit(1);
         }
 
@@ -366,10 +507,12 @@ ww_window_new(window_t options)
                 gtk_initialized = true;
         }
 
-        uint8_t window_type = options.is_child ? GTK_WINDOW_POPUP : GTK_WINDOW_TOPLEVEL;
+        uint8_t window_type =
+                options.is_child ? GTK_WINDOW_POPUP : GTK_WINDOW_TOPLEVEL;
         GtkWidget *gtk_window = gtk_window_new(window_type);
         WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
-        WebKitUserContentManager *manager = webkit_web_view_get_user_content_manager(webview);
+        WebKitUserContentManager *manager =
+                webkit_web_view_get_user_content_manager(webview);
         private->window = gtk_window;
         private->webview = webview;
         private->manager = manager;

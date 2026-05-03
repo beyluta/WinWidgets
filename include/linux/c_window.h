@@ -16,6 +16,13 @@ typedef enum : uint8_t
         WINDOW_MOUSE_PRESS_EVENT_RIGHT = 3,
 } ww_window_mouse_press_event_t;
 
+typedef enum : uint8_t
+{
+        WINDOW_CONTEXT_MENU_SELECTION_MOVE,
+        WINDOW_CONTEXT_MENU_SELECTION_TOPMOST,
+        WINDOW_CONTEXT_MENU_SELECTION_CLOSE,
+} ww_window_context_menu_selection_t;
+
 struct window_vtable_t
 {
         void (*destroy)(window_t *);
@@ -29,9 +36,18 @@ struct window_vtable_t
         void *(*get_webview)(window_t *);
         void *(*get_manager)(window_t *);
         void *(*get_window)(window_t *);
-        void (*register_event_callback)(window_t *, void *, string, void (*cb)(void *, void *, void *), void *);
+        void (*register_event_callback)(window_t *,
+                                        void *,
+                                        string,
+                                        void (*cb)(void *, void *, void *),
+                                        void *);
         void (*register_event_mouse_motion)(window_t *, void (*cb)(void *));
-        void (*register_event_mouse_press)(window_t *, void (*cb)(void *, const ww_window_mouse_press_event_t));
+        void (*register_event_mouse_press)(
+                window_t *,
+                void (*cb)(void *, const ww_window_mouse_press_event_t));
+        void (*register_event_context_menu)(
+                window_t *,
+                void (*cb)(void *, const ww_window_context_menu_selection_t));
         void (*run_javascript)(window_t *, string);
         void (*add_child)(window_t *, window_t *);
         void (*destroy_chain)(window_t *);
