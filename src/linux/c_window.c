@@ -173,8 +173,10 @@ c_show(window_t *self)
 
         if (self->is_child)
         {
+                GtkWindow *window = GTK_WINDOW(self->private->window);
+                gtk_window_set_decorated(window, FALSE);
                 gtk_window_set_transient_for(
-                        GTK_WINDOW(self->private->window),
+                        window,
                         GTK_WINDOW(self->private->parent->private->window));
         }
         else
@@ -195,6 +197,22 @@ c_set_position(window_t *self, size_t x, size_t y)
 {
         GtkWindow *window = GTK_WINDOW(self->private->window);
         gtk_window_move(window, x, y);
+}
+
+static void
+c_set_topmost(window_t *self, bool state)
+{
+        GtkWindow *window = GTK_WINDOW(self->private->window);
+        gtk_window_set_keep_above(window, state);
+        gtk_window_present(window);
+
+        if (state)
+        {
+                self->vtable->set_state(self, WINDOW_STATE_TOPMOST);
+                return;
+        }
+
+        self->vtable->clear_state(self, WINDOW_STATE_TOPMOST);
 }
 
 static void
@@ -467,6 +485,7 @@ static window_vtable_t c_window_vtable = {
         .show = c_show,
         .set_size = c_set_size,
         .set_position = c_set_position,
+        .set_topmost = c_set_topmost,
         .set_hide_from_taskbar = c_set_hide_from_taskbar,
         .set_hide_from_pager = c_set_hide_from_pager,
         .set_title = c_set_title,
@@ -489,45 +508,35 @@ static window_vtable_t c_window_vtable = {
 window_t *
 ww_window_new(window_t options)
 {
-        window_t *window = (window_t *)malloc(sizeof(window_t));
-        if (window == nullptr)
+        window_t *window = nullptr;
+        window_private_t *private = nullptr;
+        string title = nullptr;
+
+        if ((window = (window_t *)malloc(sizeof(window_t))) == nullptr)
         {
-                fprintf(stderr,
-                        "Memory allocation for new window instance failed\n");
-                exit(1);
+                fprintf(stderr, "Memory allocation for new window failed\n");
+                goto cleanup;
         }
 
-        window_private_t *private =
-                (window_private_t *)malloc(sizeof(window_private_t));
-        if (private == nullptr)
+        if ((private = (window_private_t *)malloc(sizeof(window_private_t))) ==
+            nullptr)
         {
-                free(window);
-                fprintf(stderr,
-                        "Private member region of window could not be "
-                        "instantiated\n");
-                exit(1);
+                fprintf(stderr, "Memory allocation for private failed\n");
+                goto cleanup;
         }
 
-        string title = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1));
-        if (title == nullptr)
+        if ((title = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1))) ==
+            nullptr)
         {
-                free(private);
-                free(window);
-                fprintf(stderr,
-                        "Memory allocation for window title has failed\n");
-                exit(1);
+                fprintf(stderr, "Memory allocation for title failed\n");
+                goto cleanup;
         }
 
         const size_t title_size = strlen(options.title);
         if (title_size >= MAX_STR_SIZE)
         {
-                free(title);
-                free(private);
-                free(window);
-                fprintf(stderr,
-                        "Title name is greater or lesser than allowed by the "
-                        "heap memory region\n");
-                exit(1);
+                fprintf(stderr, "Title size must be <= %d\n", MAX_STR_SIZE);
+                goto cleanup;
         }
 
         *window = options;
@@ -542,9 +551,7 @@ ww_window_new(window_t options)
                 gtk_initialized = true;
         }
 
-        uint8_t window_type =
-                options.is_child ? GTK_WINDOW_POPUP : GTK_WINDOW_TOPLEVEL;
-        GtkWidget *gtk_window = gtk_window_new(window_type);
+        GtkWidget *gtk_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
         WebKitUserContentManager *manager =
                 webkit_web_view_get_user_content_manager(webview);
@@ -562,4 +569,22 @@ ww_window_new(window_t options)
         window->vtable = &c_window_vtable;
 
         return window;
+
+cleanup:
+        if (title != nullptr)
+        {
+                free(title);
+        }
+
+        if (private != nullptr)
+        {
+                free(private);
+        }
+
+        if (window != nullptr)
+        {
+                free(window);
+        }
+
+        exit(1);
 }

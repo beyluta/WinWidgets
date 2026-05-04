@@ -124,6 +124,9 @@ on_context_menu_item_selected(void *const data,
         }
         case WINDOW_CONTEXT_MENU_SELECTION_TOPMOST:
         {
+                const bool topmost =
+                        self->vtable->get_state(self, WINDOW_STATE_TOPMOST);
+                self->vtable->set_topmost(self, !topmost);
                 break;
         }
         case WINDOW_CONTEXT_MENU_SELECTION_CLOSE:

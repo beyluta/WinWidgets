@@ -26,6 +26,7 @@ typedef enum : uint8_t
 {
         WINDOW_STATE_NONE = 1,
         WINDOW_STATE_MOVING = 2,
+        WINDOW_STATE_TOPMOST = 4,
 } ww_window_state_t;
 
 struct window_vtable_t
@@ -35,6 +36,7 @@ struct window_vtable_t
         void (*show)(window_t *);
         void (*set_size)(window_t *, size_t, size_t);
         void (*set_position)(window_t *, size_t, size_t);
+        void (*set_topmost)(window_t *, bool);
         void (*set_hide_from_taskbar)(window_t *, bool);
         void (*set_hide_from_pager)(window_t *, bool);
         void (*set_title)(window_t *, string);
