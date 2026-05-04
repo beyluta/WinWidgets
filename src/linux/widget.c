@@ -340,6 +340,21 @@ on_document_object_model_loaded(void *, void *, void *data)
         ww_free_all_files_from_directory(file);
 }
 
+static void
+on_open_default_directory(void *, void *, void *)
+{
+        char dir[PATH_MAX];
+        if (ww_default_widgets_dir(dir))
+        {
+                return;
+        }
+
+        if (ww_open_folder(dir))
+        {
+                return;
+        }
+}
+
 int
 main()
 {
@@ -386,6 +401,13 @@ main()
                 main_window->vtable->get_manager(main_window),
                 "on_open_widget_by_filename",
                 on_widget_container_clicked,
+                main_window);
+
+        main_window->vtable->register_event_callback(
+                main_window,
+                main_window->vtable->get_manager(main_window),
+                "on_open_default_directory",
+                on_open_default_directory,
                 main_window);
 
         main_window->vtable->show(main_window);

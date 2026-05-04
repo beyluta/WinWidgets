@@ -88,7 +88,7 @@ create_dir(const char *path)
         return false;
 }
 
-static bool
+static size_t
 get_app_directory(char *dest)
 {
 #if __linux__
@@ -96,7 +96,7 @@ get_app_directory(char *dest)
         if (home == NULL)
         {
                 fprintf(stderr, "Failed to get the user's home directory\n");
-                return true;
+                return 0;
         }
 #elif _WIN32
         char home[BUFFSIZE] = {};
@@ -104,7 +104,7 @@ get_app_directory(char *dest)
         if (!SUCCEEDED(hr))
         {
                 fprintf(stderr, "Failed to get folder to documents\n");
-                return true;
+                return 0;
         }
 
         // Convert all backslashes to forwardslashes
@@ -120,7 +120,7 @@ get_app_directory(char *dest)
         size_t len = strlen(home) + strlen(DEFAULT_HTML_DIR) + 1;
         snprintf(dest, len + 1, "%s/%s", home, DEFAULT_HTML_DIR);
         dest[len] = '\0';
-        return false;
+        return len - 1;
 }
 
 bool
@@ -162,22 +162,21 @@ ww_default_index_html(char *dest)
 bool
 ww_default_widgets_dir(char *dest)
 {
-        char app_dir[BUFFSIZE];
-        if (get_app_directory(app_dir) == true)
+        char dir[BUFFSIZE];
+        size_t bytes = 0;
+        if ((bytes = get_app_directory(dir)) == 0)
         {
                 fprintf(stderr, "Failed to get default HTML directory\n");
                 return true;
         }
 
-        if (create_dir(app_dir) == true)
+        if (create_dir(dir) == true)
         {
-                fprintf(stderr,
-                        "Failed to create the default directory for widgets\n");
-        } // Don't return inside this condition; it's just a warning
+                fprintf(stderr, "Failed to create default folder\n");
+        }
 
-        const size_t len = strlen(app_dir);
-        memcpy(dest, app_dir, len);
-        dest[len] = '\0';
+        memcpy(dest, dir, bytes + 1);
+        dest[bytes + 1] = '\0';
 
         return false;
 }
