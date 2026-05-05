@@ -9,6 +9,7 @@
 #include "widget.h"
 #include "filesystem.h"
 #include "string-builder.h"
+#include <linux/limits.h>
 
 typedef enum : uint8_t
 {
@@ -288,8 +289,8 @@ cleanup:
 static void
 on_document_object_model_loaded(void *, void *, void *data)
 {
-        string12_t default_dir;
-        if (ww_default_widgets_dir(default_dir, sizeof(default_dir - 1)) == 0)
+        char default_dir[PATH_MAX];
+        if (ww_default_widgets_dir(default_dir, sizeof(default_dir) - 1) == 0)
         {
                 return;
         }
@@ -362,7 +363,7 @@ main()
         setenv("GDK_BACKEND", "x11", true);
 
         string12_t temp;
-        if (ww_default_widgets_dir(temp) == true)
+        if (ww_default_widgets_dir(temp, sizeof(temp) - 1) == true)
         {
                 fprintf(stderr,
                         "Failed to create the default widgets directory\n");
