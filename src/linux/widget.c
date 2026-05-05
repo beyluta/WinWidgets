@@ -289,7 +289,7 @@ static void
 on_document_object_model_loaded(void *, void *, void *data)
 {
         string12_t default_dir;
-        if (ww_default_widgets_dir(default_dir))
+        if (ww_default_widgets_dir(default_dir, sizeof(default_dir - 1)) == 0)
         {
                 return;
         }
@@ -344,7 +344,7 @@ static void
 on_open_default_directory(void *, void *, void *)
 {
         char dir[PATH_MAX];
-        if (ww_default_widgets_dir(dir))
+        if (ww_default_widgets_dir(dir, sizeof(dir) - 1) == 0)
         {
                 return;
         }

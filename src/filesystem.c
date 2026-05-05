@@ -19,6 +19,9 @@
 #include <winnt.h>
 #include <corecrt.h>
 #include <io.h>
+#include <limits.h>
+#elif __linux__
+#include <linux/limits.h>
 #endif
 
 constexpr char DEFAULT_HTML_PATH[] = "assets/index.html";
@@ -120,7 +123,7 @@ get_app_directory(char *dest)
         size_t len = strlen(home) + strlen(DEFAULT_HTML_DIR) + 1;
         snprintf(dest, len + 1, "%s/%s", home, DEFAULT_HTML_DIR);
         dest[len] = '\0';
-        return len - 1;
+        return len;
 }
 
 bool
@@ -159,15 +162,20 @@ ww_default_index_html(char *dest)
         return false;
 }
 
-bool
-ww_default_widgets_dir(char *dest)
+size_t
+ww_default_widgets_dir(char *const dest, const size_t n)
 {
-        char dir[BUFFSIZE];
+        char dir[PATH_MAX];
         size_t bytes = 0;
         if ((bytes = get_app_directory(dir)) == 0)
         {
                 fprintf(stderr, "Failed to get default HTML directory\n");
-                return true;
+                return 0;
+        }
+
+        if (bytes > n)
+        {
+                return 0;
         }
 
         if (create_dir(dir) == true)
@@ -175,10 +183,10 @@ ww_default_widgets_dir(char *dest)
                 fprintf(stderr, "Failed to create default folder\n");
         }
 
-        memcpy(dest, dir, bytes + 1);
-        dest[bytes + 1] = '\0';
+        memcpy(dest, dir, bytes);
+        dest[bytes] = '\0';
 
-        return false;
+        return bytes;
 }
 
 static bool

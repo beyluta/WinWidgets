@@ -53,14 +53,17 @@ ww_unzip_archive(const string s)
                         goto cleanup;
                 }
 
-                char path_buff[PATH_MAX];
-                ww_default_widgets_dir(path_buff);
+                char path[PATH_MAX];
+                if (ww_default_widgets_dir(path, sizeof(path) - 1) == 0)
+                {
+                        goto cleanup;
+                }
 
                 char res_buff[PATH_MAX];
                 if (snprintf(res_buff,
                              sizeof(res_buff) - 1,
                              "%s/%s",
-                             path_buff,
+                             path,
                              stat.name) < 0)
                 {
                         goto cleanup;

@@ -29,9 +29,11 @@ ww_default_index_html(char *dest);
  * @brief Gets the default path to the Widgets.
  * Creates the directory first if it doesn't exist.
  * @param dest Full path to the widgets directory
+ * @param n Max number of bytes dest can have
+ * @returns Bytes written to the destination buffer
  */
-bool
-ww_default_widgets_dir(char *dest);
+size_t
+ww_default_widgets_dir(char *const dest, const size_t n);
 
 /**
  * @brief Gets a list of files inside a directory

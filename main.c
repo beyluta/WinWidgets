@@ -12,10 +12,9 @@ int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR pCmdLine, int nCmdShow)
 {
         char def_dir[PATH_MAX];
-        if (ww_default_widgets_dir(def_dir) == true)
+        if (ww_default_widgets_dir(def_dir, sizeof(def_dir) - 1) == 0)
         {
-                fprintf(stderr,
-                        "Failed to create the default widgets directory\n");
+                fprintf(stderr, "Failed to create the default folder\n");
                 return EXIT_REASON_IO_FAILURE;
         }
 

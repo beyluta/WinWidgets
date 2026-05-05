@@ -20,6 +20,7 @@
 
 #include <ddraw.h>
 #include <dwmapi.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -190,8 +191,8 @@ HandlerQueryInterface(IUnknown *this, const IID *, void **ppvObject)
 static func_status_t
 OpenDefaultDirectory()
 {
-        char dir[BUFFSIZE];
-        if (ww_default_widgets_dir(dir) == true)
+        char dir[PATH_MAX];
+        if (ww_default_widgets_dir(dir, sizeof(dir) - 1) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
@@ -341,13 +342,13 @@ SaveConfigurationToFile()
         }
 
         char directory[BUFFSIZE];
-        if (ww_default_widgets_dir(directory))
+        size_t bytes = ww_default_widgets_dir(directory, sizeof(directory) - 1);
+        if (bytes == 0)
         {
                 return FUNC_STATUS_ERR;
         }
-        strncat(directory,
-                PROG_CFG_NAME,
-                strlen(directory) + strlen(PROG_CFG_NAME));
+
+        strncat(directory, PROG_CFG_NAME, bytes + strlen(PROG_CFG_NAME));
 
         if (ww_write_to_file(directory, json, WRITE_OVERWRITE))
         {
@@ -647,10 +648,11 @@ static func_status_t
 LoadConfigurationFromFile()
 {
         char absolutePath[BUFFSIZE];
-        if (ww_default_widgets_dir(absolutePath))
+        if (ww_default_widgets_dir(absolutePath, sizeof(absolutePath) - 1) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
+
         ReplaceChars(absolutePath, widget_char_slash, widget_char_b_slash);
         strcat(absolutePath, PROG_CFG_NAME);
 
@@ -1408,7 +1410,7 @@ static func_status_t
 AppendWidgetsToDOM(ICoreWebView2 *const webview)
 {
         char app_dir[BUFFSIZE];
-        if (ww_default_widgets_dir(app_dir))
+        if (ww_default_widgets_dir(app_dir, sizeof(app_dir) - 1) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
@@ -2519,7 +2521,7 @@ OnDirectoryChangedReload(void *)
 {
         HANDLE hDir = nullptr;
         char dirPath[BUFFSIZE];
-        if (ww_default_widgets_dir(dirPath))
+        if (ww_default_widgets_dir(dirPath, sizeof(dirPath) - 1) == 0)
         {
                 goto cleanup;
         }
