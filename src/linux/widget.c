@@ -8,7 +8,6 @@
 #include "parser.h"
 #include "widget.h"
 #include "filesystem.h"
-#include "string-builder.h"
 #include <linux/limits.h>
 
 typedef enum : uint8_t
@@ -241,32 +240,37 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
                 return;
         }
 
-        string_builder_t *file_path = string_builder_new(temp_string);
-        if (file_path == nullptr)
-        {
-                return;
-        }
-
-        string_builder_t *temp_file_path =
-                string_builder_slice(file_path, 0, 7);
-        if (temp_file_path == nullptr)
+        size_t bytes = strlen(temp_string);
+        string file_path = nullptr;
+        if ((file_path = (string)malloc(sizeof(char) * (bytes + 1))) == nullptr)
         {
                 goto cleanup;
         }
 
+        memcpy(file_path, temp_string, bytes);
+        file_path[bytes] = '\0';
+
+        string temp_file_path = nullptr;
+        bytes = bytes - 7;
+        if ((temp_file_path = (string)malloc(sizeof(char) * (bytes + 1))) ==
+            nullptr)
+        {
+                goto cleanup;
+        }
+
+        memcpy(temp_file_path, &file_path[7], bytes);
+        temp_file_path[bytes] = '\0';
+
         string16_t html_raw_content;
-        if (ww_get_file_content(temp_file_path->data,
-                                html_raw_content,
-                                sizeof(html_raw_content)))
+        if (ww_get_file_content(
+                    temp_file_path, html_raw_content, sizeof(html_raw_content)))
         {
                 goto cleanup;
         }
 
         window_t *self = (window_t *)user_data;
-        window_t *child = window_child_new(self,
-                                           file_path->data,
-                                           html_raw_content,
-                                           sizeof(html_raw_content));
+        window_t *child = window_child_new(
+                self, file_path, html_raw_content, sizeof(html_raw_content));
         if (child == nullptr)
         {
                 goto cleanup;
@@ -277,12 +281,12 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
 cleanup:
         if (temp_file_path != nullptr)
         {
-                string_builder_free(temp_file_path);
+                free(temp_file_path);
         }
 
         if (file_path != nullptr)
         {
-                string_builder_free(file_path);
+                free(file_path);
         }
 }
 

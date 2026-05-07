@@ -8,10 +8,8 @@ SRC = src/filesystem.c \
 			src/parser.c \
 			src/sysinfo.c \
 			lib/minimal-json-c-parser/src/json.c \
-			lib/string-builder/src/string-builder.c \
 			lib/c-yaml-parser/src/cyaml.c
 INCL = -Ilib/minimal-json-c-parser/include \
-			 -Ilib/string-builder/include \
 			 -Ilib/c-yaml-parser/include
 RELEASE = -Werror \
 					-Wextra \
