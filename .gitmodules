@@ -1,9 +1,6 @@
 [submodule "lib/minimal-json-c-parser"]
 	path = lib/minimal-json-c-parser
 	url = https://github.com/beyluta/minimal-c-json-parser
-[submodule "lib/string-builder"]
-	path = lib/string-builder
-	url = https://codeberg.org/beyluta/string-builder.git
 [submodule "lib/c-yaml-parser"]
 	path = lib/c-yaml-parser
 	url = https://codeberg.org/beyluta/c-yaml-parser
