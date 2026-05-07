@@ -87,7 +87,7 @@ ARGS := -Iinclude \
 LDFLAGS = -ldl
 SRC := $(SRC) \
 			 src/linux/widget.c \
-			 src/linux/c_window.c
+			 src/linux/window.c
 
 prepare:
 	rm -rf "$(BUILDDIR)"

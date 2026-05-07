@@ -4,7 +4,7 @@
 // Reponsible for the creation of the native host and events.
 //
 // ==========================================================
-#include "c_window.h"
+#include "window.h"
 #include "parser.h"
 #include "widget.h"
 #include "filesystem.h"
@@ -86,9 +86,9 @@ on_mouse_move(void *const data, const size_t x, const size_t y)
 {
         window_t *self = (window_t *)data;
 
-        if (self->vtable->get_state(self, WINDOW_STATE_MOVING))
+        if (window_get_state(self, WINDOW_STATE_MOVING))
         {
-                self->vtable->set_position(self, x, y);
+                window_set_position(self, x, y);
         }
 }
 
@@ -103,7 +103,7 @@ on_mouse_button_press(void *const data,
         default:
         case WINDOW_MOUSE_PRESS_EVENT_LEFT:
         {
-                self->vtable->clear_state(self, WINDOW_STATE_MOVING);
+                window_clear_state(self, WINDOW_STATE_MOVING);
                 break;
         }
         }
@@ -120,19 +120,19 @@ on_context_menu_item_selected(void *const data,
         default:
         case WINDOW_CONTEXT_MENU_SELECTION_MOVE:
         {
-                self->vtable->set_state(self, WINDOW_STATE_MOVING);
+                window_set_state(self, WINDOW_STATE_MOVING);
                 break;
         }
         case WINDOW_CONTEXT_MENU_SELECTION_TOPMOST:
         {
                 const bool topmost =
-                        self->vtable->get_state(self, WINDOW_STATE_TOPMOST);
-                self->vtable->set_topmost(self, !topmost);
+                        window_get_state(self, WINDOW_STATE_TOPMOST);
+                window_set_topmost(self, !topmost);
                 break;
         }
         case WINDOW_CONTEXT_MENU_SELECTION_CLOSE:
         {
-                self->vtable->destroy(self);
+                window_destroy(self);
                 break;
         }
         }
@@ -193,28 +193,28 @@ window_child_new(window_t *const parent,
                             &is_top_most);
 
         window_t *child = nullptr;
-        if ((child = ww_window_new((window_t){.title = application_title,
-                                              .width = width,
-                                              .height = height,
-                                              .x = x,
-                                              .y = y,
-                                              .opacity = opacity,
-                                              .radius = radius,
-                                              .show_title_bar = show_title_bar,
-                                              .is_child = true,
-                                              .is_top_most = is_top_most})) ==
+        if ((child = window_new((window_t){.title = application_title,
+                                           .width = width,
+                                           .height = height,
+                                           .x = x,
+                                           .y = y,
+                                           .opacity = opacity,
+                                           .radius = radius,
+                                           .show_title_bar = show_title_bar,
+                                           .is_child = true,
+                                           .is_top_most = is_top_most})) ==
             nullptr)
         {
                 return nullptr;
         }
 
-        child->vtable->set_url(child, url);
-        child->vtable->register_event_mouse_motion(child, on_mouse_move);
-        child->vtable->register_event_mouse_press(child, on_mouse_button_press);
-        child->vtable->register_event_context_menu(
-                child, on_context_menu_item_selected);
+        window_set_url(child, url);
+        window_register_event_mouse_motion(child, on_mouse_move);
+        window_register_event_mouse_press(child, on_mouse_button_press);
+        window_register_event_context_menu(child,
+                                           on_context_menu_item_selected);
 
-        parent->vtable->add_child(parent, child);
+        window_add_child(parent, child);
 
         return child;
 }
@@ -272,7 +272,7 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
                 goto cleanup;
         }
 
-        child->vtable->show(child);
+        window_show(child);
 
 cleanup:
         if (temp_file_path != nullptr)
@@ -335,7 +335,7 @@ on_document_object_model_loaded(void *, void *, void *data)
                          absolute_file);
 
                 window_t *self = (window_t *)data;
-                self->vtable->run_javascript(self, func_args);
+                window_run_javascript(self, func_args);
         }
 
         ww_free_all_files_from_directory(file);
@@ -377,42 +377,39 @@ main()
                 return EXIT_REASON_IO_FAILURE;
         }
 
-        window_t *main_window = ww_window_new((window_t){.title = "Main window",
-                                                         .width = 1000,
-                                                         .height = 1000,
-                                                         .x = 0,
-                                                         .y = 0,
-                                                         .opacity = 1,
-                                                         .radius = 0,
-                                                         .show_title_bar = true,
-                                                         .is_child = false,
-                                                         .is_top_most = true});
+        window_t *main_window = window_new((window_t){.title = "Main window",
+                                                      .width = 1000,
+                                                      .height = 1000,
+                                                      .x = 0,
+                                                      .y = 0,
+                                                      .opacity = 1,
+                                                      .radius = 0,
+                                                      .show_title_bar = true,
+                                                      .is_child = false,
+                                                      .is_top_most = true});
 
-        main_window->vtable->set_url(main_window, html);
+        window_set_url(main_window, html);
 
-        main_window->vtable->register_event_callback(
-                main_window,
-                main_window->vtable->get_manager(main_window),
-                "on_get_widget_filenames",
-                on_document_object_model_loaded,
-                main_window);
+        window_register_event_callback(main_window,
+                                       window_get_manager(main_window),
+                                       "on_get_widget_filenames",
+                                       on_document_object_model_loaded,
+                                       main_window);
 
-        main_window->vtable->register_event_callback(
-                main_window,
-                main_window->vtable->get_manager(main_window),
-                "on_open_widget_by_filename",
-                on_widget_container_clicked,
-                main_window);
+        window_register_event_callback(main_window,
+                                       window_get_manager(main_window),
+                                       "on_open_widget_by_filename",
+                                       on_widget_container_clicked,
+                                       main_window);
 
-        main_window->vtable->register_event_callback(
-                main_window,
-                main_window->vtable->get_manager(main_window),
-                "on_open_default_directory",
-                on_open_default_directory,
-                main_window);
+        window_register_event_callback(main_window,
+                                       window_get_manager(main_window),
+                                       "on_open_default_directory",
+                                       on_open_default_directory,
+                                       main_window);
 
-        main_window->vtable->show(main_window);
-        main_window->vtable->destroy(main_window);
+        window_show(main_window);
+        window_destroy(main_window);
 
         return EXIT_REASON_TERMINATED;
 }
