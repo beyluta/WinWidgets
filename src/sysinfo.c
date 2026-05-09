@@ -69,10 +69,6 @@ ToggleMediaPlayback()
         return SYSINFO_CODE_SUCCESS;
 }
 
-/**
- * @brief Jumps to the media audio stream
- * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
- */
 sysinfo_code_t
 NextMediaTrack()
 {
@@ -84,10 +80,6 @@ NextMediaTrack()
         return SYSINFO_CODE_SUCCESS;
 }
 
-/**
- * @brief Jumps to the media audio stream
- * @returns SYSINFO_CODE_SUCCESS if successful, else a code on failure
- */
 sysinfo_code_t
 PreviousMediaTrack()
 {
@@ -99,9 +91,6 @@ PreviousMediaTrack()
         return SYSINFO_CODE_SUCCESS;
 }
 
-/**
- * @brief Moves the widget window to a specific position
- */
 sysinfo_code_t
 #if __linux__
 MoveWindowToPosition(const size_t, const size_t)
@@ -120,5 +109,26 @@ MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y)
                 return SYSINFO_CODE_OS_ERROR;
         }
 #endif
+        return SYSINFO_CODE_SUCCESS;
+}
+
+sysinfo_code_t
+GetMemoryInfo(ww_memory_info_t *const memInfo)
+{
+#if _WIN32
+        MEMORYSTATUSEX memStat;
+        memStat.dwLength = sizeof(memStat);
+        if (GlobalMemoryStatusEx(&memStat) == 0)
+        {
+                return SYSINFO_CODE_OS_ERROR;
+        }
+
+        memInfo->totalVirtMem = memStat.ullTotalPageFile;
+        memInfo->usedVirtMem =
+                memStat.ullTotalPageFile - memStat.ullAvailPageFile;
+        memInfo->totalPhysMem = memStat.ullTotalPhys;
+        memInfo->usedPhysMem = memStat.ullTotalPhys - memStat.ullAvailPhys;
+#endif
+
         return SYSINFO_CODE_SUCCESS;
 }

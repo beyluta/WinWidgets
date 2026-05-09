@@ -136,7 +136,7 @@
     <div class="dev-section">
       <h3>System functions</h3>
       <span>
-        Use this to move the selected widget to a specific position
+        Use this to move the selected widget to a specific position:
       </span>
       <blockquote>
         <p>
@@ -174,7 +174,7 @@
       </blockquote>
 
       <span>
-        Use these to control any active media stream such as video or audio
+        Use these to control any active media stream such as video or audio:
       </span>
       <blockquote>
         <p>
@@ -186,6 +186,23 @@
 
           // Tell WinWidgets to go to the previous track
           window.chrome.webview.postMessage('PreviousMediaTrack');
+        </p>
+      </blockquote>
+
+      <span>
+        Get information about total and used system memory:
+      </span>
+      <blockquote>
+        <p>
+          function GetMemoryInfo(memInfo)
+          {
+            console.log('Total Physical Memory:', memInfo.totalPhysMem);
+            console.log('Used Physical Memory:', memInfo.usedPhysMem);
+            console.log('Total Virtual Memory:', memInfo.totalVirtMem);
+            console.log('Used Virtual Memory:', memInfo.usedVirtMem);
+          }
+
+          window.chrome.webview.postMessage('GetMemoryInfo');
         </p>
       </blockquote>
     </div>

@@ -65,7 +65,8 @@ static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
                                                     "ToggleMediaPlayback",
                                                     "NextMediaTrack",
                                                     "PreviousMediaTrack",
-                                                    "MoveWindowToPosition"};
+                                                    "MoveWindowToPosition",
+                                                    "GetMemoryInfo"};
 
 typedef enum : uint8_t
 {
@@ -90,6 +91,7 @@ typedef enum : uint8_t
         EVENT_NEXT_MEDIA_TRACK,
         EVENT_PREVIOUS_MEDIA_TRACK,
         EVENT_MOVE_WINDOW_TO_POSITION,
+        EVENT_GET_MEMORY_INFO,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -1865,6 +1867,27 @@ WidgetWebMessageReceivedEventHandlerInvoke(
                         goto cleanup;
                 }
                 goto cleanup;
+        }
+        case EVENT_GET_MEMORY_INFO:
+        {
+                ww_memory_info_t memInfo;
+                if (SYSINFO_CODE_FAIL(GetMemoryInfo(&memInfo)))
+                {
+                        status = FUNC_STATUS_ERR;
+                        goto cleanup;
+                }
+
+                bytes = snprintf(response,
+                                 lengthof(response),
+                                 "%s({ totalVirtMem: %zu, usedVirtMem: %zu, "
+                                 "totalPhysMem: %zu, usedPhysMem: %zu })",
+                                 WGT_EVENTS_ARR[EVENT_GET_MEMORY_INFO],
+                                 memInfo.totalVirtMem,
+                                 memInfo.usedVirtMem,
+                                 memInfo.totalPhysMem,
+                                 memInfo.usedPhysMem);
+
+                break;
         }
         }
 
