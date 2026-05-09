@@ -4,7 +4,7 @@
 
 #include "utils.h"
 
-typedef struct window_private_t window_private_t;
+typedef struct window_opts_t window_opts_t;
 
 typedef enum : uint8_t
 {
@@ -29,8 +29,7 @@ typedef enum : uint8_t
 
 typedef struct
 {
-        window_private_t *private;
-        string title;
+        window_opts_t *private;
         size_t width;
         size_t height;
         size_t x;
@@ -44,13 +43,17 @@ typedef struct
 } window_t;
 
 window_t *
-window_new(window_t options);
+window_new(const window_t options,
+           const char *const title,
+           const size_t title_len);
 
 void
 window_destroy(window_t *self);
 
 void
-window_set_url(window_t *self, string url);
+window_set_url(const window_t *const self,
+               const string url,
+               const size_t url_len);
 
 void
 window_show(window_t *self);

@@ -9,9 +9,8 @@
 
 // Private members
 
-struct window_private_t
+struct window_opts_t
 {
-        string url;
         window_t *next;
         window_t *parent;
         GtkWidget *window;
@@ -22,6 +21,8 @@ struct window_private_t
         void (*cb_context_menu_open)(void *,
                                      const ww_window_context_menu_selection_t);
         ww_window_state_t state;
+        string8_t title;
+        string12_t url;
 };
 
 static size_t
@@ -38,29 +39,12 @@ window_generate_id()
 }
 
 static void
-window_destroy_private_members(window_private_t *private)
-{
-        if (private->url != nullptr)
-        {
-                free(private->url);
-                private->url = nullptr;
-        }
-}
-
-static void
 on_window_destroy(GtkWidget *window, gpointer data)
 {
         window_t *self = (window_t *)data;
 
-        if (self->title != nullptr)
-        {
-                free(self->title);
-                self->title = nullptr;
-        }
-
         if (self->private != nullptr)
         {
-                window_destroy_private_members(self->private);
                 free(self->private);
                 self->private = nullptr;
         }
@@ -77,35 +61,34 @@ destroy_window(void *, void *data)
 {
         window_t *self = (window_t *)data;
 
-        if (self->is_child)
+        if (!self->is_child)
         {
-                window_t *prev = nullptr;
+                gtk_main_quit();
+                return;
+        }
 
-                for (window_t *node = self->private->parent; node != nullptr;
-                     node = node->private->next)
+        window_t *prev = nullptr;
+
+        for (window_t *node = self->private->parent; node != nullptr;
+             node = node->private->next)
+        {
+
+                if (self->guid != node->guid)
                 {
+                        prev = node;
+                        continue;
+                }
 
-                        if (self->guid != node->guid)
-                        {
-                                prev = node;
-                                continue;
-                        }
-
-                        if (prev == nullptr)
-                        {
-                                break;
-                        }
-
-                        prev->private->next = self->private->next;
+                if (prev == nullptr)
+                {
                         break;
                 }
 
-                window_destroy(self);
+                prev->private->next = self->private->next;
+                break;
         }
-        else
-        {
-                gtk_main_quit();
-        }
+
+        window_destroy(self);
 }
 
 static gboolean
@@ -297,7 +280,7 @@ window_destroy_chain(window_t *self)
 void
 window_show(window_t *self)
 {
-        window_set_title(self, self->title);
+        window_set_title(self, self->private->title);
         window_set_size(self, self->width, self->height);
         window_set_position(self, self->x, self->y);
         window_set_hide_from_pager(self, self->is_child);
@@ -450,43 +433,28 @@ window_destroy(window_t *self)
 }
 
 void
-window_set_url(window_t *self, string url)
+window_set_url(const window_t *const self,
+               const string url,
+               const size_t url_len)
 {
-        if (self->private->url != nullptr)
+        if (url_len >= sizeof(self->private->url))
         {
-                free(self->private->url);
-                self->private->url = nullptr;
-        }
-
-        string temp_url = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1));
-        if (temp_url == nullptr)
-        {
-                fprintf(stderr, "Memory allocation for temporary url failed\n");
+                fprintf(stderr, "URL size is greater than allowed\n");
                 exit(1);
         }
 
-        const size_t url_size = strlen(url);
-        if (url_size >= MAX_STR_SIZE)
-        {
-                free(temp_url);
-                fprintf(stderr,
-                        "URL size is greater than allowed by the heap memory "
-                        "region\n");
-                exit(1);
-        }
-
-        strncpy(temp_url, url, url_size);
-        temp_url[url_size] = '\0';
-
-        self->private->url = temp_url;
+        const string url_ptr = self->private->url;
+        strncpy(url_ptr, url, url_len);
+        url_ptr[url_len] = '\0';
 }
 
 window_t *
-window_new(window_t options)
+window_new(const window_t options,
+           const char *const title,
+           const size_t title_len)
 {
         window_t *window = nullptr;
-        window_private_t *private = nullptr;
-        string title = nullptr;
+        window_opts_t *opts = nullptr;
 
         if ((window = (window_t *)malloc(sizeof(window_t))) == nullptr)
         {
@@ -494,31 +462,23 @@ window_new(window_t options)
                 goto cleanup;
         }
 
-        if ((private = (window_private_t *)malloc(sizeof(window_private_t))) ==
-            nullptr)
+        if ((opts = (window_opts_t *)malloc(sizeof(window_opts_t))) == nullptr)
         {
-                fprintf(stderr, "Memory allocation for private failed\n");
+                fprintf(stderr, "Memory allocation for window_opts_t failed\n");
                 goto cleanup;
         }
 
-        if ((title = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1))) ==
-            nullptr)
+        if (title_len >= sizeof(opts->title))
         {
-                fprintf(stderr, "Memory allocation for title failed\n");
-                goto cleanup;
-        }
-
-        const size_t title_size = strlen(options.title);
-        if (title_size >= MAX_STR_SIZE)
-        {
-                fprintf(stderr, "Title size must be <= %d\n", MAX_STR_SIZE);
+                fprintf(stderr, "Title size was greater than supported\n");
                 goto cleanup;
         }
 
         *window = options;
 
-        strncpy(title, options.title, title_size);
-        title[title_size] = '\0';
+        string title_ptr = opts->title;
+        strncpy(title_ptr, title, title_len);
+        title_ptr[title_len] = '\0';
 
         static bool gtk_initialized = false;
         if (!gtk_initialized)
@@ -531,29 +491,22 @@ window_new(window_t options)
         WebKitWebView *webview = WEBKIT_WEB_VIEW(webkit_web_view_new());
         WebKitUserContentManager *manager =
                 webkit_web_view_get_user_content_manager(webview);
-        private->window = gtk_window;
-        private->webview = webview;
-        private->manager = manager;
-        private->url = nullptr;
-        private->next = nullptr;
-        private->parent = nullptr;
-        private->state = WINDOW_STATE_NONE;
+        opts->window = gtk_window;
+        opts->webview = webview;
+        opts->manager = manager;
+        opts->next = nullptr;
+        opts->parent = nullptr;
+        opts->state = WINDOW_STATE_NONE;
 
-        window->title = title;
         window->guid = window_generate_id();
-        window->private = private;
+        window->private = opts;
 
         return window;
 
 cleanup:
-        if (title != nullptr)
+        if (opts != nullptr)
         {
-                free(title);
-        }
-
-        if (private != nullptr)
-        {
-                free(private);
+                free(opts);
         }
 
         if (window != nullptr)

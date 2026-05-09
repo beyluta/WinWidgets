@@ -191,23 +191,25 @@ window_child_new(window_t *const parent,
                             PARSE_TYPE_BOOLEAN,
                             &is_top_most);
 
-        window_t *child = nullptr;
-        if ((child = window_new((window_t){.title = application_title,
-                                           .width = width,
-                                           .height = height,
-                                           .x = x,
-                                           .y = y,
-                                           .opacity = opacity,
-                                           .radius = radius,
-                                           .show_title_bar = show_title_bar,
-                                           .is_child = true,
-                                           .is_top_most = is_top_most})) ==
-            nullptr)
+        window_t opts = {.width = width,
+                         .height = height,
+                         .x = x,
+                         .y = y,
+                         .opacity = opacity,
+                         .radius = radius,
+                         .show_title_bar = show_title_bar,
+                         .is_child = true,
+                         .is_top_most = is_top_most};
+
+        window_t *child =
+                window_new(opts, application_title, strlen(application_title));
+
+        if (child == nullptr)
         {
                 return nullptr;
         }
 
-        window_set_url(child, url);
+        window_set_url(child, url, strlen(url));
         window_register_event_mouse_motion(child, on_mouse_move);
         window_register_event_mouse_press(child, on_mouse_button_press);
         window_register_event_context_menu(child,
@@ -381,39 +383,40 @@ main()
                 return EXIT_REASON_IO_FAILURE;
         }
 
-        window_t *main_window = window_new((window_t){.title = "Main window",
-                                                      .width = 1000,
-                                                      .height = 1000,
-                                                      .x = 0,
-                                                      .y = 0,
-                                                      .opacity = 1,
-                                                      .radius = 0,
-                                                      .show_title_bar = true,
-                                                      .is_child = false,
-                                                      .is_top_most = true});
+        window_t opts = {.width = 1000,
+                         .height = 1000,
+                         .x = 0,
+                         .y = 0,
+                         .opacity = 1,
+                         .radius = 0,
+                         .show_title_bar = true,
+                         .is_child = false,
+                         .is_top_most = true};
 
-        window_set_url(main_window, html);
+        window_t *self = window_new(opts, PROG_NAME, sizeof(PROG_NAME) - 1);
 
-        window_register_event_callback(main_window,
-                                       window_get_manager(main_window),
+        window_set_url(self, html, strlen(html));
+
+        window_register_event_callback(self,
+                                       window_get_manager(self),
                                        "on_get_widget_filenames",
                                        on_document_object_model_loaded,
-                                       main_window);
+                                       self);
 
-        window_register_event_callback(main_window,
-                                       window_get_manager(main_window),
+        window_register_event_callback(self,
+                                       window_get_manager(self),
                                        "on_open_widget_by_filename",
                                        on_widget_container_clicked,
-                                       main_window);
+                                       self);
 
-        window_register_event_callback(main_window,
-                                       window_get_manager(main_window),
+        window_register_event_callback(self,
+                                       window_get_manager(self),
                                        "on_open_default_directory",
                                        on_open_default_directory,
-                                       main_window);
+                                       self);
 
-        window_show(main_window);
-        window_destroy(main_window);
+        window_show(self);
+        window_destroy(self);
 
         return EXIT_REASON_TERMINATED;
 }
