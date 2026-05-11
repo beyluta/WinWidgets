@@ -20,6 +20,8 @@ static constexpr uint16_t STATE_KEY_MEDIA_PREV = 0xB1;
 #include "gdk/gdk.h"
 #endif
 
+static volatile double CPU_LOAD_PERCENTAGE = 0;
+
 sysinfo_code_t
 #if __linux__
 GetMousePosition(gint *const x, gint *const y)
@@ -142,4 +144,16 @@ GetMemoryInfo(ww_memory_info_t *const memInfo)
 #endif
 
         return SYSINFO_CODE_SUCCESS;
+}
+
+double
+GetCpuUsagePercentage()
+{
+        return CPU_LOAD_PERCENTAGE;
+}
+
+void
+SetCpuUsagePercentage(const double n)
+{
+        CPU_LOAD_PERCENTAGE = n;
 }

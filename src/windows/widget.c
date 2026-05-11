@@ -15,13 +15,12 @@
 #include "global.h"
 #include "json.h"
 #include "parser.h"
+#include "routine.h"
 #include "utils.h"
 #include "sysinfo.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
-#include <limits.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <shlwapi.h>
@@ -67,7 +66,8 @@ static constexpr char WGT_EVENTS_ARR[][BUFFSIZE] = {"GetMousePosition",
                                                     "NextMediaTrack",
                                                     "PreviousMediaTrack",
                                                     "MoveWindowToPosition",
-                                                    "GetMemoryInfo"};
+                                                    "GetMemoryInfo",
+                                                    "GetCpuLoad"};
 
 typedef enum : uint8_t
 {
@@ -93,6 +93,7 @@ typedef enum : uint8_t
         EVENT_PREVIOUS_MEDIA_TRACK,
         EVENT_MOVE_WINDOW_TO_POSITION,
         EVENT_GET_MEMORY_INFO,
+        EVENT_GET_CPU_LOAD,
 } widget_events_t;
 
 typedef enum : uint8_t
@@ -1891,6 +1892,16 @@ WidgetWebMessageReceivedEventHandlerInvoke(
 
                 break;
         }
+        case EVENT_GET_CPU_LOAD:
+        {
+                const double cpuUsage = GetCpuUsagePercentage();
+                bytes = snprintf(response,
+                                 lengthof(response),
+                                 "%s(%.2f)",
+                                 WGT_EVENTS_ARR[EVENT_GET_CPU_LOAD],
+                                 cpuUsage);
+                break;
+        }
         }
 
         wchar_t wResponse[lengthof(response)];
@@ -2517,7 +2528,7 @@ WinEventProc(HWINEVENTHOOK,
  * inside the directory changes.
  */
 static void *
-OnDirectoryChangedReload(void *)
+UpdateDirChangedRoutine(void *)
 {
         HANDLE hDir = nullptr;
         char dirPath[BUFFSIZE];
@@ -2935,6 +2946,74 @@ create_widget_manager(ww_window_ctx *const context)
         return FUNC_STATUS_OK;
 }
 
+static size_t
+FILETIMEToInt64(FILETIME *ft)
+{
+        return (size_t)ft->dwLowDateTime | ((size_t)ft->dwHighDateTime << 32);
+}
+
+static void *
+UpdateCpuUsageRoutine(void *)
+{
+
+        FILETIME idleTime, kernelTime, userTime;
+        static FILETIME prevIdleTime, prevKernelTime, prevUserTime;
+        static bool initialized = false;
+
+        if (!initialized)
+        {
+                GetSystemTimes(&prevIdleTime, &prevKernelTime, &prevUserTime);
+                initialized = true;
+        }
+
+        GetSystemTimes(&idleTime, &kernelTime, &userTime);
+
+        size_t currIdle = FILETIMEToInt64(&idleTime);
+        size_t currKernel = FILETIMEToInt64(&kernelTime);
+        size_t currUser = FILETIMEToInt64(&userTime);
+
+        size_t prevIdle = FILETIMEToInt64(&prevIdleTime);
+        size_t prevKernel = FILETIMEToInt64(&prevKernelTime);
+        size_t prevUser = FILETIMEToInt64(&prevUserTime);
+
+        long long deltaIdle = currIdle - prevIdle;
+        long long deltaKernel = currKernel - prevKernel;
+        long long deltaUser = currUser - prevUser;
+        long long deltaTotal = deltaKernel + deltaUser;
+
+        double cpuUsage = 0.0;
+
+        if (deltaTotal > 0)
+        {
+                size_t absDeltaTotal =
+                        (deltaTotal > 0) ? deltaTotal : -deltaTotal;
+                size_t absDeltaIdle = (deltaIdle > 0) ? deltaIdle : -deltaIdle;
+
+                double idleRatio = (double)absDeltaIdle / (double)absDeltaTotal;
+                cpuUsage = 1.0 - idleRatio;
+
+                if (cpuUsage < 0.0)
+                {
+                        cpuUsage = 0.0;
+                }
+                else if (cpuUsage > 1.0)
+                {
+                        cpuUsage = 1.0;
+                }
+        }
+
+        prevIdleTime.dwLowDateTime = idleTime.dwLowDateTime;
+        prevIdleTime.dwHighDateTime = idleTime.dwHighDateTime;
+        prevKernelTime.dwLowDateTime = kernelTime.dwLowDateTime;
+        prevKernelTime.dwHighDateTime = kernelTime.dwHighDateTime;
+        prevUserTime.dwLowDateTime = userTime.dwLowDateTime;
+        prevUserTime.dwHighDateTime = userTime.dwHighDateTime;
+
+        SetCpuUsagePercentage(cpuUsage * 100.0);
+
+        return nullptr;
+}
+
 /*
  * @brief Initializing the main window of the application. It will be
  * responsible for spawning children widgets.
@@ -2951,9 +3030,7 @@ ww_init_main(const HINSTANCE hInstance,
              ww_window_ctx *const context)
 {
         HWINEVENTHOOK hook = nullptr;
-        pthread_t thread;
         bool comInitialized = true;
-        int pThread = 0;
 
         g_hInstance = hInstance;
         g_nCmdShow = nCmdShow;
@@ -3019,19 +3096,15 @@ ww_init_main(const HINSTANCE hInstance,
                 goto cleanup;
         }
 
-        if ((pThread = pthread_create(
-                     &thread, nullptr, OnDirectoryChangedReload, nullptr)) != 0)
-        {
-                goto cleanup;
-        }
+        ww_routine_t cpuRoutine, dirRoutine;
+        CreateRoutine(&cpuRoutine, 500, UpdateCpuUsageRoutine, nullptr);
+        CreateRoutine(&dirRoutine, 250, UpdateDirChangedRoutine, nullptr);
 
         event_loop();
 
 cleanup:
-        if (pThread == 0)
-        {
-                pthread_detach(thread);
-        }
+        DestroyRoutine(&dirRoutine);
+        DestroyRoutine(&cpuRoutine);
 
         if (hook != nullptr)
         {

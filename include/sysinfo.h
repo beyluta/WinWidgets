@@ -97,4 +97,17 @@ MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y);
 sysinfo_code_t
 GetMemoryInfo(ww_memory_info_t *const memInfo);
 
+/**
+ * @brief Gets the current usage percentage of the CPU
+ * @returns The current percentage of the CPU's usage
+ */
+double
+GetCpuUsagePercentage();
+
+/**
+ * @brief Sets the percentage of the CPUs usage
+ */
+void
+SetCpuUsagePercentage(const double n);
+
 #endif
