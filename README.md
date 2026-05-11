@@ -7,7 +7,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/beyluta/WinWidgets">
-    <img src="assets/imgs/icon.png" alt="Logo" width="80" height="80">
+    <img src="assets/imgs/icon-cropped.png" alt="Logo" width="120" height="80">
   </a>
 
   <h3 align="center">WinWidgets</h3>
@@ -35,10 +35,11 @@ Use a mix of `HTML`, `CSS`, and `JavaScript` to create your own widgets on the f
 
 This is what makes this project interesting:
 
-- 🧰 Focus on creating your widgets with all the usual web tools to your disposal.
-- ⚙️ Develop complex widgets using JavaScript.
-- 🖱️ Create your widgets from any tool or resource, then import it here.
-- ⌨️ Listen to operating system events and act on them programmatically.
+- Made by humans for humans; no vibe-coding.
+- Focus on creating your widgets with all the usual web tools to your disposal.
+- Develop complex widgets using JavaScript.
+- Create your widgets using your preferred tools.
+- Listen to native OS events and act on them programmatically.
 
 ## Support
 
@@ -71,16 +72,16 @@ Download the following applications using Chocolatey:
 
 ```bash
 choco install git msys2 mingw make llvm
-````
+```
 
 > You may also download them manually. If you choose to do so:
-`msys2` and `mingw` must be in the PATH environment variables.
+> `msys2` and `mingw` must be in the PATH environment variables.
 
 After installing, open the MSYS2 terminal application and install these dependencies:
 
 ```bash
 pacman -S mingw-w64-x86_64-curl mingw-w64-x86_64-libzip
-````
+```
 
 `curl` and its dependencies will be installed by default in `C:/tools/msys64`. Verify
 this path is correct and update the `MINGW64` variable in the makefile if needed.
@@ -128,9 +129,13 @@ make run
 
 ## Contributing
 
+> Please disclose the use of any A.I tools used for development in the PR.
+> Using artificial intelligence for help or research is very welcome.
+> Fully vibe-coded solutions will be rejected.
+
 1. Fork the Project
 2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Add yourself to the CONTRIBUTORS.txt file
+3. Add yourself to the CONTRIBUTORS.txt file
+4. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+5. Push to the Branch (`git push origin feature/AmazingFeature`)
 6. Open a Pull Request
