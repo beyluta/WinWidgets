@@ -47,6 +47,7 @@ SRC := $(SRC) \
 			 src/windows/widget.c \
 			 src/windows/remres.c \
 			 src/windows/config.c \
+			 src/windows/routine.c \
 			 lib/c-yaml-parser/src/cyaml.c
 RESRC = "$(CURDIR)/src/windows/resources.o"
 WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"

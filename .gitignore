@@ -6,3 +6,6 @@ output
 # Windows specific
 src/windows/resources.o
 lib/WebView2
+
+# Configuration
+.github

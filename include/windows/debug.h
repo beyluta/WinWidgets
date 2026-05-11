@@ -6,8 +6,8 @@
 // This file should not be included in the release build.
 //
 // ==========================================================
-#ifndef IMPL_DEBUG_H
-#define IMPL_DEBUG_H
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #include "utils.h"
 
