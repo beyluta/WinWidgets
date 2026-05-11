@@ -18,7 +18,6 @@
 #include "routine.h"
 #include "utils.h"
 #include "sysinfo.h"
-#include "debug.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
