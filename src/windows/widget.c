@@ -18,12 +18,17 @@
 #include "routine.h"
 #include "utils.h"
 #include "sysinfo.h"
+#include "debug.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
+#include <fileapi.h>
 #include <stdio.h>
+#include <synchapi.h>
 #include <unistd.h>
 #include <shlwapi.h>
+#include <windows.h>
+#include <winnt.h>
 
 #ifndef WS_EX_NOREDIRECTIONBITMAP
 #define WS_EX_NOREDIRECTIONBITMAP 0x00200000
@@ -2523,86 +2528,32 @@ WinEventProc(HWINEVENTHOOK,
         }
 }
 
-/**
- * @brief Used to reload changes in the default widgets directy when something
- * inside the directory changes.
- */
 static void *
 UpdateDirChangedRoutine(void *)
 {
-        HANDLE hDir = nullptr;
-        char dirPath[BUFFSIZE];
-        if (ww_default_widgets_dir(dirPath, sizeof(dirPath) - 1) == 0)
+        static HANDLE handle = nullptr;
+        if (handle == nullptr)
         {
-                goto cleanup;
-        }
-
-        wchar_t lpDirPath[BUFFSIZE];
-        if (mbstowcs(lpDirPath, dirPath, lengthof(dirPath)) == (size_t)-1)
-        {
-                goto cleanup;
-        }
-
-        if ((hDir = CreateFileW(
-                     lpDirPath,
-                     FILE_LIST_DIRECTORY,
-                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                     nullptr,
-                     OPEN_EXISTING,
-                     FILE_FLAG_BACKUP_SEMANTICS,
-                     nullptr)) == nullptr)
-        {
-                goto cleanup;
-        }
-
-        BYTE buffer[1024];
-        BYTE *pBuffer = buffer;
-        DWORD bytes;
-        while (true)
-        {
-                if (!ReadDirectoryChangesW(
-                            hDir,
-                            &buffer,
-                            lengthof(buffer),
-                            true,
-                            FILE_NOTIFY_CHANGE_FILE_NAME |
-                                    FILE_NOTIFY_CHANGE_DIR_NAME |
-                                    FILE_NOTIFY_CHANGE_ATTRIBUTES |
-                                    FILE_NOTIFY_CHANGE_SIZE |
-                                    FILE_NOTIFY_CHANGE_LAST_WRITE,
-                            &bytes,
-                            nullptr,
-                            nullptr))
+                char dir[BUFFSIZE];
+                if (ww_default_widgets_dir(dir, sizeof(dir) - 1) == 0)
                 {
-                        continue;
+                        return nullptr;
                 }
 
-                FILE_NOTIFY_INFORMATION *info = nullptr;
-                bool canUpdateChanges = true;
-                do
-                {
-                        info = (FILE_NOTIFY_INFORMATION *)pBuffer;
-                        const size_t len = info->FileNameLength / sizeof(WCHAR);
-                        char filename[BUFFSIZE];
-                        wcstombs(filename, info->FileName, len);
-                        filename[len] = '\0';
-
-                        if (strcmp(filename, &PROG_CFG_NAME[1]) == 0)
-                        {
-                                canUpdateChanges = false;
-                        }
-
-                        pBuffer += info->NextEntryOffset;
-                } while (info->NextEntryOffset);
-
-                g_dirChangesDetected = canUpdateChanges;
+                handle = FindFirstChangeNotification(
+                        dir,
+                        FALSE,
+                        FILE_NOTIFY_CHANGE_LAST_WRITE |
+                                FILE_NOTIFY_CHANGE_FILE_NAME);
         }
 
-cleanup:
-        if (hDir != nullptr)
+        DWORD wait = WaitForSingleObject(handle, INFINITE);
+        if (wait == WAIT_OBJECT_0)
         {
-                CloseHandle(hDir);
+                g_dirChangesDetected = true;
+                FindNextChangeNotification(handle);
         }
+
         return nullptr;
 }
 
