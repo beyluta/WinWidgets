@@ -2145,6 +2145,29 @@ AddSystrayContextMenuItem(const HMENU hMenu,
 }
 
 /**
+ * @brief Hides the window from the taskbar
+ * @param hWnd Handle to the window
+ * @param state Whether it should be hidden or shown
+ * @returns FUNC_STATUS_OK on success, else a numeric error code
+ */
+static func_status_t
+HideWindowFromTaskbar(const HWND hWnd, const bool state)
+{
+        LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
+        const LONG mask =
+                state ? style | WS_EX_TOOLWINDOW : style & (~WS_EX_TOOLWINDOW);
+
+        if (SetWindowLong(hWnd, GWL_EXSTYLE, mask) == 0)
+        {
+                return FUNC_STATUS_ERR;
+        }
+
+        ShowWindow(hWnd, SW_SHOW);
+
+        return FUNC_STATUS_OK;
+}
+
+/**
  * @brief Callback function function for various window messages/events
  * @param hwnd Default handle of th application
  * @param uMsg Code of the event triggered
@@ -2186,6 +2209,11 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
                 switch (wParam)
                 {
+                case SIZE_RESTORED:
+                {
+                        HideWindowFromTaskbar(g_parentHwnd, false);
+                        break;
+                }
                 case SIZE_MINIMIZED:
                         RECT desktop;
                         const HWND hWndDesktop = GetDesktopWindow();
@@ -2193,6 +2221,8 @@ WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         {
                                 return S_FALSE;
                         }
+
+                        HideWindowFromTaskbar(g_parentHwnd, true);
 
                         const ssize_t width = desktop.right * -1;
                         const ssize_t height = desktop.bottom * -1;
@@ -2624,25 +2654,6 @@ SetWindowBorderRadius(const HWND hWnd, const ww_window_ctx *const context)
 }
 
 /**
- * @brief Hides the window from the taskbar
- * @param hWnd Handle to the window
- * @returns FUNC_STATUS_OK on success, else a numeric error code
- */
-static func_status_t
-HideWindowFromTaskbar(const HWND hWnd)
-{
-        LONG style = GetWindowLong(hWnd, GWL_EXSTYLE);
-        if (SetWindowLong(hWnd, GWL_EXSTYLE, style | WS_EX_TOOLWINDOW) == 0)
-        {
-                return FUNC_STATUS_ERR;
-        }
-
-        ShowWindow(hWnd, SW_SHOW);
-
-        return FUNC_STATUS_OK;
-}
-
-/**
  * @brief Set window icon
  * @param hWnd Handle to the window
  * @param src Resource ico to set the icon to
@@ -2746,7 +2757,7 @@ create_widget_window(ww_window_ctx *const context)
                 }
         }
 
-        if (BAD(HideWindowFromTaskbar(*hWnd)))
+        if (BAD(HideWindowFromTaskbar(*hWnd, true)))
         {
                 return FUNC_STATUS_ERR;
         }
