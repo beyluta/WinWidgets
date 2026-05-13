@@ -16,11 +16,13 @@ ww_unzip_archive(const string);
  * @param remoteUrl URL to download the archive from
  * @param dest Destination string to save the path of the archive to
  * @param max Maximum destination string length
+ * @param filename Name of the file or path to the file on the server
  */
 void
 ww_get_default_resource_from_remote(const string remoteUrl,
                                     const string def_dir,
                                     string dest,
-                                    const size_t max);
+                                    const size_t max,
+                                    const string filename);
 
 #endif

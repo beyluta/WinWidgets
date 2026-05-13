@@ -11,20 +11,21 @@
 int WINAPI
 WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR pCmdLine, int nCmdShow)
 {
-        char def_dir[PATH_MAX];
-        if (ww_default_widgets_dir(def_dir, sizeof(def_dir) - 1) == 0)
+        char dir[PATH_MAX];
+        if (ww_default_widgets_dir(dir, sizeof(dir) - 1) == 0)
         {
                 fprintf(stderr, "Failed to create the default folder\n");
                 return EXIT_REASON_IO_FAILURE;
         }
 
-        char url[255];
-        if (ww_read_resource_string("remoteUrl", url, sizeof(url) - 1) > 0)
+        char url[PATH_MAX], file[PATH_MAX];
+        if (ww_read_resource_string("remoteUrl", url, sizeof(url) - 1) > 0 &&
+            ww_read_resource_string("archiveName", file, sizeof(file) - 1) > 0)
         {
-                char archive[PATH_MAX];
-                ww_get_default_resource_from_remote(
-                        url, def_dir, archive, sizeof(archive) - 1);
-                ww_unzip_archive(archive);
+                char zip[PATH_MAX];
+                const size_t bytes = sizeof(zip) - 1;
+                ww_get_default_resource_from_remote(url, dir, zip, bytes, file);
+                ww_unzip_archive(zip);
         }
 
         char html[BUFFSIZE];

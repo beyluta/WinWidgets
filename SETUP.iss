@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "WinWidgets"
-#define MyAppVersion "2.2.1"
+#define MyAppVersion "2.2.2"
 #define MyAppPublisher "Beyluta"
 #define MyAppURL "https://github.com/beyluta/WinWidgets"
 #define MyAppExeName "WinWidgets.exe"

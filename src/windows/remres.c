@@ -10,8 +10,6 @@
 #include "filesystem.h"
 #include "utils.h"
 
-constexpr char ARCHIVE_FILENAME[] = "def_widgets.zip";
-
 static size_t
 ww_write_data(void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
@@ -117,12 +115,13 @@ void
 ww_get_default_resource_from_remote(const string remoteUrl,
                                     const string def_dir,
                                     string dest,
-                                    const size_t max)
+                                    const size_t max,
+                                    const string filename)
 {
         CURL *curl = nullptr;
         FILE *file = nullptr;
 
-        if (snprintf(dest, max, "%s/%s", def_dir, ARCHIVE_FILENAME) < 0)
+        if (snprintf(dest, max, "%s/%s", def_dir, filename) < 0)
         {
                 goto cleanup;
         }

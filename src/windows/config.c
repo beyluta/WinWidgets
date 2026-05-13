@@ -76,7 +76,7 @@ ww_read_resource_string(const string s, string dest, const size_t max)
                 bytes = -1;
                 goto cleanup;
         }
-        dest[bytes - 1] = '\0';
+        dest[bytes] = '\0';
 
 cleanup:
         if (yaml != nullptr)
