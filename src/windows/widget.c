@@ -443,7 +443,7 @@ OpenWidgetByFilename(const char *const path,
                 return FUNC_STATUS_ERR;
         }
 
-        if (ww_get_file_content(trimStr, content, contentSize) == true)
+        if (ww_get_file_content(trimStr, content, contentSize) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
@@ -668,7 +668,7 @@ LoadConfigurationFromFile()
 
         char fileContent[JSONBUFFSIZE];
         if (ww_get_file_content(
-                    absolutePath, fileContent, lengthof(fileContent)))
+                    absolutePath, fileContent, lengthof(fileContent)) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
@@ -1450,7 +1450,8 @@ AppendWidgetsToDOM(ICoreWebView2 *const webview)
                 }
 
                 char content[USHRT_MAX];
-                if (ww_get_file_content(widgets[i], content, lengthof(content)))
+                if (ww_get_file_content(
+                            widgets[i], content, lengthof(content)) == 0)
                 {
                         continue;
                 }

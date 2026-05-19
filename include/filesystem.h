@@ -18,6 +18,12 @@ struct ww_file_t
         size_t length;
 };
 
+typedef enum : uint8_t
+{
+        FILE_FILTER_HTML = 1,
+        FILE_FILTER_YAML = 2
+} ww_file_filter_t;
+
 /**
  * @brief Gets the default HTML file for the wigets manager
  * @param dest Full path to the file
@@ -60,9 +66,9 @@ ww_get_file_bytes(const char *const src);
  * @param src Full path to the file on the system
  * @param dest String to save the content to
  * @param max_len Max length of the file content
- * @return Status of the operation
+ * @return Number of bytes written; Else 0 on failure
  */
-bool
+size_t
 ww_get_file_content(const char *src, char *dest, const size_t max_len);
 
 /**
@@ -137,16 +143,31 @@ ww_dir_up(const char *const src,
 /**
  * @brief Gets all files from a directory
  * @param src Directory to get the files from
+ * @param fil Filter of which file types to include
  * @returns A struct containing a list of files
  */
 ww_file_t *
-ww_get_all_files_from_directory(const string src);
+ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil);
 
 /**
  * @brief Frees all files fetched from directory
- * @brief src all files fetched from directory
+ * @param src all files fetched from directory
  */
 void
 ww_free_all_files_from_directory(ww_file_t *src);
+
+/**
+ * @brief Compares two strings whether str2 is a substring of str1
+ * @param str1 String to look inside of
+ * @param str1_len Length of the first string
+ * @param str2 String to be searched
+ * @param str2_len Length of the second string
+ * @returns Index which the substrig was first found on; Else -1 on error
+ */
+ssize_t
+substrcmp(const char *const str1,
+          const size_t str1_len,
+          const char *const str2,
+          const size_t str2_len);
 
 #endif

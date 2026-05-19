@@ -247,21 +247,21 @@ ww_get_files_from_dir(const char *src, char dest[][BUFFSIZE], const size_t size)
         return i;
 }
 
-bool
+size_t
 ww_get_file_content(const char *src, char *dest, const size_t max_len)
 {
         FILE *file = fopen(src, "rb");
         if (file == NULL)
         {
                 fprintf(stderr, "Failed to open file for reading\n");
-                return true;
+                return 0;
         }
 
         if (fseek(file, 0, SEEK_END) != 0)
         {
                 fclose(file);
                 fprintf(stderr, "Failed to read file to end\n");
-                return true;
+                return 0;
         }
 
         const long length = ftell(file);
@@ -270,14 +270,14 @@ ww_get_file_content(const char *src, char *dest, const size_t max_len)
                 fclose(file);
                 fprintf(stderr,
                         "Failed to get current position of the stream\n");
-                return true;
+                return 0;
         }
 
         if (fseek(file, 0, SEEK_SET) != 0)
         {
                 fclose(file);
                 fprintf(stderr, "Failed to set seek\n");
-                return true;
+                return 0;
         }
 
         const unsigned long fileLength = fread(dest, 1, length, file);
@@ -285,19 +285,20 @@ ww_get_file_content(const char *src, char *dest, const size_t max_len)
         {
                 fclose(file);
                 fprintf(stderr, "Failed to read contents into memory\n");
-                return true;
+                return 0;
         }
 
         if (fileLength > max_len)
         {
                 fclose(file);
                 fprintf(stderr, "Buffer is too small to hold file contents\n");
-                return true;
+                return 0;
         }
 
         fclose(file);
         dest[length] = '\0';
-        return false;
+
+        return length;
 }
 
 size_t
@@ -444,7 +445,7 @@ ww_dir_up(const char *const src,
 }
 
 ww_file_t *
-ww_get_all_files_from_directory(const string src)
+ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
 {
         DIR *directory = opendir(src);
         if (directory == nullptr)
@@ -459,8 +460,19 @@ ww_get_all_files_from_directory(const string src)
         const struct dirent *dir = NULL;
         while ((dir = readdir(directory)) != NULL)
         {
-                if (dir->d_name[0] == '.' ||
+                if (dir->d_name[0] == '.')
+                {
+                        continue;
+                }
+
+                if ((fil & FILE_FILTER_HTML) &&
                     str_ends_with(dir->d_name, ".html"))
+                {
+                        continue;
+                }
+
+                if ((fil & FILE_FILTER_YAML) &&
+                    str_ends_with(dir->d_name, ".yaml"))
                 {
                         continue;
                 }
@@ -539,4 +551,34 @@ ww_free_all_files_from_directory(ww_file_t *src)
                 free(node);
                 node = next;
         }
+}
+
+ssize_t
+substrcmp(const char *const str1,
+          const size_t str1_len,
+          const char *const str2,
+          const size_t str2_len)
+{
+        if (str2_len > str1_len)
+        {
+                return -1;
+        }
+
+        for (size_t i = 0, j = 0; i < str1_len; i++)
+        {
+                char c1 = str1[i];
+                char c2 = str2[j++];
+                if (c1 != c2)
+                {
+                        j = 0;
+                        continue;
+                }
+
+                if (j >= str2_len)
+                {
+                        return i - str2_len;
+                }
+        }
+
+        return -1;
 }

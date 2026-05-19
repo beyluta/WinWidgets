@@ -53,7 +53,7 @@ ww_read_resource_string(const string s, string dest, const size_t max)
         }
 
         char yamlFile[BUFFSIZE];
-        if (ww_get_file_content(absPath, yamlFile, sizeof(yamlFile) - 1))
+        if (ww_get_file_content(absPath, yamlFile, sizeof(yamlFile) - 1) == 0)
         {
                 bytes = -1;
                 goto cleanup;

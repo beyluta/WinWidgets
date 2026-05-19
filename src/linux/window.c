@@ -6,8 +6,17 @@
 // ==========================================================
 #include "widget.h"
 #include "window.h"
+#include "filesystem.h"
 
 // Private members
+
+static constexpr char SIGNAL_DESTROY[] = "destroy";
+static constexpr char SIGNAL_REALIZE[] = "realize";
+static constexpr char SIGNAL_ACTIVATE[] = "activate";
+static constexpr char SIGNAL_BTN_PRESS[] = "button-press-event";
+static constexpr char SIGNAL_MOUSE_MOVE[] = "motion-notify-event";
+static constexpr char SIGNAL_CTX_MENU[] = "context-menu";
+static constexpr char YAML_FILE_SUFFIX[] = ".yaml";
 
 struct window_opts_t
 {
@@ -16,8 +25,11 @@ struct window_opts_t
         GtkWidget *window;
         WebKitWebView *webview;
         WebKitUserContentManager *manager;
+        void (*cb_window_realized)(window_t *);
         void (*cb_mouse_button_press)(void *, const uint8_t);
         void (*cb_mouse_move)(void *, const size_t, const size_t);
+        void (*cb_mouse_move_end)(window_t *);
+        void (*cb_mouse_top_most_changed)(window_t *);
         void (*cb_context_menu_open)(void *,
                                      const ww_window_context_menu_selection_t);
         ww_window_state_t state;
@@ -91,13 +103,38 @@ destroy_window(void *, void *data)
         window_destroy(self);
 }
 
+static void
+on_window_realized(void *, void *data)
+{
+        window_t *self = (window_t *)data;
+
+        if (self->private->cb_window_realized == nullptr)
+        {
+                return;
+        }
+
+        self->private->cb_window_realized(self);
+}
+
 static gboolean
 on_mouse_move(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
         window_t *self = (window_t *)data;
-        const size_t x = (size_t)event->x_root - (self->width / 2);
-        const size_t y = (size_t)event->y_root - (self->height / 2);
-        self->private->cb_mouse_move(self, x, y);
+
+        double x = event->x_root - ((double)self->width / 2);
+        if (x < 0)
+        {
+                x = 0;
+        }
+
+        double y = event->y_root - ((double)self->height / 2);
+        if (y < 0)
+        {
+                y = 0;
+        }
+
+        self->private->cb_mouse_move(self, (size_t)x, (size_t)y);
+
         return FALSE;
 }
 
@@ -154,7 +191,7 @@ create_and_append_menu_item(const string label,
         WebKitContextMenuItem *item = webkit_context_menu_item_new_from_gaction(
                 (GAction *)action, label, NULL);
         webkit_context_menu_append(context_menu, item);
-        g_signal_connect(action, "activate", G_CALLBACK(cb), self);
+        g_signal_connect(action, SIGNAL_ACTIVATE, G_CALLBACK(cb), self);
         return action;
 }
 
@@ -209,7 +246,7 @@ window_register_event_mouse_press(
                               GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
         self->private->cb_mouse_button_press = cb;
         g_signal_connect(window,
-                         "button-press-event",
+                         SIGNAL_BTN_PRESS,
                          G_CALLBACK(on_mouse_button_press),
                          self);
 }
@@ -224,7 +261,7 @@ window_register_event_mouse_motion(window_t *self,
         gtk_widget_add_events(window, GDK_POINTER_MOTION_MASK);
         self->private->cb_mouse_move = cb;
         g_signal_connect(
-                window, "motion-notify-event", G_CALLBACK(on_mouse_move), self);
+                window, SIGNAL_MOUSE_MOVE, G_CALLBACK(on_mouse_move), self);
 }
 
 void
@@ -236,8 +273,10 @@ window_register_event_context_menu(
         gtk_widget_add_events(window,
                               GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
         self->private->cb_context_menu_open = cb;
-        g_signal_connect(
-                window, "context-menu", G_CALLBACK(on_context_menu_open), self);
+        g_signal_connect(window,
+                         SIGNAL_CTX_MENU,
+                         G_CALLBACK(on_context_menu_open),
+                         self);
 }
 
 void
@@ -280,35 +319,43 @@ window_destroy_chain(window_t *self)
 void
 window_show(window_t *self)
 {
-        window_set_title(self, self->private->title);
+        window_opts_t *opts = self->private;
+
+        window_set_title(self, opts->title);
         window_set_size(self, self->width, self->height);
         window_set_position(self, self->x, self->y);
         window_set_hide_from_pager(self, self->is_child);
         window_set_hide_from_taskbar(self, !self->is_child);
 
-        webkit_web_view_load_uri(self->private->webview, self->private->url);
-        gtk_container_add(GTK_CONTAINER(self->private->window),
-                          GTK_WIDGET(self->private->webview));
+        webkit_web_view_load_uri(opts->webview, opts->url);
+        gtk_container_add(GTK_CONTAINER(opts->window),
+                          GTK_WIDGET(opts->webview));
 
-        g_signal_connect(self->private->window,
-                         "destroy",
-                         G_CALLBACK(destroy_window),
-                         self);
+        g_signal_connect(
+                opts->window, SIGNAL_DESTROY, G_CALLBACK(destroy_window), self);
 
-        gtk_widget_show_all(self->private->window);
-
-        if (self->is_child)
+        if (!self->is_child)
         {
-                GtkWindow *window = GTK_WINDOW(self->private->window);
-                gtk_window_set_decorated(window, FALSE);
-                gtk_window_set_transient_for(
-                        window,
-                        GTK_WINDOW(self->private->parent->private->window));
+                g_signal_connect(opts->window,
+                                 SIGNAL_REALIZE,
+                                 G_CALLBACK(on_window_realized),
+                                 self);
+
+                gtk_widget_show_all(opts->window);
+
+                gtk_main();
+
+                return;
         }
         else
         {
-                gtk_main();
+                gtk_widget_show_all(opts->window);
         }
+
+        GtkWindow *window = GTK_WINDOW(opts->window);
+        gtk_window_set_decorated(window, FALSE);
+        gtk_window_set_transient_for(window,
+                                     GTK_WINDOW(opts->parent->private->window));
 }
 
 void
@@ -323,6 +370,8 @@ window_set_position(window_t *self, size_t x, size_t y)
 {
         GtkWindow *window = GTK_WINDOW(self->private->window);
         gtk_window_move(window, x, y);
+        self->x = x;
+        self->y = y;
 }
 
 void
@@ -363,9 +412,28 @@ window_set_title(window_t *self, string title)
 }
 
 void
-window_set_state(window_t *self, ww_window_state_t state_flag)
+window_set_state(window_t *self, ww_window_state_t state)
 {
-        self->private->state = self->private->state | state_flag;
+        self->private->state = self->private->state | state;
+
+        switch (state)
+        {
+        default:
+        {
+                break;
+        }
+        case WINDOW_STATE_TOPMOST:
+        {
+                if (self->private->cb_mouse_top_most_changed == nullptr)
+                {
+                        return;
+                }
+
+                self->private->cb_mouse_top_most_changed(self);
+
+                break;
+        }
+        }
 }
 
 void *
@@ -396,6 +464,36 @@ void
 window_clear_state(window_t *self, ww_window_state_t state)
 {
         self->private->state = self->private->state & (~state);
+
+        switch (state)
+        {
+        default:
+        {
+                break;
+        }
+        case WINDOW_STATE_MOVING:
+        {
+                if (self->private->cb_mouse_move_end == nullptr)
+                {
+                        return;
+                }
+
+                self->private->cb_mouse_move_end(self);
+
+                break;
+        }
+        case WINDOW_STATE_TOPMOST:
+        {
+                if (self->private->cb_mouse_top_most_changed == nullptr)
+                {
+                        return;
+                }
+
+                self->private->cb_mouse_top_most_changed(self);
+
+                break;
+        }
+        }
 }
 
 void
@@ -426,10 +524,67 @@ window_destroy(window_t *self)
 {
         GtkWidget *window = self->private->window;
         g_signal_connect(self->private->window,
-                         "destroy",
+                         SIGNAL_DESTROY,
                          G_CALLBACK(on_window_destroy),
                          self);
         gtk_window_close(GTK_WINDOW(window));
+}
+
+size_t
+window_save_state(window_t *const self)
+{
+        char buffer[MAX_FILE_SIZE];
+        ssize_t bytes = snprintf(buffer,
+                                 sizeof(buffer) - 1,
+                                 "x: %zu\n"
+                                 "y: %zu\n"
+                                 "url: %s\n"
+                                 "guid: %zu\n"
+                                 "top_most: %b",
+                                 self->x,
+                                 self->y,
+                                 self->private->url,
+                                 self->guid,
+                                 window_get_state(self, WINDOW_STATE_TOPMOST));
+        if (bytes < 0)
+        {
+                return 0;
+        }
+
+        char fb[PATH_MAX];
+        if ((bytes = ww_default_widgets_dir(fb, sizeof(fb) - 1)) == 0)
+        {
+                return 0;
+        }
+
+        if ((bytes = snprintf(&fb[bytes],
+                              sizeof(fb) - bytes,
+                              "/%zu.yaml",
+                              self->guid)) == 0)
+        {
+                return 0;
+        }
+
+        if (ww_write_to_file(fb, buffer, WRITE_OVERWRITE))
+        {
+                return 0;
+        }
+
+        return bytes;
+}
+
+void
+window_register_event_mouse_motion_end(window_t *const self,
+                                       void (*cb)(window_t *))
+{
+        self->private->cb_mouse_move_end = cb;
+}
+
+void
+window_register_event_top_most_changed(window_t *const self,
+                                       void (*cb)(window_t *))
+{
+        self->private->cb_mouse_top_most_changed = cb;
 }
 
 void
@@ -451,7 +606,9 @@ window_set_url(const window_t *const self,
 window_t *
 window_new(const window_t options,
            const char *const title,
-           const size_t title_len)
+           const size_t title_len,
+           const size_t guid,
+           void (*cb_window_realized)(window_t *))
 {
         window_t *window = nullptr;
         window_opts_t *opts = nullptr;
@@ -494,11 +651,17 @@ window_new(const window_t options,
         opts->window = gtk_window;
         opts->webview = webview;
         opts->manager = manager;
+        opts->state = WINDOW_STATE_NONE;
         opts->next = nullptr;
         opts->parent = nullptr;
-        opts->state = WINDOW_STATE_NONE;
+        opts->cb_window_realized = cb_window_realized;
+        opts->cb_mouse_move_end = nullptr;
+        opts->cb_mouse_move = nullptr;
+        opts->cb_mouse_top_most_changed = nullptr;
+        opts->cb_mouse_button_press = nullptr;
+        opts->cb_context_menu_open = nullptr;
 
-        window->guid = window_generate_id();
+        window->guid = guid > 0 ? guid : window_generate_id();
         window->private = opts;
 
         return window;

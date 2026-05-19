@@ -8,7 +8,11 @@
 #include "parser.h"
 #include "widget.h"
 #include "filesystem.h"
-#include <linux/limits.h>
+#include "cyaml.h"
+
+// Private members
+
+static constexpr char YAML_FILE_SUFFIX[] = ".yaml";
 
 typedef enum : uint8_t
 {
@@ -102,7 +106,13 @@ on_mouse_button_press(void *const data,
         default:
         case WINDOW_MOUSE_PRESS_EVENT_LEFT:
         {
+                if (window_get_state(self, WINDOW_STATE_MOVING) == false)
+                {
+                        return;
+                }
+
                 window_clear_state(self, WINDOW_STATE_MOVING);
+
                 break;
         }
         }
@@ -116,7 +126,6 @@ on_context_menu_item_selected(void *const data,
 
         switch (code)
         {
-        default:
         case WINDOW_CONTEXT_MENU_SELECTION_MOVE:
         {
                 window_set_state(self, WINDOW_STATE_MOVING);
@@ -137,15 +146,23 @@ on_context_menu_item_selected(void *const data,
         }
 }
 
+static void
+on_window_state_save(window_t *const self)
+{
+        window_save_state(self);
+}
+
 static window_t *
 window_child_new(window_t *const parent,
                  const string url,
-                 const string html,
-                 const size_t html_length)
+                 const string_t html,
+                 const size_t guid,
+                 size_t x,
+                 size_t y)
 {
         string8_t application_title;
-        if (!parse_and_get_value(html,
-                                 html_length,
+        if (!parse_and_get_value(html.data,
+                                 html.length,
                                  (string)TAG_APP_NAME,
                                  PARSE_TYPE_STRING,
                                  application_title))
@@ -156,37 +173,43 @@ window_child_new(window_t *const parent,
         size_t width = DEF_WIDTH;
         size_t height = DEF_HEIGHT;
         parse_and_get_2d_value(
-                html, html_length, (string)TAG_WIN_SIZE, &width, &height);
+                html.data, html.length, (string)TAG_WIN_SIZE, &width, &height);
 
-        size_t x = DEF_X;
-        size_t y = DEF_Y;
-        parse_and_get_2d_value(
-                html, html_length, (string)TAG_WIN_LOCATION, &x, &y);
+        if (x == 0 && y == 0)
+        {
+                x = DEF_X;
+                y = DEF_Y;
+                parse_and_get_2d_value(html.data,
+                                       html.length,
+                                       (string)TAG_WIN_LOCATION,
+                                       &x,
+                                       &y);
+        }
 
         size_t opacity = DEF_OPACITY;
-        parse_and_get_value(html,
-                            html_length,
+        parse_and_get_value(html.data,
+                            html.length,
                             (string)TAG_WIN_OPACITY,
                             PARSE_TYPE_UINT8,
                             &opacity);
 
         size_t radius = DEF_RADIUS;
-        parse_and_get_value(html,
-                            html_length,
+        parse_and_get_value(html.data,
+                            html.length,
                             (string)TAG_WIN_BORD_RAD,
                             PARSE_TYPE_UINT8,
                             &radius);
 
         bool show_title_bar = DEF_SHOW_TITLE_BAR;
-        parse_and_get_value(html,
-                            html_length,
+        parse_and_get_value(html.data,
+                            html.length,
                             (string)TAG_SHOW_TITLE_BAR,
                             PARSE_TYPE_BOOLEAN,
                             &show_title_bar);
 
         bool is_top_most = DEF_TOPMOST;
-        parse_and_get_value(html,
-                            html_length,
+        parse_and_get_value(html.data,
+                            html.length,
                             (string)TAG_APP_TOPMOST,
                             PARSE_TYPE_BOOLEAN,
                             &is_top_most);
@@ -201,8 +224,11 @@ window_child_new(window_t *const parent,
                          .is_child = true,
                          .is_top_most = is_top_most};
 
-        window_t *child =
-                window_new(opts, application_title, strlen(application_title));
+        window_t *child = window_new(opts,
+                                     application_title,
+                                     strlen(application_title),
+                                     guid,
+                                     nullptr);
 
         if (child == nullptr)
         {
@@ -210,10 +236,13 @@ window_child_new(window_t *const parent,
         }
 
         window_set_url(child, url, strlen(url));
+        window_set_position(child, x, y);
         window_register_event_mouse_motion(child, on_mouse_move);
         window_register_event_mouse_press(child, on_mouse_button_press);
         window_register_event_context_menu(child,
                                            on_context_menu_item_selected);
+        window_register_event_mouse_motion_end(child, on_window_state_save);
+        window_register_event_top_most_changed(child, on_window_state_save);
 
         window_add_child(parent, child);
 
@@ -264,15 +293,24 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
         temp_file_path[bytes] = '\0';
 
         string16_t html_raw_content;
-        if (ww_get_file_content(
-                    temp_file_path, html_raw_content, sizeof(html_raw_content)))
+        if (ww_get_file_content(temp_file_path,
+                                html_raw_content,
+                                sizeof(html_raw_content)) == 0)
         {
                 goto cleanup;
         }
 
         window_t *self = (window_t *)user_data;
-        window_t *child = window_child_new(
-                self, file_path, html_raw_content, sizeof(html_raw_content));
+
+        window_t *child =
+                window_child_new(self,
+                                 file_path,
+                                 (string_t){.data = html_raw_content,
+                                            .length = sizeof(html_raw_content)},
+                                 0,
+                                 0,
+                                 0);
+
         if (child == nullptr)
         {
                 goto cleanup;
@@ -301,7 +339,8 @@ on_document_object_model_loaded(void *, void *, void *data)
                 return;
         }
 
-        ww_file_t *file = ww_get_all_files_from_directory(default_dir);
+        ww_file_t *file =
+                ww_get_all_files_from_directory(default_dir, FILE_FILTER_HTML);
         for (ww_file_t *current_file = file; current_file != nullptr;
              current_file = current_file->next)
         {
@@ -313,7 +352,7 @@ on_document_object_model_loaded(void *, void *, void *data)
                          default_dir,
                          current_file->name);
                 if (ww_get_file_content(
-                            absolute_file, file_content, MAX_FILE_SIZE))
+                            absolute_file, file_content, MAX_FILE_SIZE) == 0)
                 {
                         fprintf(stderr,
                                 "Content of the HTML file could not be loaded "
@@ -362,6 +401,156 @@ on_open_default_directory(void *, void *, void *)
         }
 }
 
+static void
+on_window_realized(window_t *self)
+{
+        ww_file_t *file = nullptr;
+        yaml_s *yaml = nullptr;
+
+        char dir[PATH_MAX];
+        size_t bytes = ww_default_widgets_dir(dir, sizeof(dir) - 1);
+        if (bytes == 0)
+        {
+                goto cleanup;
+        }
+
+        file = ww_get_all_files_from_directory(dir, FILE_FILTER_YAML);
+        if (file == nullptr)
+        {
+                goto cleanup;
+        }
+
+        ww_file_t *fptr = file;
+        while (fptr != nullptr)
+        {
+                const ssize_t index = substrcmp(fptr->name,
+                                                fptr->length,
+                                                YAML_FILE_SUFFIX,
+                                                sizeof(YAML_FILE_SUFFIX) - 1);
+                if (index < 0)
+                {
+                        goto cleanup;
+                }
+
+                char fp[PATH_MAX];
+                bytes = snprintf(fp, sizeof(fp) - 1, "%s/%s", dir, fptr->name);
+                if (bytes < 0)
+                {
+                        goto cleanup;
+                }
+
+                char fb[4096];
+                bytes = ww_get_file_content(fp, fb, sizeof(fb) - 1);
+                if (bytes == 0)
+                {
+                        goto cleanup;
+                }
+
+                if ((yaml = yaml_load(fb, bytes)) == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                yaml_node_s *root = yaml_root_node(yaml);
+                if (root == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                yaml_node_s *nURL = yaml_get_node(root, "url");
+                if (nURL == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                yaml_node_s *nGuid = yaml_get_node(root, "guid");
+                if (nGuid == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                yaml_node_s *nX = yaml_get_node(root, "x");
+                if (nX == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                yaml_node_s *nY = yaml_get_node(root, "y");
+                if (nY == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                char url[PATH_MAX];
+                bytes = yaml_get_primitive(nURL, url, sizeof(url) - 1);
+                if (bytes == 0)
+                {
+                        goto cleanup;
+                }
+
+                char guid[32];
+                bytes = yaml_get_primitive(nGuid, guid, sizeof(guid) - 1);
+                if (bytes == 0)
+                {
+                        goto cleanup;
+                }
+
+                char x[16];
+                bytes = yaml_get_primitive(nX, x, sizeof(x) - 1);
+                if (bytes == 0)
+                {
+                        goto cleanup;
+                }
+
+                char y[16];
+                bytes = yaml_get_primitive(nY, y, sizeof(y) - 1);
+                if (bytes == 0)
+                {
+                        goto cleanup;
+                }
+
+                char html[MAX_FILE_SIZE];
+                const size_t htmlSize = sizeof(html) - 1;
+                if (ww_get_file_content(&url[7], html, htmlSize) == 0)
+                {
+                        goto cleanup;
+                }
+
+                window_t *child = window_child_new(
+                        self,
+                        url,
+                        (string_t){.data = html, .length = htmlSize},
+                        strtoul(guid, nullptr, 10),
+                        strtoul(x, nullptr, 10),
+                        strtoul(y, nullptr, 10));
+
+                if (child == nullptr)
+                {
+                        goto cleanup;
+                }
+
+                window_show(child);
+
+                yaml_free(yaml);
+                yaml = nullptr;
+
+                fptr = fptr->next;
+        }
+
+cleanup:
+        if (yaml != nullptr)
+        {
+                yaml_free(yaml);
+        }
+
+        if (file != nullptr)
+        {
+                ww_free_all_files_from_directory(file);
+        }
+}
+
+// Public members
+
 int
 main()
 {
@@ -393,7 +582,8 @@ main()
                          .is_child = false,
                          .is_top_most = true};
 
-        window_t *self = window_new(opts, PROG_NAME, sizeof(PROG_NAME) - 1);
+        window_t *self = window_new(
+                opts, PROG_NAME, sizeof(PROG_NAME) - 1, 0, on_window_realized);
 
         window_set_url(self, html, strlen(html));
 

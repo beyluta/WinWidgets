@@ -45,7 +45,9 @@ typedef struct
 window_t *
 window_new(const window_t options,
            const char *const title,
-           const size_t title_len);
+           const size_t title_len,
+           const size_t guid,
+           void (*cb_window_realized)(window_t *));
 
 void
 window_destroy(window_t *self);
@@ -108,6 +110,14 @@ window_register_event_mouse_motion(window_t *self,
                                               const size_t));
 
 void
+window_register_event_mouse_motion_end(window_t *const self,
+                                       void (*cb)(window_t *));
+
+void
+window_register_event_top_most_changed(window_t *const self,
+                                       void (*cb)(window_t *));
+
+void
 window_register_event_mouse_press(
         window_t *self,
         void (*cb)(void *, const ww_window_mouse_press_event_t));
@@ -125,5 +135,8 @@ window_add_child(window_t *self, window_t *child);
 
 void
 window_destroy_chain(window_t *self);
+
+size_t
+window_save_state(window_t *const self);
 
 #endif

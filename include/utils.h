@@ -28,6 +28,12 @@ typedef enum : uint8_t
         widget_char_gt = 62
 } widget_char_t;
 
+typedef struct
+{
+        char *data;
+        size_t length;
+} string_t;
+
 /**
  * @brief Gets a set of values separated by a whitespace from a string
  * @param src Source containing the numeric values
