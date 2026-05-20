@@ -540,7 +540,7 @@ window_save_state(window_t *const self)
                                  "y: %zu\n"
                                  "url: %s\n"
                                  "guid: %zu\n"
-                                 "top_most: %b",
+                                 "top_most: %b\n",
                                  self->x,
                                  self->y,
                                  self->private->url,
