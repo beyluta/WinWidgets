@@ -58,6 +58,9 @@ window_set_url(const window_t *const self,
                const size_t url_len);
 
 void
+window_set_transparency(window_t *const self, const double alpha);
+
+void
 window_show(window_t *self);
 
 void

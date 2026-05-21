@@ -317,6 +317,27 @@ window_destroy_chain(window_t *self)
 }
 
 void
+window_set_transparency(window_t *const self, const double alpha)
+{
+        WebKitWebView *webview = self->private->webview;
+        GtkWidget *widget = self->private->window;
+        GtkWindow *window = GTK_WINDOW(widget);
+
+        GdkScreen *screen = gtk_widget_get_screen(widget);
+        GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+        if (visual == nullptr || !gdk_screen_is_composited(screen))
+        {
+                return;
+        }
+
+        gtk_widget_set_visual(widget, visual);
+        gtk_widget_set_app_paintable(widget, true);
+
+        GdkRGBA rgba = {0, 0, 0, alpha};
+        webkit_web_view_set_background_color(webview, &rgba);
+}
+
+void
 window_show(window_t *self)
 {
         window_opts_t *opts = self->private;
@@ -349,13 +370,12 @@ window_show(window_t *self)
         }
         else
         {
+                window_set_transparency(self, 0);
                 gtk_widget_show_all(opts->window);
         }
 
         GtkWindow *window = GTK_WINDOW(opts->window);
         gtk_window_set_decorated(window, FALSE);
-        gtk_window_set_transient_for(window,
-                                     GTK_WINDOW(opts->parent->private->window));
 }
 
 void
@@ -379,7 +399,6 @@ window_set_topmost(window_t *self, bool state)
 {
         GtkWindow *window = GTK_WINDOW(self->private->window);
         gtk_window_set_keep_above(window, state);
-        gtk_window_present(window);
 
         if (state)
         {
