@@ -456,7 +456,6 @@ ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
 
         ww_file_t *root = nullptr;
         ww_file_t *prev = nullptr;
-        size_t depth = 0;
         const struct dirent *dir = NULL;
         while ((dir = readdir(directory)) != NULL)
         {
@@ -526,7 +525,6 @@ ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
                 file->next = nullptr;
                 file->length = name_size;
                 prev = file;
-                depth++;
         }
 
         closedir(directory);

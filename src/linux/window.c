@@ -16,7 +16,6 @@ static constexpr char SIGNAL_ACTIVATE[] = "activate";
 static constexpr char SIGNAL_BTN_PRESS[] = "button-press-event";
 static constexpr char SIGNAL_MOUSE_MOVE[] = "motion-notify-event";
 static constexpr char SIGNAL_CTX_MENU[] = "context-menu";
-static constexpr char YAML_FILE_SUFFIX[] = ".yaml";
 
 struct window_opts_t
 {
@@ -51,7 +50,7 @@ window_generate_id()
 }
 
 static void
-on_window_destroy(GtkWidget *window, gpointer data)
+on_window_destroy(GtkWidget *, gpointer data)
 {
         window_t *self = (window_t *)data;
 
@@ -120,7 +119,7 @@ on_window_realized(void *, void *data)
 }
 
 static gboolean
-on_mouse_move(GtkWidget *widget, GdkEventMotion *event, gpointer data)
+on_mouse_move(GtkWidget *, GdkEventMotion *event, gpointer data)
 {
         window_t *self = (window_t *)data;
 
@@ -142,7 +141,7 @@ on_mouse_move(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 }
 
 static gboolean
-on_mouse_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
+on_mouse_button_press(GtkWidget *, GdkEventButton *event, gpointer data)
 {
         window_t *self = (window_t *)data;
         self->private->cb_mouse_button_press(self, event->button);
@@ -150,9 +149,7 @@ on_mouse_button_press(GtkWidget *widget, GdkEventButton *event, gpointer data)
 }
 
 static gboolean
-on_context_menu_item_move_selected(GAction *action,
-                                   GVariant *target,
-                                   gpointer data)
+on_context_menu_item_move_selected(GAction *, GVariant *, gpointer data)
 {
         window_t *self = (window_t *)data;
         self->private->cb_context_menu_open(self,
@@ -161,9 +158,7 @@ on_context_menu_item_move_selected(GAction *action,
 }
 
 static gboolean
-on_context_menu_item_topmost_selected(GAction *action,
-                                      GVariant *target,
-                                      gpointer data)
+on_context_menu_item_topmost_selected(GAction *, GVariant *, gpointer data)
 {
         window_t *self = (window_t *)data;
         self->private->cb_context_menu_open(
@@ -172,9 +167,7 @@ on_context_menu_item_topmost_selected(GAction *action,
 }
 
 static gboolean
-on_context_menu_item_close_selected(GAction *action,
-                                    GVariant *target,
-                                    gpointer data)
+on_context_menu_item_close_selected(GAction *, GVariant *, gpointer data)
 {
         window_t *self = (window_t *)data;
         self->private->cb_context_menu_open(
@@ -199,10 +192,10 @@ create_and_append_menu_item(const string label,
 }
 
 static gboolean
-on_context_menu_open(WebKitWebView *webview,
+on_context_menu_open(WebKitWebView *,
                      WebKitContextMenu *context_menu,
-                     GdkEvent *event,
-                     WebKitHitTestResult *hit_test_result,
+                     GdkEvent *,
+                     WebKitHitTestResult *,
                      gpointer user_data)
 {
         window_t *self = (window_t *)user_data;
@@ -324,7 +317,6 @@ window_set_transparency(window_t *const self, const double alpha)
 {
         WebKitWebView *webview = self->private->webview;
         GtkWidget *widget = self->private->window;
-        GtkWindow *window = GTK_WINDOW(widget);
 
         GdkScreen *screen = gtk_widget_get_screen(widget);
         GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
@@ -596,7 +588,7 @@ void
 window_save_state_remove(window_t *const self)
 {
         char fb[PATH_MAX];
-        size_t n = ww_default_widgets_dir(fb, sizeof(fb) - 1);
+        ssize_t n = ww_default_widgets_dir(fb, sizeof(fb) - 1);
         if (n == 0)
         {
                 return;

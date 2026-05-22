@@ -126,9 +126,9 @@ MoveWindowToPosition(const HWND hWnd, const size_t x, const size_t y)
 }
 
 sysinfo_code_t
+#if _WIN32
 GetMemoryInfo(ww_memory_info_t *const memInfo)
 {
-#if _WIN32
         MEMORYSTATUSEX memStat;
         memStat.dwLength = sizeof(memStat);
         if (GlobalMemoryStatusEx(&memStat) == 0)
@@ -141,8 +141,10 @@ GetMemoryInfo(ww_memory_info_t *const memInfo)
                 memStat.ullTotalPageFile - memStat.ullAvailPageFile;
         memInfo->totalPhysMem = memStat.ullTotalPhys;
         memInfo->usedPhysMem = memStat.ullTotalPhys - memStat.ullAvailPhys;
+#elif __linux__
+GetMemoryInfo(ww_memory_info_t *const)
+{
 #endif
-
         return SYSINFO_CODE_SUCCESS;
 }
 

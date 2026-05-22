@@ -58,7 +58,7 @@ parse_and_get_value(const string html,
         {
                 string value = (string)pointer;
                 const size_t length = strlen(temp_string);
-                strncpy(value, temp_string, length);
+                memcpy(value, temp_string, length);
                 value[length] = '\0';
                 break;
         }
@@ -259,6 +259,8 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
 {
         WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
         JSCValue *js_string = nullptr;
+        string temp_file_path = nullptr;
+
         if ((js_string = webkit_javascript_result_get_js_value(result)) ==
             nullptr)
         {
@@ -286,7 +288,6 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
         memcpy(file_path, temp_string, bytes);
         file_path[bytes] = '\0';
 
-        string temp_file_path = nullptr;
         bytes = bytes - 7;
         if ((temp_file_path = (string)malloc(sizeof(char) * (bytes + 1))) ==
             nullptr)
@@ -339,42 +340,46 @@ cleanup:
 static void
 on_document_object_model_loaded(void *, void *, void *data)
 {
-        char default_dir[PATH_MAX];
-        if (ww_default_widgets_dir(default_dir, sizeof(default_dir) - 1) == 0)
+        ww_file_t *fp = nullptr;
+
+        char dir[PATH_MAX];
+        if (ww_default_widgets_dir(dir, sizeof(dir) - 1) == 0)
         {
-                return;
+                goto cleanup;
         }
 
-        ww_file_t *file =
-                ww_get_all_files_from_directory(default_dir, FILE_FILTER_HTML);
-        for (ww_file_t *current_file = file; current_file != nullptr;
+        fp = ww_get_all_files_from_directory(dir, FILE_FILTER_HTML);
+        if (fp == nullptr)
+        {
+                goto cleanup;
+        }
+
+        for (ww_file_t *current_file = fp; current_file != nullptr;
              current_file = current_file->next)
         {
-                string16_t file_content;
-                string12_t absolute_file;
-                snprintf(absolute_file,
-                         MAX_STR_SIZE,
-                         "%s/%s",
-                         default_dir,
-                         current_file->name);
-                if (ww_get_file_content(
-                            absolute_file, file_content, MAX_FILE_SIZE) == 0)
+                char fb[PATH_MAX];
+                ssize_t bytes = snprintf(
+                        fb, sizeof(fb) - 1, "%s/%s", dir, current_file->name);
+                if (bytes < 0)
                 {
-                        fprintf(stderr,
-                                "Content of the HTML file could not be loaded "
-                                "into buffer\n");
                         continue;
                 }
 
-                string12_t file_title;
-                if (!ww_begin_parsing(file_content,
-                                      sizeof(file_content),
+                char buff[MAX_FILE_SIZE];
+                if (ww_get_file_content(fb, buff, sizeof(buff) - 1) == 0)
+                {
+                        fprintf(stderr, "Buffer too small for HTML content\n");
+                        continue;
+                }
+
+                char file_title[BUFFSIZE];
+                if (!ww_begin_parsing(buff,
+                                      sizeof(buff),
                                       TAG_APP_NAME,
                                       file_title,
-                                      sizeof(file_title)))
+                                      sizeof(file_title) - 1))
                 {
-                        fprintf(stderr,
-                                "Failed to get title from HTML content\n");
+                        fprintf(stderr, "Failed to get title from HTML\n");
                         continue;
                 }
 
@@ -383,13 +388,17 @@ on_document_object_model_loaded(void *, void *, void *data)
                          MAX_STR_SIZE * 2,
                          "window.addWidget && window.addWidget(\"%s\", \"%s\")",
                          file_title,
-                         absolute_file);
+                         fb);
 
                 window_t *self = (window_t *)data;
                 window_run_javascript(self, func_args);
         }
 
-        ww_free_all_files_from_directory(file);
+cleanup:
+        if (fp != nullptr)
+        {
+                ww_free_all_files_from_directory(fp);
+        }
 }
 
 static void
@@ -414,7 +423,7 @@ on_window_realized(window_t *self)
         yaml_s *yaml = nullptr;
 
         char dir[PATH_MAX];
-        size_t bytes = ww_default_widgets_dir(dir, sizeof(dir) - 1);
+        ssize_t bytes = ww_default_widgets_dir(dir, sizeof(dir) - 1);
         if (bytes == 0)
         {
                 goto cleanup;
