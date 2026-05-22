@@ -142,4 +142,7 @@ window_destroy_chain(window_t *self);
 size_t
 window_save_state(window_t *const self);
 
+void
+window_save_state_remove(window_t *const self);
+
 #endif

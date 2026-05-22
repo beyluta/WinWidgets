@@ -97,8 +97,11 @@ destroy_window(void *, void *data)
                 }
 
                 prev->private->next = self->private->next;
+
                 break;
         }
+
+        window_save_state_remove(self);
 
         window_destroy(self);
 }
@@ -553,33 +556,30 @@ size_t
 window_save_state(window_t *const self)
 {
         char buffer[MAX_FILE_SIZE];
-        ssize_t bytes = snprintf(buffer,
-                                 sizeof(buffer) - 1,
-                                 "x: %zu\n"
-                                 "y: %zu\n"
-                                 "url: %s\n"
-                                 "guid: %zu\n"
-                                 "top_most: %b\n",
-                                 self->x,
-                                 self->y,
-                                 self->private->url,
-                                 self->guid,
-                                 window_get_state(self, WINDOW_STATE_TOPMOST));
-        if (bytes < 0)
+        ssize_t n = snprintf(buffer,
+                             sizeof(buffer) - 1,
+                             "x: %zu\n"
+                             "y: %zu\n"
+                             "url: %s\n"
+                             "guid: %zu\n"
+                             "top_most: %b\n",
+                             self->x,
+                             self->y,
+                             self->private->url,
+                             self->guid,
+                             window_get_state(self, WINDOW_STATE_TOPMOST));
+        if (n < 0)
         {
                 return 0;
         }
 
         char fb[PATH_MAX];
-        if ((bytes = ww_default_widgets_dir(fb, sizeof(fb) - 1)) == 0)
+        if ((n = ww_default_widgets_dir(fb, sizeof(fb) - 1)) == 0)
         {
                 return 0;
         }
 
-        if ((bytes = snprintf(&fb[bytes],
-                              sizeof(fb) - bytes,
-                              "/%zu.yaml",
-                              self->guid)) == 0)
+        if ((n = snprintf(&fb[n], sizeof(fb) - n, "/%zu.yaml", self->guid)) < 0)
         {
                 return 0;
         }
@@ -589,7 +589,28 @@ window_save_state(window_t *const self)
                 return 0;
         }
 
-        return bytes;
+        return n;
+}
+
+void
+window_save_state_remove(window_t *const self)
+{
+        char fb[PATH_MAX];
+        size_t n = ww_default_widgets_dir(fb, sizeof(fb) - 1);
+        if (n == 0)
+        {
+                return;
+        }
+
+        if ((n = snprintf(&fb[n], sizeof(fb) - n, "/%zu.yaml", self->guid)) < 0)
+        {
+                return;
+        }
+
+        if (remove(fb) != 0)
+        {
+                return;
+        }
 }
 
 void
