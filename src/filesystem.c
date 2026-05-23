@@ -335,20 +335,11 @@ ww_get_root_dir(const char *src, char *dest)
 bool
 ww_get_filename_from_absolute_path(const char *src, char *dest)
 {
-        const size_t len = strlen(src);
-        size_t start = 0;
-        for (size_t i = len; i > 0; i--)
-        {
-                if (src[i] == '/')
-                {
-                        start = i;
-                        break;
-                }
-        }
-
-        const size_t size = len - start;
-        memcpy(dest, &src[start], size);
-        dest[size] = '\0';
+        const char *slash = strrchr(src, '/');
+        const char *start = (slash != NULL) ? slash + 1 : src;
+        const size_t size = strlen(start);
+        memcpy(dest, start, size);
+        dest[size] = ' ';
         return false;
 }
 
