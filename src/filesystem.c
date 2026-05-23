@@ -327,13 +327,7 @@ ww_get_root_dir(const char *src, char *dest)
                 }
         }
 
-        if (strncpy(dest, src, end) == NULL)
-        {
-                fprintf(stderr,
-                        "Failed to return the root directory of %s\n",
-                        src);
-                return true;
-        }
+        memcpy(dest, src, end);
         dest[end] = '\0';
         return false;
 }
@@ -341,24 +335,11 @@ ww_get_root_dir(const char *src, char *dest)
 bool
 ww_get_filename_from_absolute_path(const char *src, char *dest)
 {
-        const size_t len = strlen(src);
-        size_t start = 0;
-        for (size_t i = len; i > 0; i--)
-        {
-                if (src[i] == '/')
-                {
-                        start = i;
-                        break;
-                }
-        }
-
-        const size_t size = len - start;
-        if (strncpy(dest, &src[start], size) == NULL)
-        {
-                fprintf(stderr, "Failed to get the filename of %s\n", src);
-                return true;
-        }
-        dest[size] = '\0';
+        const char *slash = strrchr(src, '/');
+        const char *start = (slash != NULL) ? slash + 1 : src;
+        const size_t size = strlen(start);
+        memcpy(dest, start, size);
+        dest[size] = ' ';
         return false;
 }
 
@@ -486,7 +467,7 @@ ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
                         exit(1);
                 }
 
-                string name = (string)malloc(sizeof(char) * (MAX_STR_SIZE + 1));
+                string name = (string)calloc(MAX_STR_SIZE + 1, sizeof(char));
                 if (name == nullptr)
                 {
                         free(file);
@@ -518,7 +499,7 @@ ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
                         continue;
                 }
 
-                strncpy(name, dir->d_name, name_size);
+                memcpy(name, dir->d_name, name_size);
                 name[name_size] = '\0';
 
                 file->name = name;
