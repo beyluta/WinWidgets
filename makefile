@@ -1,5 +1,5 @@
 .SILENT:
-.PHONY: all
+.PHONY: all prepare
 
 # Desired compiler
 CC = gcc
@@ -108,6 +108,16 @@ SRC := $(SRC) \
 			 src/linux/widget.c \
 			 src/linux/window.c
 
+make: $(BUILD_DIR)/$(TARGET)
+
+$(BUILD_DIR)/$(TARGET): $(OBJS)
+	mkdir -p "$(dir $@)"
+	$(CC) -o $@ $^ $(LDFLAGS) $(GTKFLAGS)
+
+$(OBJS_DIR)/%.o: %.c
+	mkdir -p "$(dir $@)"
+	$(CC) -c $(CFLAGS) $(GTKFLAGS) -o $@ $<
+
 prepare:
 	rm -rf "$(BUILD_DIR)"
 	mkdir -p "$(BUILD_DIR)"
@@ -115,12 +125,6 @@ prepare:
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
-debug: prepare
-	$(CC) $(SRC) $(CFLAGS) $(GTKFLAGS) $(LDFLAGS) -g -o $(TARGET)
-release: prepare
-	$(CC) $(SRC) $(CFLAGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(TARGET)
-run:
-	./$(TARGET)	
 endif
 
 -include $(DEPS)
