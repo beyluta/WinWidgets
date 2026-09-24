@@ -1,36 +1,51 @@
-.PHONY: debug release run prepare
+.SILENT:
+.PHONY: all
 
+# Desired compiler
 CC = gcc
-BUILDDIR = build
-OUT = $(BUILDDIR)/WinWidgets
-SRC = src/filesystem.c \
-			src/utils.c \
-			src/parser.c \
-			src/sysinfo.c \
+
+# Sources
+SRC_DIR = src
+SRC = $(wildcard $(SRC_DIR)/*.c) \
 			lib/minimal-json-c-parser/src/json.c \
 			lib/c-yaml-parser/src/cyaml.c
-INCL = -Ilib/minimal-json-c-parser/include \
-			 -Ilib/c-yaml-parser/include
-RELEASE = -Werror \
+
+# Build dir and output names
+BUILD_DIR = build
+TARGET = WinWidgets
+
+# Build artifacts
+OBJS_DIR = $(BUILD_DIR)/objs
+OBJS = $(patsubst %.c, $(OBJS_DIR)/%.o, ${SRC})
+DEPS = $(patsubst %.c, $(OBJS_DIR)/%.d, ${SRC})
+
+# Compiler flags
+CFLAGS := -MMD \
+				  -MP \
+					-Werror \
 					-Wextra \
-					-Wall
+					-Wall \
+					-Iinclude \
+				  -Ilib/minimal-json-c-parser/include \
+			 	  -Ilib/c-yaml-parser/include
 
 # ---------------------------------------------------------------------------
 # Building for Windows platform
 # ---------------------------------------------------------------------------
 ifeq ($(OS), Windows_NT)
 MINGW64 := C:/tools/msys64/mingw64
-ARGS := -Iinclude \
+CFLAGS := $(CFLAGS) \
 				-Iinclude/windows \
 				-I$(MINGW64)/include \
-				-L$(MINGW64)/lib \
-				-Llib/WebView2/build/native/x64 \
 				-isystem lib/WebView2/build/native/include \
 				-O3 \
 				-xc \
-				-std=c23 \
-				-mwindows
-LDFLAGS := -lole32 \
+				-std=c23
+
+LDFLAGS := -L$(MINGW64)/lib \
+					 -Llib/WebView2/build/native/x64 \
+					 -mwindows \
+					 -lole32 \
 					 -loleaut32 \
 					 -luuid \
 					 -lddraw \
@@ -42,15 +57,26 @@ LDFLAGS := -lole32 \
 					 -lz \
 					 -lWebView2Loader \
 					 -lpthread \
-					 -lstdc++
+					 -lstdc++ \
+			  	 "$(CURDIR)/src/windows/resources.o"
 SRC := $(SRC) \
 			 main.c \
 			 src/windows/widget.c \
 			 src/windows/remres.c \
 			 src/windows/config.c \
 			 src/windows/routine.c
-RESRC = "$(CURDIR)/src/windows/resources.o"
 WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
+
+all: $(BUILD_DIR)/$(TARGET)
+	echo Finished compiling $(TARGET) to directory $(BUILD_DIR)
+
+$(BUILD_DIR)/$(TARGET): $(OBJS)
+	if not exist "$(dir $@)" mkdir "$(dir $@)"
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(OBJS_DIR)/%.o: %.c
+	if not exist "$(dir $@)" mkdir "$(dir $@)"
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 prepare:
 	@if not exist "$(CURDIR)/lib/WebView2" ( \
@@ -60,24 +86,18 @@ prepare:
 		powershell -command "Remove-Item -Force '$(CURDIR)/lib/WebView2.zip'" \
 	)
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
-	@if not exist $(BUILDDIR) mkdir $(BUILDDIR)
-	- robocopy "$(CURDIR)/assets" "$(BUILDDIR)/assets" /E
-	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILDDIR)"
-	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILDDIR)" /Y
+	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+	- robocopy "$(CURDIR)/assets" "$(BUILD_DIR)/assets" /E
+	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILD_DIR)"
+	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILD_DIR)" /Y
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
-debug: prepare
-	$(CC) $(RESRC) $(SRC) $(INCL) $(ARGS) $(LDFLAGS) -g -o $(OUT)
-release: prepare
-	$(CC) $(RESRC) $(SRC) $(INCL) $(ARGS) $(RELEASE) $(LDFLAGS) -o $(OUT)
-run:
-	./$(OUT)
 
 # ---------------------------------------------------------------------------
 # Building for Linux platform
 # ---------------------------------------------------------------------------
-else ifeq($(UNAME), Linux)
+else
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 x11 webkit2gtk-4.1`
-ARGS := -Iinclude \
+CFLAGS := $(CFLAGS) \
 				-Iinclude/linux \
 				-O2 \
 				-xc \
@@ -89,16 +109,18 @@ SRC := $(SRC) \
 			 src/linux/window.c
 
 prepare:
-	rm -rf "$(BUILDDIR)"
-	mkdir -p "$(BUILDDIR)"
-	cp -r "$(CURDIR)/assets" "$(BUILDDIR)/assets"
+	rm -rf "$(BUILD_DIR)"
+	mkdir -p "$(BUILD_DIR)"
+	cp -r "$(CURDIR)/assets" "$(BUILD_DIR)/assets"
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h \
 	$(CURDIR)/main.c
 debug: prepare
-	$(CC) $(SRC) $(INCL) $(ARGS) $(GTKFLAGS) $(LDFLAGS) -g -o $(OUT)
+	$(CC) $(SRC) $(CFLAGS) $(GTKFLAGS) $(LDFLAGS) -g -o $(TARGET)
 release: prepare
-	$(CC) $(SRC) $(INCL) $(ARGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(OUT)
+	$(CC) $(SRC) $(CFLAGS) $(RELEASE) $(GTKFLAGS) $(LDFLAGS) -o $(TARGET)
 run:
-	./$(OUT)	
+	./$(TARGET)	
 endif
+
+-include $(DEPS)

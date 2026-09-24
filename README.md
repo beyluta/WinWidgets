@@ -111,28 +111,21 @@ git submodule update --init --recursive
 git submodule update --recursive --remote
 ```
 
-Compile the binary for debugging with the following command:
+Prepare libraries and external dependencies:
 
 ```bash
-make debug
+make prepare
 ```
 
 Compile the binary for release with the following command:
 
 ```bash
-make release
-```
-
-Execute the program with:
-
-```bash
-make run
+make
 ```
 
 ## Contributing
 
-> Please disclose the use of any A.I tools used for development in the PR.
-> Using artificial intelligence for help or research is very welcome.
+> Using A.I for assistance or research is very welcome.
 > Fully vibe-coded solutions will be rejected.
 
 1. Fork the Project
