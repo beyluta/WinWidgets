@@ -35,15 +35,6 @@ typedef struct
 } string_t;
 
 /**
- * @brief Allocates memory for a string in a string_t struct
- * @param s String to be allocated
- * @return Heap allocated struct containing string information
- * @note - Programmer must free this memory
- */
-string_t *
-AllocString(const char *restrict const s);
-
-/**
  * @brief Allocates bytes of memory for a string in a string_t struct
  * @param n Max byte size including null-terminator
  * @return Heap allocated struct containing string information
