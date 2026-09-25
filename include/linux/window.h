@@ -15,17 +15,8 @@ typedef enum : uint8_t
 
 typedef enum : uint8_t
 {
-        WINDOW_CONTEXT_MENU_SELECTION_MOVE,
-        WINDOW_CONTEXT_MENU_SELECTION_TOPMOST,
-        WINDOW_CONTEXT_MENU_SELECTION_CLOSE,
+        WINDOW_CONTEXT_MENU_SELECTION_CLOSE = 1
 } ww_window_context_menu_selection_t;
-
-typedef enum : uint8_t
-{
-        WINDOW_STATE_NONE = 1,
-        WINDOW_STATE_MOVING = 2,
-        WINDOW_STATE_TOPMOST = 4,
-} ww_window_state_t;
 
 typedef struct
 {
@@ -39,7 +30,6 @@ typedef struct
         uint8_t radius;
         bool show_title_bar;
         bool is_child;
-        bool is_top_most;
 } window_t;
 
 window_t *
@@ -70,9 +60,6 @@ void
 window_set_position(window_t *self, size_t x, size_t y);
 
 void
-window_set_topmost(window_t *self, bool state);
-
-void
 window_set_hide_from_taskbar(window_t *self, bool status);
 
 void
@@ -80,12 +67,6 @@ window_set_hide_from_pager(window_t *self, bool status);
 
 void
 window_set_title(window_t *self, string title);
-
-void
-window_set_state(window_t *self, ww_window_state_t state);
-
-void
-window_clear_state(window_t *self, ww_window_state_t state);
 
 void *
 window_get_webview(window_t *self);
@@ -96,34 +77,12 @@ window_get_manager(window_t *self);
 void *
 window_get_window(window_t *self);
 
-bool
-window_get_state(window_t *self, ww_window_state_t state);
-
 void
 window_register_event_callback(window_t *self,
                                void *instance,
                                string event,
                                void (*cb)(void *, void *, void *),
                                void *data);
-
-void
-window_register_event_mouse_motion(window_t *self,
-                                   void (*cb)(void *,
-                                              const size_t,
-                                              const size_t));
-
-void
-window_register_event_mouse_motion_end(window_t *const self,
-                                       void (*cb)(window_t *));
-
-void
-window_register_event_top_most_changed(window_t *const self,
-                                       void (*cb)(window_t *));
-
-void
-window_register_event_mouse_press(
-        window_t *self,
-        void (*cb)(void *, const ww_window_mouse_press_event_t));
 
 void
 window_register_event_context_menu(

@@ -85,40 +85,6 @@ parse_and_get_value(const string html,
 }
 
 static void
-on_mouse_move(void *const data, const size_t x, const size_t y)
-{
-        window_t *self = (window_t *)data;
-
-        if (window_get_state(self, WINDOW_STATE_MOVING))
-        {
-                window_set_position(self, x, y);
-        }
-}
-
-static void
-on_mouse_button_press(void *const data,
-                      const ww_window_mouse_press_event_t code)
-{
-        window_t *self = (window_t *)data;
-
-        switch (code)
-        {
-        default:
-        case WINDOW_MOUSE_PRESS_EVENT_LEFT:
-        {
-                if (window_get_state(self, WINDOW_STATE_MOVING) == false)
-                {
-                        return;
-                }
-
-                window_clear_state(self, WINDOW_STATE_MOVING);
-
-                break;
-        }
-        }
-}
-
-static void
 on_context_menu_item_selected(void *const data,
                               const ww_window_context_menu_selection_t code)
 {
@@ -126,18 +92,6 @@ on_context_menu_item_selected(void *const data,
 
         switch (code)
         {
-        case WINDOW_CONTEXT_MENU_SELECTION_MOVE:
-        {
-                window_set_state(self, WINDOW_STATE_MOVING);
-                break;
-        }
-        case WINDOW_CONTEXT_MENU_SELECTION_TOPMOST:
-        {
-                const bool topmost =
-                        window_get_state(self, WINDOW_STATE_TOPMOST);
-                window_set_topmost(self, !topmost);
-                break;
-        }
         case WINDOW_CONTEXT_MENU_SELECTION_CLOSE:
         {
                 window_destroy(self);
@@ -146,20 +100,13 @@ on_context_menu_item_selected(void *const data,
         }
 }
 
-static void
-on_window_state_save(window_t *const self)
-{
-        window_save_state(self);
-}
-
 static window_t *
 window_child_new(window_t *const parent,
                  const string url,
                  const string_t html,
                  const size_t guid,
                  size_t x,
-                 size_t y,
-                 bool topMost)
+                 size_t y)
 {
         string8_t application_title;
         if (!parse_and_get_value(html.data,
@@ -208,15 +155,6 @@ window_child_new(window_t *const parent,
                             PARSE_TYPE_BOOLEAN,
                             &show_title_bar);
 
-        if ((topMost = DEF_TOPMOST || topMost) == false)
-        {
-                parse_and_get_value(html.data,
-                                    html.length,
-                                    (string)TAG_APP_TOPMOST,
-                                    PARSE_TYPE_BOOLEAN,
-                                    &topMost);
-        }
-
         window_t opts = {.width = width,
                          .height = height,
                          .x = x,
@@ -224,8 +162,7 @@ window_child_new(window_t *const parent,
                          .opacity = opacity,
                          .radius = radius,
                          .show_title_bar = show_title_bar,
-                         .is_child = true,
-                         .is_top_most = topMost};
+                         .is_child = true};
 
         window_t *child = window_new(opts,
                                      application_title,
@@ -240,14 +177,9 @@ window_child_new(window_t *const parent,
 
         window_set_url(child, url, strlen(url));
         window_set_position(child, x, y);
-        window_set_topmost(child, topMost);
 
-        window_register_event_mouse_motion(child, on_mouse_move);
-        window_register_event_mouse_press(child, on_mouse_button_press);
         window_register_event_context_menu(child,
                                            on_context_menu_item_selected);
-        window_register_event_mouse_motion_end(child, on_window_state_save);
-        window_register_event_top_most_changed(child, on_window_state_save);
 
         window_add_child(parent, child);
 
@@ -315,8 +247,7 @@ on_widget_container_clicked(void *, void *webkit_data, void *user_data)
                                             .length = sizeof(html_raw_content)},
                                  0,
                                  0,
-                                 0,
-                                 false);
+                                 0);
 
         if (child == nullptr)
         {
@@ -496,12 +427,6 @@ on_window_realized(window_t *self)
                         goto cleanup;
                 }
 
-                yaml_node_s *nTop = yaml_get_node(root, "top_most");
-                if (nTop == nullptr)
-                {
-                        goto cleanup;
-                }
-
                 char url[PATH_MAX];
                 bytes = yaml_get_primitive(nURL, url, sizeof(url) - 1);
                 if (bytes == 0)
@@ -530,13 +455,6 @@ on_window_realized(window_t *self)
                         goto cleanup;
                 }
 
-                char topMost[16];
-                bytes = yaml_get_primitive(nTop, topMost, sizeof(topMost) - 1);
-                if (bytes == 0)
-                {
-                        goto cleanup;
-                }
-
                 char html[MAX_FILE_SIZE];
                 const size_t htmlSize = sizeof(html) - 1;
                 if (ww_get_file_content(&url[7], html, htmlSize) == 0)
@@ -550,8 +468,7 @@ on_window_realized(window_t *self)
                         (string_t){.data = html, .length = htmlSize},
                         strtoul(guid, nullptr, 10),
                         strtoul(x, nullptr, 10),
-                        strtoul(y, nullptr, 10),
-                        strtoul(topMost, nullptr, 10));
+                        strtoul(y, nullptr, 10));
 
                 if (child == nullptr)
                 {
@@ -608,8 +525,7 @@ main()
                          .opacity = 1,
                          .radius = 0,
                          .show_title_bar = true,
-                         .is_child = false,
-                         .is_top_most = true};
+                         .is_child = false};
 
         window_t *self = window_new(
                 opts, PROG_NAME, sizeof(PROG_NAME) - 1, 0, on_window_realized);

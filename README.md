@@ -51,10 +51,31 @@ These are the platforms officially supported by WinWidgets.
 | -------- | ------------ | ----------------- |
 | Windows  | ✅           | Windows 11        |
 | Linux    | ⚠️ (W.I.P)   | Arch              |
-| MacOS    | ❌           | N/A               |
+| MacOS    | ❌           | Not planned       |
 
 > The software may run on operating systems or distributions not
 > listed here but it isn't guaranteed.
+
+### Feature Parity
+
+Current status of widget features on supported platforms:
+
+| Feature                 | Windows 11 | Linux |
+| ----------------------- | ---------- | ----- |
+| Opening widgets         | ✅         | ✅    |
+| Transparency            | ✅         | ✅    |
+| Restore widget position | ✅         | ⚠️    |
+| Top most                | ✅         | ⚠️    |
+| System functions        | ✅         | ⚠️    |
+
+### Linux Feature Limitations
+
+**WinWidgets** on Linux is still work-in-progress. Some features currently unavailable on Linux are not possible due to Wayland technical limitations:
+
+- **Window restore position**: Not possible under Wayland.
+- **Window top most**: Not possible under Wayland.
+
+Wayland is a display server for Linux. Features blocked by Wayland architecture won't be technically possible on that platform.
 
 ## Screenshots
 

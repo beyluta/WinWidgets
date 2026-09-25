@@ -18,7 +18,9 @@ constexpr char PROG_CFG_NAME[] = "/config.json";
 
 constexpr char TAG_APP_NAME[] = "applicationTitle";
 constexpr char TAG_SHOW_TITLE_BAR[] = "windowShowTitleBar";
+#if _WIN32
 constexpr char TAG_APP_TOPMOST[] = "topMost";
+#endif
 constexpr char TAG_WIN_SIZE[] = "windowSize";
 constexpr char TAG_WIN_LOCATION[] = "windowLocation";
 constexpr char TAG_WIN_BORD_RAD[] = "windowBorderRadius";
@@ -32,9 +34,7 @@ constexpr wchar_t LBL_CTX_MENU_MOVE[] = L"Move";
 constexpr wchar_t LBL_CTX_MENU_CLOSE[] = L"Close widget";
 constexpr wchar_t LBL_CTX_MENU_TOP_MOST[] = L"Always on top";
 #elif __linux__
-constexpr char LBL_CTX_MENU_MOVE[] = "Move";
 constexpr char LBL_CTX_MENU_CLOSE[] = "Close widget";
-constexpr char LBL_CTX_MENU_TOP_MOST[] = "Always on top";
 #endif
 
 constexpr uint16_t DEF_WIDTH = 500;
@@ -44,7 +44,9 @@ constexpr uint16_t DEF_Y = 0;
 constexpr uint16_t DEF_OPACITY = 1;
 constexpr uint16_t DEF_RADIUS = 0;
 constexpr bool DEF_CHILD = true;
+#if _WIN32
 constexpr bool DEF_TOPMOST = false;
+#endif
 constexpr bool DEF_SHOW_TITLE_BAR = false;
 
 /**
@@ -60,7 +62,9 @@ typedef struct ww_window_ctx
         size_t index;
         bool title_bar;
         bool child;
+#if _WIN32
         bool top_most;
+#endif
         char filename[BUFFSIZE];
         char title[BUFFSIZE];
         double opacity;
