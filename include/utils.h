@@ -35,6 +35,31 @@ typedef struct
 } string_t;
 
 /**
+ * @brief Allocates memory for a string in a string_t struct
+ * @param s String to be allocated
+ * @return Heap allocated struct containing string information
+ * @note - Programmer must free this memory
+ */
+string_t *
+AllocString(const char *restrict const s);
+
+/**
+ * @brief Allocates bytes of memory for a string in a string_t struct
+ * @param n Max byte size including null-terminator
+ * @return Heap allocated struct containing string information
+ * @note - Programmer must free this memory
+ */
+string_t *
+AllocStringBytes(const size_t n);
+
+/**
+ * @brief Deallocates memory in the heap for the specific string_t
+ * @param s Pointer to the string_t in the heap
+ */
+void
+DeallocString(string_t *restrict const s);
+
+/**
  * @brief Gets a set of values separated by a whitespace from a string
  * @param src Source containing the numeric values
  * @param a First numeric value

@@ -421,8 +421,7 @@ OpenWidgetByFilename(const char *const path,
                      const size_t *const x,
                      const size_t *const y,
                      const bool *const topMost,
-                     char *const content,
-                     const size_t contentSize)
+                     const string_t *content)
 {
         ww_window_ctx context = {
                 .width = DEF_WIDTH,
@@ -443,7 +442,7 @@ OpenWidgetByFilename(const char *const path,
                 return FUNC_STATUS_ERR;
         }
 
-        if (ww_get_file_content(trimStr, content, contentSize) == 0)
+        if (ww_get_file_content(trimStr, content->data, content->length) == 0)
         {
                 return FUNC_STATUS_ERR;
         }
@@ -451,13 +450,14 @@ OpenWidgetByFilename(const char *const path,
         char buf[BUFFSIZE] = {};
         const size_t bufLen = lengthof(buf);
 
-        if (ww_begin_parsing(content, bufLen, TAG_APP_NAME, buf, bufLen))
+        if (ww_begin_parsing(content->data, bufLen, TAG_APP_NAME, buf, bufLen))
         {
                 memcpy(context.title, buf, lengthof(buf));
                 context.title[lengthof(buf) - 1] = '\0';
         }
 
-        if (ww_begin_parsing(content, bufLen, TAG_WIN_SIZE, buf, bufLen) &&
+        if (ww_begin_parsing(
+                    content->data, bufLen, TAG_WIN_SIZE, buf, bufLen) &&
             isStringDigit(buf, bufLen))
         {
                 size_t width, height;
@@ -466,7 +466,8 @@ OpenWidgetByFilename(const char *const path,
                 context.height = isSet ? height : DEF_HEIGHT;
         }
 
-        if (ww_begin_parsing(content, bufLen, TAG_WIN_LOCATION, buf, bufLen) &&
+        if (ww_begin_parsing(
+                    content->data, bufLen, TAG_WIN_LOCATION, buf, bufLen) &&
             x == nullptr && y == nullptr && isStringDigit(buf, bufLen))
         {
                 size_t xPos, yPos;
@@ -475,13 +476,15 @@ OpenWidgetByFilename(const char *const path,
                 context.y = isSet ? yPos : DEF_Y;
         }
 
-        if (ww_begin_parsing(content, bufLen, TAG_APP_TOPMOST, buf, bufLen) &&
+        if (ww_begin_parsing(
+                    content->data, bufLen, TAG_APP_TOPMOST, buf, bufLen) &&
             topMost == nullptr)
         {
                 context.top_most = strcmp(buf, "true") == 0;
         }
 
-        if (ww_begin_parsing(content, bufLen, TAG_WIN_BORD_RAD, buf, bufLen) &&
+        if (ww_begin_parsing(
+                    content->data, bufLen, TAG_WIN_BORD_RAD, buf, bufLen) &&
             isStringDigit(buf, bufLen))
         {
                 const double radius = strtod(buf, nullptr);
@@ -526,16 +529,24 @@ Pop()
         }
 
         stack_item_t item = g_stack[g_stackHeight];
-        char content[USHRT_MAX];
-        if (BAD(OpenWidgetByFilename(item.filename,
-                                     &item.x,
-                                     &item.y,
-                                     &item.topMost,
-                                     content,
-                                     lengthof(content))))
+
+        if (strlen(item.filename) <= HANDLE_PREFIX_OFFSET)
         {
                 return FUNC_STATUS_ERR;
         }
+
+        const size_t bytes =
+                ww_get_file_bytes(&item.filename[HANDLE_PREFIX_OFFSET]);
+
+        string_t *content = AllocStringBytes(bytes + 1);
+
+        if (BAD(OpenWidgetByFilename(
+                    item.filename, &item.x, &item.y, &item.topMost, content)))
+        {
+                DeallocString(content);
+                return FUNC_STATUS_ERR;
+        }
+        DeallocString(content);
         return FUNC_STATUS_OK;
 }
 
@@ -1652,7 +1663,14 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                 break;
         case EVENT_OPEN_WGT_FILENAME:
         {
-                char content[USHRT_MAX];
+                if (strlen(argument) <= HANDLE_PREFIX_OFFSET)
+                {
+                        break;
+                }
+
+                const size_t bytes =
+                        ww_get_file_bytes(&argument[HANDLE_PREFIX_OFFSET]);
+
                 size_t x, y;
                 if (SYSINFO_CODE_FAIL(GetMousePosition(&x, &y)))
                 {
@@ -1660,16 +1678,17 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                         y = 0;
                 }
 
-                if (BAD(OpenWidgetByFilename(argument,
-                                             &x,
-                                             &y,
-                                             nullptr,
-                                             content,
-                                             lengthof(content))))
+                string_t *content = AllocStringBytes(bytes + 1);
+
+                if (BAD(OpenWidgetByFilename(
+                            argument, &x, &y, nullptr, content)))
                 {
+                        DeallocString(content);
                         status = FUNC_STATUS_ERR;
                         goto cleanup;
                 }
+
+                DeallocString(content);
                 break;
         }
         case EVENT_TOGGLE_SETTING:

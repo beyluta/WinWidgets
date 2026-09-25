@@ -22,7 +22,6 @@ DEPS = $(patsubst %.c, $(OBJS_DIR)/%.d, ${SRC})
 # Compiler flags
 CFLAGS := -MMD \
 				  -MP \
-					-Werror \
 					-Wextra \
 					-Wall \
 					-Iinclude \

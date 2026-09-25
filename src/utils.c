@@ -9,6 +9,45 @@
 #include <stdlib.h>
 #include <string.h>
 
+string_t *
+AllocStringBytes(const size_t n)
+{
+        char *data = (char *)malloc(sizeof(char) * n);
+        if (!data)
+        {
+                return nullptr;
+        }
+
+        string_t *result = (string_t *)malloc(sizeof(string_t));
+        if (!result)
+        {
+                free(data);
+                return nullptr;
+        }
+
+        result->data = data;
+        result->length = n;
+        return result;
+}
+
+void
+DeallocString(string_t *restrict const s)
+{
+        if (!s)
+        {
+                return;
+        }
+
+        if (!s->data)
+        {
+                free(s);
+                return;
+        }
+
+        free(s->data);
+        free(s);
+}
+
 bool
 Get2DValue(const char *const src, size_t *const a, size_t *const b)
 {
