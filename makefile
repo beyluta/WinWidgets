@@ -59,11 +59,7 @@ LDFLAGS := -L$(MINGW64)/lib \
 					 -lstdc++ \
 			  	 "$(CURDIR)/src/windows/resources.o"
 SRC := $(SRC) \
-			 main.c \
-			 src/windows/widget.c \
-			 src/windows/remres.c \
-			 src/windows/config.c \
-			 src/windows/routine.c
+			 $(wildcard $(SRC_DIR)/windows/*.c)
 WEBVIEWURL = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2"
 
 all: $(BUILD_DIR)/$(TARGET)
@@ -89,7 +85,7 @@ prepare:
 	- robocopy "$(CURDIR)/assets" "$(BUILD_DIR)/assets" /E
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILD_DIR)"
 	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILD_DIR)" /Y
-	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h" "$(CURDIR)/main.c"
+	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h"
 
 # ---------------------------------------------------------------------------
 # Building for Linux platform
@@ -104,8 +100,7 @@ CFLAGS := $(CFLAGS) \
 				-D_POSIX_C_SOURCE=200809L
 LDFLAGS = -ldl
 SRC := $(SRC) \
-			 src/linux/widget.c \
-			 src/linux/window.c
+			 $(wildcard $(SRC_DIR)/linux/*.c)
 
 make: $(BUILD_DIR)/$(TARGET)
 
