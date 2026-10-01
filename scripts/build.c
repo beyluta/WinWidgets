@@ -275,10 +275,20 @@ ww_html_parse_begin(struct ww_html_token *restrict *restrict const s,
                 {
                         const int hasVar =
                                 ww_html_env_vars_has(s[i + 1]->data, vars);
+
+                        ww_html_token_ref_sub(s[i]);
+                        s[i] = NULL;
+                        ww_html_token_ref_sub(s[i + 1]);
+                        s[i + 1] = NULL;
+
+                        i += 1;
+
                         if (!hasVar)
                         {
                                 omitBlock = 1;
                         }
+
+                        continue;
                 }
 
                 if (omitBlock)

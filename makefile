@@ -1,5 +1,5 @@
 .SILENT:
-.PHONY: all
+.PHONY: all prepare
 
 # Desired compiler
 CC = gcc
@@ -90,6 +90,9 @@ prepare:
 	copy "$(CURDIR)\lib\WebView2\build\native\x64\WebView2Loader.dll" "$(CURDIR)\$(BUILD_DIR)"
 	copy "$(MINGW64)\bin\*.dll" "$(CURDIR)\$(BUILD_DIR)" /Y
 	clang-format -i "$(CURDIR)/src/*.c" "$(CURDIR)/include/*.h"
+	$(CC) "$(SCRIPTS_DIR)/build.c" -o "$(BUILD_DIR)/$(BUILD)"
+	cmd /c "$(CURDIR)/$(BUILD_DIR)/$(BUILD).exe" "$(CURDIR)/assets/index.html" _WIN32
+	move /Y "index.html" "$(BUILD_DIR)/assets/index.html"
 
 # ---------------------------------------------------------------------------
 # Building for Linux platform

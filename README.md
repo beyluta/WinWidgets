@@ -115,10 +115,13 @@ For Linux you need the packages `gtk-3.0`, `appindicator3` and `webkitgtk-4.1`.
 Make sure to get their corresponding `-dev` packages as well or else you
 won't be able to compile.
 
-### Common commands
+### Compiling the software
 
-These are commands that work for all supported platforms.
-Read them carefully to successfully compile the application.
+Clone the repository:
+
+```bash
+git clone https://www.github.com/beyluta/WinWidgets.git
+```
 
 When building for the first time you must run the following command to fetch dependencies:
 
@@ -132,13 +135,13 @@ git submodule update --init --recursive
 git submodule update --recursive --remote
 ```
 
-Prepare libraries and external dependencies:
+Compile for Windows 11:
 
 ```bash
-make prepare
+make prepare && make
 ```
 
-Compile the binary for release with the following command:
+Compile for supported Linux distributions:
 
 ```bash
 make

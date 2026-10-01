@@ -138,85 +138,65 @@
         Use this to move the selected widget to a specific position:
       </span>
       <blockquote>
-        <p>
-          // Tell WinWidgets that we want to move the current selected widget
-          window.chrome.webview.postMessage('MoveWindowToPosition(500, 500)');
-        </p>
+          <p>// Tell WinWidgets that we want to move the current selected widget</p>
+          <p>window.chrome.webview.postMessage('MoveWindowToPosition(500, 500)');</p>
       </blockquote>
 
       <span>
         Use this to get the global mouse position:
       </span>
       <blockquote>
-        <p>
-          function GetMousePosition(x, y) {
+        <p>function GetMousePosition(x, y) {
           // Do something with x and y
-          }
-
-          // Tell WinWidgets that we want to get the global Position of the mouse
-          window.chrome.webview.postMessage('GetMousePosition');
-        </p>
+        }</p>
+        <p>window.chrome.webview.postMessage('GetMousePosition');</p>
       </blockquote>
 
       <span>
         Use this to get the code of the current key pressed:
       </span>
       <blockquote>
-        <p>
-          function GetCurrentKeyPressed(keyCode) {
+        <p>function GetCurrentKeyPressed(keyCode) {
           // Do something with the keyCode
-          }
-
-          // Tell WinWidgets that we want to get the global current key press
-          window.chrome.webview.postMessage('GetCurrentKeyPressed');
-        </p>
+        }</p>
+        <p>window.chrome.webview.postMessage('GetCurrentKeyPressed');</p>
       </blockquote>
 
       <span>
         Use these to control any active media stream such as video or audio:
       </span>
       <blockquote>
-        <p>
-          // Tell WinWidgets to stop/resume playback
-          window.chrome.webview.postMessage('ToggleMediaPlayback');
+          <p>// Tell WinWidgets to stop/resume playback</p>
+          <p>window.chrome.webview.postMessage('ToggleMediaPlayback');</p>
 
-          // Tell WinWidgets to go to the next track
-          window.chrome.webview.postMessage('NextMediaTrack');
+          <p>// Tell WinWidgets to go to the next track</p>
+          <p>window.chrome.webview.postMessage('NextMediaTrack');</p>
 
-          // Tell WinWidgets to go to the previous track
-          window.chrome.webview.postMessage('PreviousMediaTrack');
-        </p>
+          <p>// Tell WinWidgets to go to the previous track</p>
+          <p>window.chrome.webview.postMessage('PreviousMediaTrack');</p>
       </blockquote>
 
       <span>
         Get information about total and used system memory:
       </span>
       <blockquote>
-        <p>
-          function GetMemoryInfo(memInfo)
-          {
-            console.log('Total Physical Memory:', memInfo.totalPhysMem);
-            console.log('Used Physical Memory:', memInfo.usedPhysMem);
-            console.log('Total Virtual Memory:', memInfo.totalVirtMem);
-            console.log('Used Virtual Memory:', memInfo.usedVirtMem);
-          }
-
-          window.chrome.webview.postMessage('GetMemoryInfo');
-        </p>
+        <p>function GetMemoryInfo(memInfo) {</p>
+          <p>console.log('Total Physical Memory:', memInfo.totalPhysMem);</p>
+          <p>console.log('Used Physical Memory:', memInfo.usedPhysMem);</p>
+          <p>console.log('Total Virtual Memory:', memInfo.totalVirtMem);</p>
+          <p>console.log('Used Virtual Memory:', memInfo.usedVirtMem);</p>
+        <p>}</p>
+        <p>window.chrome.webview.postMessage('GetMemoryInfo');</p>
       </blockquote>
 
       <span>
         Get current CPU load (percentage):
       </span>
       <blockquote>
-        <p>
-          function GetCpuLoad(percentage)
-          {
-            // Do something with percentage
-          }
-
-          window.chrome.webview.postMessage('GetCpuLoad');
-        </p>
+        <p>function GetCpuLoad(percentage) {
+          // Do something with percentage
+        }</p>
+        <p>window.chrome.webview.postMessage('GetCpuLoad');</p>
       </blockquote>
     </div>
 #endif
