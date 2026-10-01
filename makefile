@@ -1,5 +1,5 @@
 .SILENT:
-.PHONY: all prepare
+.PHONY: all
 
 # Desired compiler
 CC = gcc
@@ -9,6 +9,10 @@ SRC_DIR = src
 SRC = $(wildcard $(SRC_DIR)/*.c) \
 			lib/minimal-json-c-parser/src/json.c \
 			lib/c-yaml-parser/src/cyaml.c
+
+# Scripts directory
+SCRIPTS_DIR = scripts
+BUILD = out
 
 # Build dir and output names
 BUILD_DIR = build
@@ -102,7 +106,17 @@ LDFLAGS = -ldl
 SRC := $(SRC) \
 			 $(wildcard $(SRC_DIR)/linux/*.c)
 
-make: $(BUILD_DIR)/$(TARGET)
+make: $(SCRIPTS_DIR)/$(BUILD)
+
+$(SCRIPTS_DIR)/$(BUILD): $(BUILD_DIR)/$(TARGET)
+	clang-format -i $(CURDIR)/src/*.c \
+	$(CURDIR)/include/*.h
+	mkdir -p "$(BUILD_DIR)"
+	rm -rf "$(BUILD_DIR)/assets"
+	cp -r "$(CURDIR)/assets" "$(BUILD_DIR)/assets"
+	$(CC) "$(dir $@)build.c" -o "$(BUILD_DIR)/$(BUILD)"
+	./"$(BUILD_DIR)/$(BUILD)" "$(CURDIR)/assets/index.html" __linux__
+	mv "$(CURDIR)/index.html" "$(BUILD_DIR)/assets"
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	mkdir -p "$(dir $@)"
@@ -112,13 +126,6 @@ $(OBJS_DIR)/%.o: %.c
 	mkdir -p "$(dir $@)"
 	$(CC) -c $(CFLAGS) $(GTKFLAGS) -o $@ $<
 
-prepare:
-	rm -rf "$(BUILD_DIR)"
-	mkdir -p "$(BUILD_DIR)"
-	cp -r "$(CURDIR)/assets" "$(BUILD_DIR)/assets"
-	clang-format -i $(CURDIR)/src/*.c \
-	$(CURDIR)/include/*.h \
-	$(CURDIR)/main.c
 endif
 
 -include $(DEPS)

@@ -376,6 +376,29 @@ body.dark-mode .development span code {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+.folder-structure {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background-color: var(--code-bg);
+  color: var(--code-text);
+  border-radius: var(--border-radius-medium);
+  padding: 12px;
+  margin: 0;
+}
+
+.folder-structure>li {
+  display: block;
+}
+
+.folder-structure>li:not(:first-child)::before {
+  content: '|_';
+}
+
+.development>.dev-section>blockquote {
+  padding: 28px;
+}
+
 .development blockquote {
   position: relative;
   background-color: var(--code-bg);
@@ -392,7 +415,6 @@ body.dark-mode .development span code {
   font-size: 12px;
   line-height: 1.6;
   overflow-x: auto;
-  white-space: pre;
   margin: 0;
 }
 

@@ -19,9 +19,11 @@
         <div class="nav-item interact" onclick="openScene('development', 'grid')" data-tooltip="Development">
           <img class="interact" alt="Code Image" src="svgs/code.svg" />
         </div>
+#if _WIN32
         <div class="nav-item interact" onclick="openScene('settings', 'grid')" data-tooltip="Settings">
           <img class="interact" alt="Gear Image" src="svgs/gear.svg" />
         </div>
+#endif
       </div>
     </div>
     <div class="nav-bottom">
@@ -87,16 +89,12 @@
         files
         to the default folder to load them into the application. Below is an example of how it might look like:</span>
       <blockquote>
-        <p>
-          ..\WinWidgets\
-          |
-          |__ calculator.html
-          |
-          |__ weather.html
-          |
-          |__ clock.html
-        </p>
-      </blockquote>
+        <ul class="folder-structure">
+          <li>WinWidgets/</li>
+          <li>calculator.html</li>
+          <li>weather.html</li>
+          <li>clock.html</li>
+        </ul>
     </div>
 
     <div class="dev-section">
@@ -105,22 +103,22 @@
         At the top of your HTML document add the following <code>&lt;meta /&gt;</code> tags (only the first 2 are
         required):
       </span>
-      <blockquote>
-        <p>
-          &lt;!DOCTYPE html&gt;
-          &lt;html&gt;
-          &lt;head&gt;
+        <blockquote>
+          <p>&lt;!DOCTYPE html&gt;</p>
+          <p>&lt;html&gt;</p>
+          <p>&lt;head&gt;</p>
 
-          &lt;meta name="applicationTitle" content="myWidget" /&gt;
-          &lt;meta name="windowSize" content="800 500" /&gt;
-          &lt;meta name="windowLocation" content="300 300" /&gt;
-          &lt;meta name="windowBorderRadius" content="500" /&gt;
-          &lt;meta name="topMost" content="true" /&gt;
+          <p>&lt;meta name="applicationTitle" content="myWidget" /&gt;</p>
+          <p>&lt;meta name="windowSize" content="800 500" /&gt;</p>
+          <p>&lt;meta name="windowBorderRadius" content="500" /&gt;</p>
+#if _WIN32
+          <p>&lt;meta name="windowLocation" content="300 300" /&gt;</p>
+          <p>&lt;meta name="topMost" content="true" /&gt;</p>
+#endif
 
-          &lt;/head&gt;
-          &lt;/html&gt;
-        </p>
-      </blockquote>
+          <p>&lt;/head&gt;</p>
+          <p>&lt;/html&gt;</p>
+        </blockquote>
       <span>
         Widgets support full transparency and are transparent by default, you may use CSS to set the background color:
       </span>
@@ -133,7 +131,8 @@
       </blockquote>
     </div>
 
-    <div class="dev-section">
+#if _WIN32
+  <div class="dev-section">
       <h3>System functions</h3>
       <span>
         Use this to move the selected widget to a specific position:
@@ -220,6 +219,7 @@
         </p>
       </blockquote>
     </div>
+#endif
   </main>
 </body>
 
