@@ -2,13 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum ww_os_type
-{
-        WW_OS_TYPE_WINDOWS = 1,
-        WW_OS_TYPE_LINUX = 2,
-        WW_OS_TYPE_OSX = 4
-};
-
 enum ww_token_type
 {
         WW_TOKEN_TYPE_IFBLOCK = 1,
