@@ -4,3 +4,6 @@
 [submodule "lib/c-yaml-parser"]
 	path = lib/c-yaml-parser
 	url = https://codeberg.org/beyluta/c-yaml-parser
+[submodule "lib/llama.cpp"]
+	path = lib/llama.cpp
+	url = https://github.com/ggerganov/llama.cpp.git

@@ -1,4 +1,3 @@
-.SILENT:
 .PHONY: all prepare
 
 # Desired compiler
@@ -13,6 +12,11 @@ SRC = $(wildcard $(SRC_DIR)/*.c) \
 # Scripts directory
 SCRIPTS_DIR = scripts
 BUILD = out
+
+# LLAMA Library
+LLAMA_DIR = lib/llama.cpp
+LLAMA_LIBS_DIR = $(LLAMA_DIR)/build/bin
+LLAMA_LIBS = *.so*
 
 # Build dir and output names
 BUILD_DIR = build
@@ -101,17 +105,22 @@ else
 GTKFLAGS = -export-dynamic `pkg-config --cflags --libs gtk+-3.0 appindicator3-0.1 x11 webkit2gtk-4.1`
 CFLAGS := $(CFLAGS) \
 				-Iinclude/linux \
+				-Ilib/llama.cpp/include \
+				-Ilib/llama.cpp/ggml/include \
 				-O2 \
 				-xc \
 				-std=c23 \
 				-D_POSIX_C_SOURCE=200809L
-LDFLAGS = -ldl
+LDFLAGS = -Wl,-rpath,'$$ORIGIN' \
+					-ldl \
+					-Llib/llama.cpp/build/bin \
+					-l:libllama.so
 SRC := $(SRC) \
 			 $(wildcard $(SRC_DIR)/linux/*.c)
 
 make: $(SCRIPTS_DIR)/$(BUILD)
 
-$(SCRIPTS_DIR)/$(BUILD): $(BUILD_DIR)/$(TARGET)
+$(SCRIPTS_DIR)/$(BUILD): $(LLAMA_LIBS_DIR)/$(LLAMA_LIBS)
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h
 	mkdir -p "$(BUILD_DIR)"
@@ -120,6 +129,16 @@ $(SCRIPTS_DIR)/$(BUILD): $(BUILD_DIR)/$(TARGET)
 	$(CC) "$(dir $@)build.c" -o "$(BUILD_DIR)/$(BUILD)"
 	./"$(BUILD_DIR)/$(BUILD)" "$(CURDIR)/assets/index.html" __linux__
 	mv "$(CURDIR)/index.html" "$(BUILD_DIR)/assets"
+
+$(LLAMA_LIBS_DIR)/$(LLAMA_LIBS): $(LLAMA_DIR)
+	cp $@ "$(BUILD_DIR)"
+
+$(LLAMA_DIR): $(BUILD_DIR)/$(TARGET)
+	# cd $@ && \
+	# 	mkdir -p build && \
+	# 	cd build && \
+	# 	cmake .. -DGGML_BUILD_SHARED_LIB=ON -DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_SYCL=OFF -DGGML_OPENCL=OFF && \
+	# 	cmake --build . --config Release
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	mkdir -p "$(dir $@)"
