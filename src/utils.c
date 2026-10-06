@@ -122,6 +122,37 @@ GetSubstring(const char *const src,
         dest[maxSize] = '\0';
 }
 
+char *
+AllocSubstr(char *restrict const src,
+            const size_t max,
+            const size_t offset,
+            const size_t n)
+{
+        if (!src)
+        {
+                fprintf(stderr, "src string cannot be nullptr\n");
+                return nullptr;
+        }
+
+        char *data = (char *)malloc(sizeof(char) * (n + 1));
+        if (!data)
+        {
+                fprintf(stderr, "Failed to alloc memory for string\n");
+                return nullptr;
+        }
+
+        if (offset > max || n >= max - offset)
+        {
+                fprintf(stderr, "Failed to write outside of array bounds\n");
+                return nullptr;
+        }
+
+        memcpy(data, &src[offset], n);
+        data[n] = 0;
+
+        return data;
+}
+
 bool
 isStringDigit(const char *const src, const size_t len)
 {

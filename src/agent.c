@@ -16,6 +16,7 @@
  */
 #include "agent.h"
 #include "llama.h"
+#include "utils.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,7 @@ struct agent_llama
         llama_batch_ext_t *batch;
         llama_chat_message *messages;
         size_t message_size;
+        int prev_len;
 };
 
 agent_llama_t *
@@ -106,6 +108,7 @@ agent_new_instance()
         agent_llama->sampler = sampler;
         agent_llama->batch = batch;
         agent_llama->message_size = 0;
+        agent_llama->prev_len = 0;
         agent_llama->messages = nullptr;
 
         return agent_llama;
@@ -390,8 +393,8 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         const char *tmpl =
                 llama_model_chat_template(agent_llama->model, nullptr);
 
-        llama_chat_message new_message = agent_new_message("user", prompt);
-        if (!new_message.role || !new_message.content)
+        llama_chat_message user_message = agent_new_message("user", prompt);
+        if (!user_message.role || !user_message.content)
         {
                 fprintf(stderr, "Failed to create new chat message\n");
                 free(formatted);
@@ -400,7 +403,7 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
 
         agent_message_push_back(&agent_llama->messages,
                                 &agent_llama->message_size,
-                                new_message);
+                                user_message);
 
         int new_len = llama_chat_apply_template(tmpl,
                                                 agent_llama->messages,
@@ -427,14 +430,55 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
                 return nullptr;
         }
 
-        char *response = agent_send_prompt(agent_llama, formatted);
+        char *new_prompt = AllocSubstr(formatted,
+                                       formatted_size,
+                                       agent_llama->prev_len,
+                                       new_len - agent_llama->prev_len);
+        if (!new_prompt)
+        {
+                fprintf(stderr, "Failed to apply chat template\n");
+                free(formatted);
+        }
+
+        char *response = agent_send_prompt(agent_llama, new_prompt);
         if (!response)
         {
-                fprintf(stderr, "Send prompt for processing\n");
+                fprintf(stderr, "Failed sending prompt for processing\n");
+                free(new_prompt);
                 free(formatted);
                 return nullptr;
         }
 
+        llama_chat_message assistant_message =
+                agent_new_message("assistant", response);
+        if (!assistant_message.role || !assistant_message.content)
+        {
+                fprintf(stderr, "Failed to create prompt for assistant\n");
+                free(new_prompt);
+                free(formatted);
+                return nullptr;
+        }
+
+        agent_message_push_back(&agent_llama->messages,
+                                &agent_llama->message_size,
+                                assistant_message);
+
+        agent_llama->prev_len =
+                llama_chat_apply_template(tmpl,
+                                          agent_llama->messages,
+                                          agent_llama->message_size,
+                                          false,
+                                          nullptr,
+                                          0);
+        if (agent_llama->prev_len < 0)
+        {
+                fprintf(stderr, "Failed to apply template for assistant\n");
+                free(new_prompt);
+                free(formatted);
+                return nullptr;
+        }
+
+        free(new_prompt);
         free(formatted);
 
         return response;

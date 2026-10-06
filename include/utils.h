@@ -96,11 +96,24 @@ ReplaceChars(char *const srcDest, const char target, const char replace);
  * @param start Start index
  * @param end End index
  */
+[[deprecated("use 'AllocSubstring' instead")]]
 void
 GetSubstring(const char *const src,
              char *const dest,
              const size_t start,
              const size_t end);
+
+/**
+ * @brief Function to allocate a new substring in the heap
+ * @param src Source string
+ * @param max Max size of the src string
+ * @param offset Start of the substring
+ * @param n Number of bytes to copy
+ * @return Heap allocate pointer to string
+ * @note - Programmer must free this memory after use
+ */
+char *
+AllocSubstr(char *src, const size_t max, const size_t offset, const size_t n);
 
 /**
  * @brief Gets whether a string is comprised of only digits
