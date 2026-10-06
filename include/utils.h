@@ -113,7 +113,10 @@ GetSubstring(const char *const src,
  * @note - Programmer must free this memory after use
  */
 char *
-AllocSubstr(char *src, const size_t max, const size_t offset, const size_t n);
+AllocSubstr(const string src,
+            const size_t max,
+            const size_t offset,
+            const size_t n);
 
 /**
  * @brief Gets whether a string is comprised of only digits

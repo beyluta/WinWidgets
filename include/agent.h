@@ -1,7 +1,23 @@
 #ifndef AGENT_H
 #define AGENT_H
 
+#include "utils.h"
+
 typedef struct agent_llama agent_llama_t;
+
+typedef struct agent_llama_options agent_llama_options_t;
+
+struct agent_llama_options
+{
+        // Absolute path to the .gguf file
+        const string model_path;
+        // Max content window
+        const size_t max_ctx_size;
+        // Min token confidence threshold
+        const float min_p;
+        // Temperature of the model
+        const float temp;
+};
 
 /**
  * @brief Function create a new agent instance
@@ -9,7 +25,7 @@ typedef struct agent_llama agent_llama_t;
  * @note - Programmer must free this instance
  */
 agent_llama_t *
-agent_new_instance();
+agent_new_instance(agent_llama_options_t options);
 
 /**
  * @brief Function to free an instance of an agent
@@ -26,6 +42,15 @@ agent_free_instance(agent_llama_t *inst);
  * @note - String must be freed by the programmer
  */
 char *
-agent_generate_prompt(agent_llama_t *agent_llama, const char *prompt);
+agent_generate_prompt(agent_llama_t *agent_llama, const string prompt);
+
+/**
+ * @brief Function to append a system instruct
+ * @param agent_llama Pointer to the llama agent instance
+ * @param prompt System instruction prompt to save
+ */
+void
+agent_append_system_instruction(agent_llama_t *agent_llama,
+                                const string prompt);
 
 #endif

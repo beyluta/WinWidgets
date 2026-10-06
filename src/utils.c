@@ -123,7 +123,7 @@ GetSubstring(const char *const src,
 }
 
 char *
-AllocSubstr(char *restrict const src,
+AllocSubstr(const string src,
             const size_t max,
             const size_t offset,
             const size_t n)
@@ -134,7 +134,7 @@ AllocSubstr(char *restrict const src,
                 return nullptr;
         }
 
-        char *data = (char *)malloc(sizeof(char) * (n + 1));
+        string data = (string)malloc(sizeof(char) * (n + 1));
         if (!data)
         {
                 fprintf(stderr, "Failed to alloc memory for string\n");

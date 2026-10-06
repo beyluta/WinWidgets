@@ -16,17 +16,12 @@
  */
 #include "agent.h"
 #include "llama.h"
-#include "utils.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <uchar.h>
 
-constexpr float DEFAULT_MIN_P = 0.05f;
-constexpr float DEFAULT_TEMP = 0.3f;
-constexpr uint16_t DEFAULT_MAX_CTX = 32768;
-constexpr char DEFAULT_MODEL[] =
-        "/home/beyluta/Downloads/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf";
+// Private members
 
 typedef struct llama_model llama_model_t;
 typedef struct llama_vocab llama_vocab_t;
@@ -47,115 +42,6 @@ struct agent_llama
         int prev_len;
 };
 
-agent_llama_t *
-agent_new_instance()
-{
-        llama_model_params_t model_params = llama_model_default_params();
-        llama_model_t *model =
-                llama_model_load_from_file(DEFAULT_MODEL, model_params);
-        if (!model)
-        {
-                fprintf(stderr, "Failed to load GGUF model from file.\n");
-                return nullptr;
-        }
-
-        llama_context_params_t context_params = llama_context_default_params();
-        context_params.n_ctx = DEFAULT_MAX_CTX;
-        context_params.n_batch = DEFAULT_MAX_CTX;
-
-        llama_context_t *context = llama_init_from_model(model, context_params);
-        if (!context)
-        {
-                fprintf(stderr, "Failed to initialize context\n");
-                llama_model_free(model);
-                return nullptr;
-        }
-
-        llama_sampler_chain_params sampler_params =
-                llama_sampler_chain_default_params();
-        sampler_params.no_perf = true;
-
-        llama_sampler_t *sampler = llama_sampler_chain_init(sampler_params);
-        if (!sampler)
-        {
-                fprintf(stderr, "Failed to initialize sampler\n");
-                llama_free(context);
-                llama_model_free(model);
-                return nullptr;
-        }
-
-        llama_sampler_chain_add(sampler,
-                                llama_sampler_init_min_p(DEFAULT_MIN_P, 1));
-        llama_sampler_chain_add(sampler, llama_sampler_init_temp(DEFAULT_TEMP));
-        llama_sampler_chain_add(sampler,
-                                llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
-
-        llama_batch_ext_t *batch = llama_batch_ext_init(context);
-
-        agent_llama_t *agent_llama =
-                (agent_llama_t *)malloc(sizeof(agent_llama_t));
-        if (!agent_llama)
-        {
-                fprintf(stderr, "Failed to allocate memory for agent\n");
-                llama_sampler_free(sampler);
-                llama_free(context);
-                llama_model_free(model);
-                return nullptr;
-        }
-
-        agent_llama->model = model;
-        agent_llama->context = context;
-        agent_llama->sampler = sampler;
-        agent_llama->batch = batch;
-        agent_llama->message_size = 0;
-        agent_llama->prev_len = 0;
-        agent_llama->messages = nullptr;
-
-        return agent_llama;
-}
-
-void
-agent_free_instance(agent_llama_t *restrict const inst)
-{
-        if (!inst)
-        {
-                return;
-        }
-
-        if (inst->messages)
-        {
-                for (size_t i = 0; i < inst->message_size; i++)
-                {
-                        free((char *)inst->messages[i].content);
-                        free((char *)inst->messages[i].role);
-                }
-
-                free(inst->messages);
-        }
-
-        if (inst->batch)
-        {
-                llama_batch_ext_free(inst->batch);
-        }
-
-        if (inst->sampler)
-        {
-                llama_sampler_free(inst->sampler);
-        }
-
-        if (inst->context)
-        {
-                llama_free(inst->context);
-        }
-
-        if (inst->model)
-        {
-                llama_model_free(inst->model);
-        }
-
-        free(inst);
-}
-
 static void
 batch_set_tokens(llama_batch_ext_t *batch,
                  const llama_token *tokens,
@@ -174,8 +60,7 @@ batch_set_tokens(llama_batch_ext_t *batch,
 }
 
 static size_t
-agent_append_response(char **const response,
-                      const char *restrict const new_response)
+agent_append_response(string *const response, const string new_response)
 {
         size_t response_len = 0;
         if (*response)
@@ -195,16 +80,30 @@ agent_append_response(char **const response,
                 return 0;
         }
 
-        char *data = *response;
+        string data = *response;
         memcpy(&data[response_len], new_response, new_response_len);
         data[response_len + new_response_len] = 0;
 
         return response_len + new_response_len;
 }
 
-static char *
+static void
+agent_free_message(llama_chat_message message)
+{
+        if (message.content)
+        {
+                free((string)message.content);
+        }
+
+        if (message.role)
+        {
+                free((string)message.role);
+        }
+}
+
+static string
 agent_send_prompt(agent_llama_t *restrict const agent_llama,
-                  const char *restrict const prompt)
+                  const string prompt)
 {
         llama_memory_t memory = llama_get_memory(agent_llama->context);
 
@@ -240,7 +139,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
         const llama_token *tokens = prompt_tokens;
         int n_tokens = n_prompt_tokens;
 
-        char *response = nullptr;
+        string response = nullptr;
         llama_token new_toked_id;
         while (true)
         {
@@ -287,7 +186,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                         return nullptr;
                 }
 
-                char *piece = (char *)malloc(sizeof(char) * (n + 1));
+                string piece = (string)malloc(sizeof(char) * (n + 1));
                 if (!piece)
                 {
                         fprintf(stderr, "Failed allocate memory for piece\n");
@@ -320,8 +219,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
 }
 
 static llama_chat_message
-agent_new_message(const char *restrict const role,
-                  const char *restrict const content)
+agent_new_message(const string role, const string content)
 {
         llama_chat_message message = {.role = nullptr, .content = nullptr};
 
@@ -331,14 +229,14 @@ agent_new_message(const char *restrict const role,
                 return message;
         }
 
-        char *ptrRole = strdup(role);
+        string ptrRole = strdup(role);
         if (!ptrRole)
         {
                 fprintf(stderr, "Failed to allocate memory for role\n");
                 return message;
         }
 
-        char *ptrContent = strdup(content);
+        string ptrContent = strdup(content);
         if (!ptrContent)
         {
                 fprintf(stderr, "Failed to allocate memory for content\n");
@@ -352,14 +250,124 @@ agent_new_message(const char *restrict const role,
         return message;
 }
 
-static void
+// Public members
+
+agent_llama_t *
+agent_new_instance(agent_llama_options_t options)
+{
+        llama_model_params_t model_params = llama_model_default_params();
+        llama_model_t *model =
+                llama_model_load_from_file(options.model_path, model_params);
+        if (!model)
+        {
+                fprintf(stderr, "Failed to load GGUF model from file.\n");
+                return nullptr;
+        }
+
+        llama_context_params_t context_params = llama_context_default_params();
+        context_params.n_ctx = options.max_ctx_size;
+        context_params.n_batch = options.max_ctx_size;
+
+        llama_context_t *context = llama_init_from_model(model, context_params);
+        if (!context)
+        {
+                fprintf(stderr, "Failed to initialize context\n");
+                llama_model_free(model);
+                return nullptr;
+        }
+
+        llama_sampler_chain_params sampler_params =
+                llama_sampler_chain_default_params();
+        sampler_params.no_perf = true;
+
+        llama_sampler_t *sampler = llama_sampler_chain_init(sampler_params);
+        if (!sampler)
+        {
+                fprintf(stderr, "Failed to initialize sampler\n");
+                llama_free(context);
+                llama_model_free(model);
+                return nullptr;
+        }
+
+        llama_sampler_chain_add(sampler,
+                                llama_sampler_init_min_p(options.min_p, 1));
+        llama_sampler_chain_add(sampler, llama_sampler_init_temp(options.temp));
+        llama_sampler_chain_add(sampler,
+                                llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
+
+        llama_batch_ext_t *batch = llama_batch_ext_init(context);
+
+        agent_llama_t *agent_llama =
+                (agent_llama_t *)malloc(sizeof(agent_llama_t));
+        if (!agent_llama)
+        {
+                fprintf(stderr, "Failed to allocate memory for agent\n");
+                llama_sampler_free(sampler);
+                llama_free(context);
+                llama_model_free(model);
+                return nullptr;
+        }
+
+        agent_llama->model = model;
+        agent_llama->context = context;
+        agent_llama->sampler = sampler;
+        agent_llama->batch = batch;
+        agent_llama->message_size = 0;
+        agent_llama->prev_len = 0;
+        agent_llama->messages = nullptr;
+
+        return agent_llama;
+}
+
+void
+agent_free_instance(agent_llama_t *restrict const inst)
+{
+        if (!inst)
+        {
+                return;
+        }
+
+        if (inst->messages)
+        {
+                for (size_t i = 0; i < inst->message_size; i++)
+                {
+                        agent_free_message(inst->messages[i]);
+                }
+
+                free(inst->messages);
+        }
+
+        if (inst->batch)
+        {
+                llama_batch_ext_free(inst->batch);
+        }
+
+        if (inst->sampler)
+        {
+                llama_sampler_free(inst->sampler);
+        }
+
+        if (inst->context)
+        {
+                llama_free(inst->context);
+        }
+
+        if (inst->model)
+        {
+                llama_model_free(inst->model);
+        }
+
+        free(inst);
+}
+
+static size_t
 agent_message_push_back(llama_chat_message **messages,
                         size_t *restrict messages_size,
                         llama_chat_message message)
 {
         if (!messages || !messages_size || !message.role || !message.content)
         {
-                return;
+                return 0;
         }
 
         *messages_size = *messages_size + 1;
@@ -368,21 +376,23 @@ agent_message_push_back(llama_chat_message **messages,
                             sizeof(llama_chat_message) * (*messages_size));
         if (!messages)
         {
-                return;
+                return 0;
         }
 
         llama_chat_message *messagesPtr = (llama_chat_message *)*messages;
         memcpy(&messagesPtr[*messages_size - 1],
                &message,
                sizeof(llama_chat_message));
+
+        return *messages_size;
 }
 
-char *
+string
 agent_generate_prompt(agent_llama_t *restrict const agent_llama,
-                      const char *restrict const prompt)
+                      const string prompt)
 {
         size_t formatted_size = llama_n_ctx(agent_llama->context);
-        char *formatted = (char *)malloc(sizeof(char) * (formatted_size + 1));
+        string formatted = (string)malloc(sizeof(char) * (formatted_size + 1));
         if (!formatted)
         {
                 fprintf(stderr,
@@ -390,8 +400,8 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
                 return nullptr;
         }
 
-        const char *tmpl =
-                llama_model_chat_template(agent_llama->model, nullptr);
+        const string tmpl = (const string)llama_model_chat_template(
+                agent_llama->model, nullptr);
 
         llama_chat_message user_message = agent_new_message("user", prompt);
         if (!user_message.role || !user_message.content)
@@ -401,9 +411,15 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
                 return nullptr;
         }
 
-        agent_message_push_back(&agent_llama->messages,
-                                &agent_llama->message_size,
-                                user_message);
+        if (agent_message_push_back(&agent_llama->messages,
+                                    &agent_llama->message_size,
+                                    user_message) == 0)
+        {
+                fprintf(stderr, "Failed to add user message to messages\n");
+                agent_free_message(user_message);
+                free(formatted);
+                return nullptr;
+        }
 
         int new_len = llama_chat_apply_template(tmpl,
                                                 agent_llama->messages,
@@ -426,25 +442,28 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (new_len < 0)
         {
                 fprintf(stderr, "Failed to apply chat template\n");
+                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
 
-        char *new_prompt = AllocSubstr(formatted,
-                                       formatted_size,
-                                       agent_llama->prev_len,
-                                       new_len - agent_llama->prev_len);
+        string new_prompt = AllocSubstr(formatted,
+                                        formatted_size,
+                                        agent_llama->prev_len,
+                                        new_len - agent_llama->prev_len);
         if (!new_prompt)
         {
                 fprintf(stderr, "Failed to apply chat template\n");
+                agent_free_message(user_message);
                 free(formatted);
         }
 
-        char *response = agent_send_prompt(agent_llama, new_prompt);
+        string response = agent_send_prompt(agent_llama, new_prompt);
         if (!response)
         {
                 fprintf(stderr, "Failed sending prompt for processing\n");
                 free(new_prompt);
+                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -455,13 +474,22 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         {
                 fprintf(stderr, "Failed to create prompt for assistant\n");
                 free(new_prompt);
+                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
 
-        agent_message_push_back(&agent_llama->messages,
-                                &agent_llama->message_size,
-                                assistant_message);
+        if (agent_message_push_back(&agent_llama->messages,
+                                    &agent_llama->message_size,
+                                    assistant_message) == 0)
+        {
+                fprintf(stderr, "Failed to create prompt for assistant\n");
+                agent_free_message(assistant_message);
+                free(new_prompt);
+                agent_free_message(user_message);
+                free(formatted);
+                return nullptr;
+        }
 
         agent_llama->prev_len =
                 llama_chat_apply_template(tmpl,
@@ -473,7 +501,9 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (agent_llama->prev_len < 0)
         {
                 fprintf(stderr, "Failed to apply template for assistant\n");
+                agent_free_message(assistant_message);
                 free(new_prompt);
+                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -482,4 +512,24 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         free(formatted);
 
         return response;
+}
+
+void
+agent_append_system_instruction(agent_llama_t *agent_llama, const string prompt)
+{
+        llama_chat_message message = agent_new_message("system", prompt);
+        if (!message.role || !message.content)
+        {
+                fprintf(stderr,
+                        "Failed to create new system instruction message\n");
+                return;
+        }
+
+        if (agent_message_push_back(&agent_llama->messages,
+                                    &agent_llama->message_size,
+                                    message) == 0)
+        {
+                fprintf(stderr, "Failed to add system instruction\n");
+                return;
+        }
 }
