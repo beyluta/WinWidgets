@@ -32,7 +32,6 @@ typedef struct llama_vocab llama_vocab_t;
 typedef struct llama_context llama_context_t;
 typedef struct llama_sampler llama_sampler_t;
 typedef struct llama_batch_ext llama_batch_ext_t;
-typedef struct llama_chat_message llama_chat_message_t;
 typedef struct llama_model_params llama_model_params_t;
 typedef struct llama_context_params llama_context_params_t;
 
@@ -42,7 +41,8 @@ struct agent_llama
         llama_context_t *context;
         llama_sampler_t *sampler;
         llama_batch_ext_t *batch;
-        size_t message_count;
+        llama_chat_message *messages;
+        size_t message_size;
 };
 
 agent_llama_t *
@@ -64,6 +64,7 @@ agent_new_instance()
         llama_context_t *context = llama_init_from_model(model, context_params);
         if (!context)
         {
+                fprintf(stderr, "Failed to initialize context\n");
                 llama_model_free(model);
                 return nullptr;
         }
@@ -75,6 +76,7 @@ agent_new_instance()
         llama_sampler_t *sampler = llama_sampler_chain_init(sampler_params);
         if (!sampler)
         {
+                fprintf(stderr, "Failed to initialize sampler\n");
                 llama_free(context);
                 llama_model_free(model);
                 return nullptr;
@@ -92,6 +94,7 @@ agent_new_instance()
                 (agent_llama_t *)malloc(sizeof(agent_llama_t));
         if (!agent_llama)
         {
+                fprintf(stderr, "Failed to allocate memory for agent\n");
                 llama_sampler_free(sampler);
                 llama_free(context);
                 llama_model_free(model);
@@ -102,7 +105,8 @@ agent_new_instance()
         agent_llama->context = context;
         agent_llama->sampler = sampler;
         agent_llama->batch = batch;
-        agent_llama->message_count = 0;
+        agent_llama->message_size = 0;
+        agent_llama->messages = nullptr;
 
         return agent_llama;
 }
@@ -113,6 +117,17 @@ agent_free_instance(agent_llama_t *restrict const inst)
         if (!inst)
         {
                 return;
+        }
+
+        if (inst->messages)
+        {
+                for (size_t i = 0; i < inst->message_size; i++)
+                {
+                        free((char *)inst->messages[i].content);
+                        free((char *)inst->messages[i].role);
+                }
+
+                free(inst->messages);
         }
 
         if (inst->batch)
@@ -172,6 +187,8 @@ agent_append_response(char **const response,
                         sizeof(char) * (response_len + new_response_len + 1));
         if (!*response)
         {
+                fprintf(stderr,
+                        "Failed to reallocate memory for new response\n");
                 return 0;
         }
 
@@ -195,12 +212,12 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
         const int n_prompt_tokens = -llama_tokenize(
                 vocab, prompt, strlen(prompt), nullptr, 0, is_first, true);
 
-        // vector_t *prompt_tokens =
-        //         vector_new(sizeof(llama_token), n_prompt_tokens);
         llama_token *prompt_tokens =
                 (llama_token *)malloc(sizeof(llama_token) * n_prompt_tokens);
         if (!prompt_tokens)
         {
+                fprintf(stderr,
+                        "Failed to reallocate memory for prompt tokens\n");
                 return nullptr;
         }
 
@@ -212,6 +229,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                            is_first,
                            true) < 0)
         {
+                fprintf(stderr, "Failed to tokenize prompt\n");
                 free(prompt_tokens);
                 return nullptr;
         }
@@ -269,6 +287,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                 char *piece = (char *)malloc(sizeof(char) * (n + 1));
                 if (!piece)
                 {
+                        fprintf(stderr, "Failed allocate memory for piece\n");
                         free(prompt_tokens);
                         return nullptr;
                 }
@@ -297,111 +316,62 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
         return response;
 }
 
-static llama_chat_message_t *
-agent_new_message(const char *restrict const user,
+static llama_chat_message
+agent_new_message(const char *restrict const role,
                   const char *restrict const content)
 {
-        if (!user || !content)
+        llama_chat_message message = {.role = nullptr, .content = nullptr};
+
+        if (!role || !content)
         {
-                return nullptr;
+                fprintf(stderr, "Role or Content must not be null\n");
+                return message;
         }
 
-        char *pUser = (char *)malloc(sizeof(char) * (strlen(user) + 1));
-        if (!pUser)
+        char *ptrRole = strdup(role);
+        if (!ptrRole)
         {
-                return nullptr;
-        }
-        memcpy(pUser, user, strlen(user));
-        pUser[strlen(user)] = 0;
-
-        char *pContent = (char *)malloc(sizeof(char) * (strlen(content) + 1));
-        if (!pContent)
-        {
-                free(pUser);
-                return nullptr;
-        }
-        memcpy(pContent, content, strlen(content));
-        pContent[strlen(content)] = 0;
-
-        llama_chat_message_t *message =
-                (llama_chat_message_t *)malloc(sizeof(llama_chat_message_t));
-        if (!message)
-        {
-                free(pContent);
-                free(pUser);
-                return nullptr;
+                fprintf(stderr, "Failed to allocate memory for role\n");
+                return message;
         }
 
-        message->role = pUser;
-        message->content = pContent;
+        char *ptrContent = strdup(content);
+        if (!ptrContent)
+        {
+                fprintf(stderr, "Failed to allocate memory for content\n");
+                free(ptrRole);
+                return message;
+        }
+
+        message.role = ptrRole;
+        message.content = ptrContent;
 
         return message;
 }
 
 static void
-agent_free_message(llama_chat_message_t *restrict const message)
-{
-        if (!message)
-        {
-                return;
-        }
-
-        if (message->content)
-        {
-                free((char *)message->content);
-        }
-
-        if (message->role)
-        {
-                free((char *)message->role);
-        }
-
-        free(message);
-}
-
-static void
-agent_free_chat_messages(llama_chat_message_t **message, const size_t size)
-{
-        for (size_t i = 0; i < size; i++)
-        {
-                agent_free_message(message[i]);
-        }
-
-        free(message);
-}
-
-static void
-agent_message_push_back(llama_chat_message_t ***messages,
+agent_message_push_back(llama_chat_message **messages,
                         size_t *restrict messages_size,
-                        llama_chat_message_t *restrict const message)
+                        llama_chat_message message)
 {
-        if (!messages || !message)
+        if (!messages || !messages_size || !message.role || !message.content)
         {
                 return;
         }
 
         *messages_size = *messages_size + 1;
 
-        llama_chat_message_t **new_messages = (llama_chat_message_t **)malloc(
-                sizeof(llama_chat_message_t *) * (*messages_size));
-        if (!new_messages)
+        *messages = realloc(*messages,
+                            sizeof(llama_chat_message) * (*messages_size));
+        if (!messages)
         {
                 return;
         }
 
-        for (size_t i = 0; i < *messages_size - 1; i++)
-        {
-                new_messages[i] = *messages[i];
-        }
-
-        new_messages[*messages_size - 1] = message;
-
-        if (*messages)
-        {
-                free(*messages);
-        }
-
-        *messages = new_messages;
+        llama_chat_message *messagesPtr = (llama_chat_message *)*messages;
+        memcpy(&messagesPtr[*messages_size - 1],
+               &message,
+               sizeof(llama_chat_message));
 }
 
 char *
@@ -412,26 +382,29 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         char *formatted = (char *)malloc(sizeof(char) * (formatted_size + 1));
         if (!formatted)
         {
+                fprintf(stderr,
+                        "Failed to allocate memory for formatted string\n");
                 return nullptr;
         }
 
         const char *tmpl =
                 llama_model_chat_template(agent_llama->model, nullptr);
 
-        llama_chat_message_t *new_message = agent_new_message("user", prompt);
-        if (!new_message)
+        llama_chat_message new_message = agent_new_message("user", prompt);
+        if (!new_message.role || !new_message.content)
         {
+                fprintf(stderr, "Failed to create new chat message\n");
                 free(formatted);
                 return nullptr;
         }
 
-        size_t messages_size = 0;
-        llama_chat_message_t **messages = nullptr;
-        agent_message_push_back(&messages, &messages_size, new_message);
+        agent_message_push_back(&agent_llama->messages,
+                                &agent_llama->message_size,
+                                new_message);
 
         int new_len = llama_chat_apply_template(tmpl,
-                                                *messages,
-                                                messages_size,
+                                                agent_llama->messages,
+                                                agent_llama->message_size,
                                                 true,
                                                 formatted,
                                                 formatted_size);
@@ -440,8 +413,8 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
                 formatted = realloc(formatted, sizeof(char) * (new_len + 1));
                 formatted_size = new_len;
                 new_len = llama_chat_apply_template(tmpl,
-                                                    *messages,
-                                                    messages_size,
+                                                    agent_llama->messages,
+                                                    agent_llama->message_size,
                                                     true,
                                                     formatted,
                                                     formatted_size);
@@ -450,7 +423,6 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (new_len < 0)
         {
                 fprintf(stderr, "Failed to apply chat template\n");
-                agent_free_chat_messages(messages, messages_size);
                 free(formatted);
                 return nullptr;
         }
@@ -459,12 +431,10 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (!response)
         {
                 fprintf(stderr, "Send prompt for processing\n");
-                agent_free_chat_messages(messages, messages_size);
                 free(formatted);
                 return nullptr;
         }
 
-        agent_free_chat_messages(messages, messages_size);
         free(formatted);
 
         return response;
