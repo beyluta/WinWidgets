@@ -126,4 +126,17 @@ AllocSubstr(const string src,
 bool
 isStringDigit(const char *const src, const size_t len);
 
+/**
+ * @brief Function to escape all double quotes and new lines from inside a
+ * string. This is used so that we can safely pass values to javascript
+ * functions from the C backend.
+ *
+ * @param src Source string containing possible double quotes
+ * @return Heap allocated pointer to an escaped string
+ *
+ * @note - Programmer must free the memory
+ */
+string
+EscapeJavaScriptParamString(string src);
+
 #endif

@@ -4,6 +4,7 @@
 // linux platform.
 //
 // ==========================================================
+#include "agent.h"
 #include "widget.h"
 #include "window.h"
 #include "filesystem.h"
@@ -22,6 +23,7 @@ struct window_opts_t
         GtkWidget *window;
         WebKitWebView *webview;
         WebKitUserContentManager *manager;
+        agent_llama_t *agent_llama;
         void (*cb_window_realized)(window_t *);
         void (*cb_mouse_button_press)(void *, const uint8_t);
         void (*cb_context_menu_open)(void *,
@@ -50,6 +52,12 @@ on_window_destroy(GtkWidget *, gpointer data)
 
         if (self->private != nullptr)
         {
+                if (self->private->agent_llama != nullptr)
+                {
+                        agent_free_instance(self->private->agent_llama);
+                        self->private->agent_llama = nullptr;
+                }
+
                 free(self->private);
                 self->private = nullptr;
         }
@@ -439,6 +447,22 @@ window_set_url(const window_t *const self,
         url_ptr[url_len] = '\0';
 }
 
+string
+window_agent_send_prompt(window_t *restrict const self, const string prompt)
+{
+        if (!prompt || !self || !self->private->agent_llama)
+        {
+                return nullptr;
+        }
+
+        string ret = agent_generate_prompt(self->private->agent_llama, prompt);
+        if (!ret)
+        {
+                return nullptr;
+        }
+        return ret;
+}
+
 window_t *
 window_new(const window_t options,
            const char *const title,
@@ -448,6 +472,24 @@ window_new(const window_t options,
 {
         window_t *window = nullptr;
         window_opts_t *opts = nullptr;
+
+        agent_llama_options_t agent_options = {
+                .model_path = "/home/beyluta/Downloads/"
+                              "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+                .max_ctx_size = 32768,
+                .min_p = 0.05f,
+                .temp = 0.3f};
+
+        agent_llama_t *agent_llama = agent_new_instance(agent_options);
+        if (!agent_llama)
+        {
+                goto cleanup;
+        }
+
+        agent_append_system_instruction(
+                agent_llama,
+                "You must ONLY reply with code. Never reply with anything else "
+                "other than code.");
 
         if ((window = (window_t *)malloc(sizeof(window_t))) == nullptr)
         {
@@ -487,6 +529,7 @@ window_new(const window_t options,
         opts->window = gtk_window;
         opts->webview = webview;
         opts->manager = manager;
+        opts->agent_llama = agent_llama;
         opts->next = nullptr;
         opts->parent = nullptr;
         opts->cb_window_realized = cb_window_realized;
@@ -507,6 +550,11 @@ cleanup:
         if (window != nullptr)
         {
                 free(window);
+        }
+
+        if (agent_llama != nullptr)
+        {
+                agent_free_instance(agent_llama);
         }
 
         exit(1);

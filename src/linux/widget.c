@@ -4,22 +4,60 @@
 // Reponsible for the creation of the native host and events.
 //
 // ==========================================================
+#include "utils.h"
 #include "window.h"
 #include "parser.h"
 #include "widget.h"
 #include "filesystem.h"
 #include "cyaml.h"
+#include <pthread.h>
+#include <stdint.h>
 
 // Private members
 
 static constexpr char YAML_FILE_SUFFIX[] = ".yaml";
 
-typedef enum : uint8_t
+enum parse_type : uint8_t
 {
         PARSE_TYPE_STRING,
         PARSE_TYPE_UINT8,
         PARSE_TYPE_BOOLEAN,
-} parse_type_t;
+};
+
+enum dynamic_event : uint8_t
+{
+        DYNAMIC_EVENT_ON_GET_WIDGET_FILENAMES,
+        DYNAMIC_EVENT_ON_OPEN_WIDGET_BY_FILENAME,
+        DYNAMIC_EVENT_ON_OPEN_DEFAULT_DIRECTORY,
+        DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED
+};
+
+struct agent_send_prompt_options
+{
+        window_t *self;
+        string prompt;
+};
+
+typedef enum parse_type parse_type_t;
+typedef enum dynamic_event dynamic_event_t;
+typedef struct agent_send_prompt_options agent_send_prompt_options_t;
+
+static string
+dynamic_event_get_str(dynamic_event_t code)
+{
+        switch (code)
+        {
+        default:
+        case DYNAMIC_EVENT_ON_GET_WIDGET_FILENAMES:
+                return "on_get_widget_filenames";
+        case DYNAMIC_EVENT_ON_OPEN_WIDGET_BY_FILENAME:
+                return "on_open_widget_by_filename";
+        case DYNAMIC_EVENT_ON_OPEN_DEFAULT_DIRECTORY:
+                return "on_open_default_directory";
+        case DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED:
+                return "on_agent_user_prompt_received";
+        }
+}
 
 static void
 parse_and_get_2d_value(const string html,
@@ -347,6 +385,119 @@ on_open_default_directory(void *, void *, void *)
         }
 }
 
+static ssize_t
+build_js_command(string dest,
+                 const size_t max,
+                 const string func,
+                 const string param)
+{
+        const size_t size = !dest ? 0 : max + 1;
+        return snprintf(dest,
+                        size,
+                        "window.%s && window.%s(\"%s\")",
+                        func,
+                        func,
+                        param);
+}
+
+static void *
+on_agent_prompt_processing(void *data)
+{
+        agent_send_prompt_options_t *options =
+                (agent_send_prompt_options_t *)data;
+
+        string response =
+                window_agent_send_prompt(options->self, options->prompt);
+        if (!response)
+        {
+                fprintf(stderr, "Failed to get a response from the agent\n");
+                free(options->prompt);
+                pthread_exit(nullptr);
+        }
+
+        string safe_response = EscapeJavaScriptParamString(response);
+        if (!safe_response)
+        {
+                fprintf(stderr, "Failed to escape string from double quotes\n");
+                free(response);
+                free(options->prompt);
+                pthread_exit(nullptr);
+        }
+
+        const ssize_t len =
+                build_js_command(nullptr, 0, "submitChat", safe_response);
+        string command = (string)malloc(sizeof(char) * (len + 1));
+        if (!command)
+        {
+                fprintf(stderr, "Failed to allocate memory for the command\n");
+                free(safe_response);
+                free(response);
+                free(options->prompt);
+                pthread_exit(nullptr);
+        }
+
+        build_js_command(command, len, "submitChat", safe_response);
+        window_run_javascript(options->self, command);
+
+        free(command);
+        free(safe_response);
+        free(response);
+        free(options->prompt);
+        free(options);
+        return nullptr;
+}
+
+static void
+on_agent_user_prompt_received(void *, void *webkit_data, void *user_data)
+{
+        WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
+        JSCValue *jsstr = webkit_javascript_result_get_js_value(result);
+        if (!jsstr)
+        {
+                fprintf(stderr, "Failed to get a value from JavaScript\n");
+                return;
+        }
+
+        if (jsc_value_is_string(jsstr) <= 0)
+        {
+                fprintf(stderr, "Value received is not a string\n");
+                return;
+        }
+
+        string cstr = nullptr;
+        if ((cstr = jsc_value_to_string(jsstr)) == nullptr)
+        {
+                fprintf(stderr, "No user prompt received from JavaScript\n");
+                return;
+        }
+
+        string prompt = strdup(cstr);
+        if (!prompt)
+        {
+                fprintf(stderr, "Failed to duplicate prompt string\n");
+                return;
+        }
+
+        agent_send_prompt_options_t *prompt_options =
+                (agent_send_prompt_options_t *)malloc(
+                        sizeof(agent_send_prompt_options_t));
+        if (!prompt_options)
+        {
+                fprintf(stderr, "Failed to create prompt options\n");
+                free(prompt);
+                return;
+        }
+
+        window_t *self = (window_t *)user_data;
+        prompt_options->self = self;
+        prompt_options->prompt = prompt;
+
+        pthread_t thread;
+        pthread_create(
+                &thread, nullptr, on_agent_prompt_processing, prompt_options);
+        pthread_detach(thread);
+}
+
 static void
 on_window_realized(window_t *self)
 {
@@ -532,23 +683,34 @@ main()
 
         window_set_url(self, html, strlen(html));
 
-        window_register_event_callback(self,
-                                       window_get_manager(self),
-                                       "on_get_widget_filenames",
-                                       on_document_object_model_loaded,
-                                       self);
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVENT_ON_GET_WIDGET_FILENAMES),
+                on_document_object_model_loaded,
+                self);
 
-        window_register_event_callback(self,
-                                       window_get_manager(self),
-                                       "on_open_widget_by_filename",
-                                       on_widget_container_clicked,
-                                       self);
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVENT_ON_OPEN_WIDGET_BY_FILENAME),
+                on_widget_container_clicked,
+                self);
 
-        window_register_event_callback(self,
-                                       window_get_manager(self),
-                                       "on_open_default_directory",
-                                       on_open_default_directory,
-                                       self);
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVENT_ON_OPEN_DEFAULT_DIRECTORY),
+                on_open_default_directory,
+                self);
+
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(
+                        DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED),
+                on_agent_user_prompt_received,
+                self);
 
         window_show(self);
         window_destroy(self);

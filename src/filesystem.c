@@ -471,6 +471,12 @@ ww_get_all_files_from_directory(const string src, const ww_file_filter_t fil)
                 }
 
                 if ((fil & FILE_FILTER_YAML) &&
+                    str_ends_with(dir->d_name, ".gguf"))
+                {
+                        continue;
+                }
+
+                if ((fil & FILE_FILTER_GGUF) &&
                     str_ends_with(dir->d_name, ".yaml"))
                 {
                         continue;

@@ -134,11 +134,11 @@ $(LLAMA_LIBS_DIR)/$(LLAMA_LIBS): $(LLAMA_DIR)
 	cp $@ "$(BUILD_DIR)"
 
 $(LLAMA_DIR): $(BUILD_DIR)/$(TARGET)
-	# cd $@ && \
-	# 	mkdir -p build && \
-	# 	cd build && \
-	# 	cmake .. -DGGML_BUILD_SHARED_LIB=ON -DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_SYCL=OFF -DGGML_OPENCL=OFF && \
-	# 	cmake --build . --config Release
+	cd $@ && \
+		mkdir -p build && \
+		cd build && \
+		cmake .. -DGGML_BUILD_SHARED_LIB=ON -DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_SYCL=OFF -DGGML_OPENCL=OFF && \
+		cmake --build . --config Release
 
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	mkdir -p "$(dir $@)"

@@ -104,4 +104,14 @@ window_save_state(window_t *const self);
 void
 window_save_state_remove(window_t *const self);
 
+/**
+ * @brief Function to send a prompt for processing from the window object
+ * @param self Pointer to the window object
+ * @param prompt User prompt for processing
+ * @return The response from the agent
+ * @note - Programmer must free the memory returned
+ */
+string
+window_agent_send_prompt(window_t *self, const string prompt);
+
 #endif

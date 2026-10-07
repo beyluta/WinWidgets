@@ -165,3 +165,56 @@ isStringDigit(const char *const src, const size_t len)
         }
         return false;
 }
+
+string
+EscapeJavaScriptParamString(string src)
+{
+        const size_t max = strlen(src);
+        size_t n = 0;
+
+        for (size_t i = 0; i < max; i++)
+        {
+                if (src[i] == '"')
+                {
+                        n++;
+                }
+                if (src[i] == '\n')
+                {
+                        n += 2;
+                }
+        }
+
+        string result = malloc(sizeof(char) * (max + n + 1));
+        if (!result)
+        {
+                return nullptr;
+        }
+
+        for (size_t i = 0, j = 0; i < max + n; i++)
+        {
+                if (src[i] == '"' || src[i] == '\n')
+                {
+                        result[j] = '\\';
+                        j++;
+                        result[j] = src[i];
+                        j++;
+                }
+                else if (src[i] == '\n')
+                {
+                        result[j] = 'n';
+                        j++;
+                }
+                else if (src[i] == 0)
+                {
+                        result[j] = 0;
+                        break;
+                }
+                else
+                {
+                        result[j] = src[i];
+                        j++;
+                }
+        }
+
+        return result;
+}

@@ -73,7 +73,15 @@
     </div>
   </main>
 
-  <main class="development">
+<main class="development">
+    <div class="dev-section chat-window">
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-message">Welcome! Please describe the widget you'd like to generate in this terminal, and rest assured that all your data stays strictly local as no information is ever transmitted to any external server or cloud service.</div>
+        </div>
+        <input type="text" id="chat-input" placeholder="Ask AI to generate widget...">
+        <button id="chat-submit" onclick="submitChat()">Submit</button>
+    </div>
+
     <div class="dev-section">
       <h3>Default folder</h3>
       <span>

@@ -21,7 +21,8 @@ struct ww_file_t
 typedef enum : uint8_t
 {
         FILE_FILTER_HTML = 1,
-        FILE_FILTER_YAML = 2
+        FILE_FILTER_YAML = 2,
+        FILE_FILTER_GGUF = 4
 } ww_file_filter_t;
 
 /**

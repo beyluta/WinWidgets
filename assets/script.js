@@ -7,6 +7,7 @@ const EVENT_IDS = {
   "on_open_widget_by_filename": "2",
   "on_toggle_setting": "3",
   "on_theme_changed": "4",
+  "on_agent_user_prompt_received": "5",
 };
 
 /**
@@ -167,11 +168,68 @@ function addWidget(title, path) {
 }
 
 /**
+ * Submits a chat message as either a user or the agent
+ * @param {string} agentMessage - Message from the agent
+ */
+function submitChat(agentMessage) {
+  const message = document.getElementById('chat-messages');
+  const input = document.getElementById('chat-input');
+  const text = (agentMessage ?? input.value).trim();
+
+  if (!text) {
+    return;
+  }
+
+  const msgDiv = document.createElement('div');
+  msgDiv.textContent = text;
+
+  msgDiv.className = 'chat-message';
+  msgDiv.style.cssText = `
+      padding: 12px 16px;
+      background-color: var(--bg-tertiary);
+      border-radius: 8px;
+      word-wrap: break-word;
+      width: fit-content;
+      max-width: 75%;
+    `;
+
+  if (message.children.length % 2 === 0) {
+    msgDiv.style.alignSelf = 'start';
+    msgDiv.style.textAlign = 'left';
+    const submitButton = document.getElementById('chat-submit');
+    if (submitButton) {
+      submitButton.disabled = false;
+    }
+  } else {
+    msgDiv.style.alignSelf = 'end';
+    msgDiv.style.textAlign = 'right';
+    onAgentSendUserPrompt(input.value);
+
+    const submitButton = document.getElementById('chat-submit');
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+  }
+
+  message.appendChild(msgDiv);
+
+  input.value = '';
+  message.scrollTop = message.scrollHeight;
+}
+
+/**
+ * Sends a prompt to the C backend and processes the request
+ * @param {string} prompt - The user prompt to process
+ */
+function onAgentSendUserPrompt(prompt) {
+  postMessage("on_agent_user_prompt_received", prompt);
+}
+
+/**
  * Opens a widget given a file system path.
  * @param {string} path - The file system path to the widget.
- * @returns {Promise<void>} Resolves when the widget is opened.
  */
-async function openWidget(path) {
+function openWidget(path) {
   postMessage("on_open_widget_by_filename", `file://${path}`);
 }
 
