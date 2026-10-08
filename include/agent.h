@@ -53,4 +53,22 @@ void
 agent_append_system_instruction(agent_llama_t *agent_llama,
                                 const string prompt);
 
+/**
+ * @brief Function to strip the final codeblock from the response
+ * @param src Source containing the codeblock
+ * @return The text before the codeblock
+ * @note - Programmer must free the memory after use
+ */
+string
+agent_tool_strip_codeblock_response(const string src);
+
+/**
+ * @brief Function to scan a string for a codeblock and extract it
+ * @param src Source containing the codeblock
+ * @return The first instance of any codeblock found
+ * @note - Programmer must free the memory after use
+ */
+string
+agent_tool_codeblock_scan(const string src);
+
 #endif

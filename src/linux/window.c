@@ -8,6 +8,8 @@
 #include "widget.h"
 #include "window.h"
 #include "filesystem.h"
+#include <libgen.h>
+#include <linux/limits.h>
 
 // Private members
 
@@ -166,6 +168,125 @@ on_context_menu_open(WebKitWebView *,
         g_object_unref(action_close);
 
         return FALSE;
+}
+
+static agent_llama_t *
+window_llama_init(const window_t window)
+{
+        if (window.is_child)
+        {
+                return nullptr;
+        }
+
+        char path[PATH_MAX];
+        if (ww_get_executable_path(path, sizeof(path) - 1) != 0)
+        {
+                fprintf(stderr, "Failed get executable path\n");
+                return nullptr;
+        }
+
+        const string folder = dirname(path);
+
+        ww_file_t *file_model =
+                ww_get_all_files_from_directory(folder, FILE_FILTER_GGUF);
+        if (!file_model)
+        {
+                fprintf(stderr, "GGUF files not found in %s\n", folder);
+                return nullptr;
+        }
+
+        char model_path[PATH_MAX];
+        ssize_t written = snprintf(model_path,
+                                   sizeof(model_path) - 1,
+                                   "%s/%s",
+                                   folder,
+                                   file_model->name);
+        if (written < 0)
+        {
+                fprintf(stderr, "Failed to write gguf file to local buffer\n");
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        agent_llama_options_t agent_options = {.model_path = model_path,
+                                               .max_ctx_size = 32768,
+                                               .min_p = 0.05f,
+                                               .temp = 0.3f};
+
+        agent_llama_t *agent_llama = agent_new_instance(agent_options);
+        if (!agent_llama)
+        {
+                fprintf(stderr, "Failed to create agent instance\n");
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        char rules_dir[PATH_MAX];
+        written = snprintf(
+                rules_dir, sizeof(rules_dir) - 1, "%s/assets/rules", folder);
+        if (written < 0)
+        {
+                fprintf(stderr, "Failed to write md file to local buffer\n");
+                agent_free_instance(agent_llama);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        ww_file_t *file_rule =
+                ww_get_all_files_from_directory(rules_dir, FILE_FILTER_MD);
+        if (!file_rule)
+        {
+                fprintf(stderr, "Rule files not found in %s\n", folder);
+                agent_free_instance(agent_llama);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        char rule_path[PATH_MAX];
+        written = snprintf(rule_path,
+                           sizeof(rule_path) - 1,
+                           "%s/%s",
+                           rules_dir,
+                           file_rule->name);
+        if (written < 0)
+        {
+                fprintf(stderr, "Failed to write absolute path to buffer\n");
+                agent_free_instance(agent_llama);
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        const size_t bytes = ww_get_file_bytes(rule_path);
+
+        string file = (string)malloc(sizeof(char) * (bytes + 1));
+        if (!file)
+        {
+                fprintf(stderr, "Failed to allocate memory for file buffer\n");
+                agent_free_instance(agent_llama);
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        written = ww_get_file_content(rule_path, file, bytes);
+        if (written == 0)
+        {
+                fprintf(stderr, "Failed write rule file to local buffer\n");
+                free(file);
+                agent_free_instance(agent_llama);
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        agent_append_system_instruction(agent_llama, file);
+
+        free(file);
+        ww_free_all_files_from_directory(file_rule);
+        ww_free_all_files_from_directory(file_model);
+
+        return agent_llama;
 }
 
 // Public members
@@ -470,50 +591,40 @@ window_new(const window_t options,
            const size_t guid,
            void (*cb_window_realized)(window_t *))
 {
-        window_t *window = nullptr;
-        window_opts_t *opts = nullptr;
-
-        agent_llama_options_t agent_options = {
-                .model_path = "/home/beyluta/Downloads/"
-                              "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
-                .max_ctx_size = 32768,
-                .min_p = 0.05f,
-                .temp = 0.3f};
-
-        agent_llama_t *agent_llama = agent_new_instance(agent_options);
-        if (!agent_llama)
-        {
-                goto cleanup;
-        }
-
-        agent_append_system_instruction(
-                agent_llama,
-                "You must ONLY reply with code. Never reply with anything else "
-                "other than code.");
-
-        if ((window = (window_t *)malloc(sizeof(window_t))) == nullptr)
+        window_t *window = (window_t *)malloc(sizeof(window_t));
+        if (!window)
         {
                 fprintf(stderr, "Memory allocation for new window failed\n");
-                goto cleanup;
+                exit(1);
         }
 
-        if ((opts = (window_opts_t *)malloc(sizeof(window_opts_t))) == nullptr)
+        window_opts_t *opts = (window_opts_t *)malloc(sizeof(window_opts_t));
+        if (!opts)
         {
                 fprintf(stderr, "Memory allocation for window_opts_t failed\n");
-                goto cleanup;
+                free(window);
+                exit(1);
+        }
+
+        agent_llama_t *agent_llama = window_llama_init(options);
+        if (!agent_llama)
+        {
+                fprintf(stdout, "Agent llama could not be initialized.\n");
         }
 
         if (title_len >= sizeof(opts->title))
         {
                 fprintf(stderr, "Title size was greater than supported\n");
-                goto cleanup;
+                free(opts);
+                agent_free_instance(agent_llama);
+                free(window);
+                exit(1);
         }
 
         *window = options;
 
-        string title_ptr = opts->title;
-        strncpy(title_ptr, title, title_len);
-        title_ptr[title_len] = '\0';
+        memcpy(opts->title, title, title_len);
+        opts->title[title_len] = 0;
 
         static bool gtk_initialized = false;
         if (!gtk_initialized)
@@ -540,22 +651,4 @@ window_new(const window_t options,
         window->private = opts;
 
         return window;
-
-cleanup:
-        if (opts != nullptr)
-        {
-                free(opts);
-        }
-
-        if (window != nullptr)
-        {
-                free(window);
-        }
-
-        if (agent_llama != nullptr)
-        {
-                agent_free_instance(agent_llama);
-        }
-
-        exit(1);
 }

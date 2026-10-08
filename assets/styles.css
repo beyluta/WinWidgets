@@ -419,7 +419,7 @@ body.dark-mode .chat-window input {
   cursor: not-allowed;
 }
 
-.chat-message:nth-child(2n+1)::before {
+.chat-message[assistant="true"]::before {
   content: '*Agent';
   position: absolute;
   top: -10px;
@@ -428,7 +428,7 @@ body.dark-mode .chat-window input {
   width: 100%;
 }
 
-.chat-message:nth-child(2n+1) {
+.chat-message[assistant="true"] {
   background-color: transparent !important;
   position: relative;
 }
@@ -661,4 +661,15 @@ body.dark-mode ::-webkit-scrollbar-thumb {
 
 body.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+.html-message-in-chat {
+  padding: 12px;
+  border-radius: 8px;
+  overflow-wrap: break-word;
+  max-width: 75%;
+  background-color: var(--bg-tertiary);
+  align-self: flex-start;
+  text-align: left;
+  white-space: pre-wrap;
 }

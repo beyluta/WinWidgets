@@ -324,6 +324,7 @@ agent_free_instance(agent_llama_t *restrict const inst)
 {
         if (!inst)
         {
+                fprintf(stderr, "No llama instance to free\n");
                 return;
         }
 
@@ -532,4 +533,98 @@ agent_append_system_instruction(agent_llama_t *agent_llama, const string prompt)
                 fprintf(stderr, "Failed to add system instruction\n");
                 return;
         }
+}
+
+string
+agent_tool_strip_codeblock_response(const string src)
+{
+        if (!src)
+        {
+                fprintf(stderr, "Source cannot be empty for strip\n");
+                return nullptr;
+        }
+
+        const size_t size = strlen(src);
+        for (size_t i = 0; i < size; i++)
+        {
+
+                if (i + 2 < size && i > 0 && src[i] == '`' &&
+                    src[i + 1] == '`' && src[i + 2] == '`')
+                {
+                        const size_t max = i - 1;
+
+                        if (max >= size)
+                        {
+                                fprintf(stderr,
+                                        "Cannot copy more bytes than "
+                                        "allocated\n");
+                                return nullptr;
+                        }
+
+                        string data = (string)malloc(sizeof(char) * (max + 1));
+                        if (!data)
+                        {
+                                fprintf(stderr,
+                                        "Failed to allocate memory for "
+                                        "stripped message without codeblock\n");
+                                return nullptr;
+                        }
+                        memcpy(data, src, max);
+                        data[max] = 0;
+                        return data;
+                }
+        }
+
+        return nullptr;
+}
+
+string
+agent_tool_codeblock_scan(const string src)
+{
+        if (!src)
+        {
+                fprintf(stderr, "Prompt source cannot be empty for scan\n");
+                return nullptr;
+        }
+
+        string data = nullptr;
+        const size_t max = strlen(src);
+        size_t offset = 0;
+
+        for (size_t i = 0; i < max; i++)
+        {
+                if (offset == 0 && i + 1 < max && i > 1 && src[i] == '`' &&
+                    src[i - 1] == '`' && src[i - 2] == '`')
+                {
+                        offset = i + 1;
+                }
+
+                if (offset > 0 && i - 1 > 0 && i + 2 < max && src[i] == '`' &&
+                    src[i + 1] == '`' && src[i + 2] == '`')
+                {
+                        const size_t size = (i - 1) - offset;
+                        if (offset >= max || offset + size >= max)
+                        {
+                                fprintf(stderr,
+                                        "Cannot read or write outside of "
+                                        "bounds of the memory region\n");
+                                return nullptr;
+                        }
+
+                        data = malloc(sizeof(char) * (size + 1));
+                        if (!data)
+                        {
+                                fprintf(stderr,
+                                        "Failed to allocate memory for "
+                                        "resulting codeblock string\n");
+                                return nullptr;
+                        }
+
+                        memcpy(data, &src[offset], size);
+                        data[size] = 0;
+                        break;
+                }
+        }
+
+        return data;
 }

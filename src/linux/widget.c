@@ -4,6 +4,7 @@
 // Reponsible for the creation of the native host and events.
 //
 // ==========================================================
+#include "agent.h"
 #include "utils.h"
 #include "window.h"
 #include "parser.h"
@@ -415,7 +416,18 @@ on_agent_prompt_processing(void *data)
                 pthread_exit(nullptr);
         }
 
-        string safe_response = EscapeJavaScriptParamString(response);
+        string safe_response = nullptr;
+        string text = agent_tool_strip_codeblock_response(response);
+        if (text)
+        {
+                safe_response = EscapeJavaScriptParamString(text);
+                free(text);
+        }
+        else
+        {
+                safe_response = EscapeJavaScriptParamString(response);
+        }
+
         if (!safe_response)
         {
                 fprintf(stderr, "Failed to escape string from double quotes\n");
@@ -438,6 +450,37 @@ on_agent_prompt_processing(void *data)
 
         build_js_command(command, len, "submitChat", safe_response);
         window_run_javascript(options->self, command);
+
+        string codeblock = agent_tool_codeblock_scan(response);
+        if (codeblock)
+        {
+                string safe_codeblock = EscapeJavaScriptParamString(codeblock);
+                if (!safe_codeblock)
+                {
+                        free(codeblock);
+                        free(options->prompt);
+                        pthread_exit(nullptr);
+                }
+
+                const ssize_t len = build_js_command(
+                        nullptr, 0, "addHtmlMessage", safe_codeblock);
+
+                string buf = malloc(sizeof(char) * (len + 1));
+                if (!buf)
+                {
+                        free(safe_codeblock);
+                        free(codeblock);
+                        free(options->prompt);
+                        pthread_exit(nullptr);
+                }
+
+                build_js_command(buf, len, "addHtmlMessage", safe_codeblock);
+                window_run_javascript(options->self, buf);
+
+                free(safe_codeblock);
+                free(buf);
+                free(codeblock);
+        }
 
         free(command);
         free(safe_response);

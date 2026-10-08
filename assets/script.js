@@ -193,9 +193,10 @@ function submitChat(agentMessage) {
       max-width: 75%;
     `;
 
-  if (message.children.length % 2 === 0) {
+  if (message.querySelectorAll('.chat-message').length % 2 === 0) {
     msgDiv.style.alignSelf = 'start';
     msgDiv.style.textAlign = 'left';
+    msgDiv.setAttribute('assistant', 'true');
     const submitButton = document.getElementById('chat-submit');
     if (submitButton) {
       submitButton.disabled = false;
@@ -203,6 +204,7 @@ function submitChat(agentMessage) {
   } else {
     msgDiv.style.alignSelf = 'end';
     msgDiv.style.textAlign = 'right';
+    msgDiv.setAttribute('user', 'true');
     onAgentSendUserPrompt(input.value);
 
     const submitButton = document.getElementById('chat-submit');
@@ -223,6 +225,25 @@ function submitChat(agentMessage) {
  */
 function onAgentSendUserPrompt(prompt) {
   postMessage("on_agent_user_prompt_received", prompt);
+}
+
+/**
+ * Adds a special message to the left side of the screen to display embedded HTML.
+ * @param {string} htmlContent - The raw HTML content to display.
+ */
+function addHtmlMessage(htmlContent) {
+  const chatMessages = document.getElementById('chat-messages');
+  const message = document.createElement('div');
+  message.className = 'html-message-in-chat';
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('srcdoc', htmlContent);
+  iframe.style.width = '500px';
+  iframe.style.height = '400px';
+  iframe.style.border = 'none';
+
+  message.appendChild(iframe);
+  chatMessages.appendChild(message);
 }
 
 /**

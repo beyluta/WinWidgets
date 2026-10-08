@@ -190,7 +190,8 @@ EscapeJavaScriptParamString(string src)
                 return nullptr;
         }
 
-        for (size_t i = 0, j = 0; i < max + n; i++)
+        size_t j = 0;
+        for (size_t i = 0; i < max + n; i++)
         {
                 if (src[i] == '"' || src[i] == '\n')
                 {
@@ -215,6 +216,8 @@ EscapeJavaScriptParamString(string src)
                         j++;
                 }
         }
+
+        result[j] = 0;
 
         return result;
 }
