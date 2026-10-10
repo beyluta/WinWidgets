@@ -170,14 +170,11 @@ on_context_menu_open(WebKitWebView *,
         return FALSE;
 }
 
-static agent_llama_t *
-window_llama_init(const window_t window)
-{
-        if (window.is_child)
-        {
-                return nullptr;
-        }
+// Public members
 
+agent_llama_t *
+window_llama_init()
+{
         char path[PATH_MAX];
         if (ww_get_executable_path(path, sizeof(path) - 1) != 0)
         {
@@ -211,7 +208,7 @@ window_llama_init(const window_t window)
         agent_llama_options_t agent_options = {.model_path = model_path,
                                                .max_ctx_size = 32768,
                                                .min_p = 0.05f,
-                                               .temp = 0.3f};
+                                               .temp = 1.0f};
 
         agent_llama_t *agent_llama = agent_new_instance(agent_options);
         if (!agent_llama)
@@ -288,8 +285,6 @@ window_llama_init(const window_t window)
 
         return agent_llama;
 }
-
-// Public members
 
 void
 window_register_event_context_menu(
@@ -606,17 +601,10 @@ window_new(const window_t options,
                 exit(1);
         }
 
-        agent_llama_t *agent_llama = window_llama_init(options);
-        if (!agent_llama)
-        {
-                fprintf(stdout, "Agent llama could not be initialized.\n");
-        }
-
         if (title_len >= sizeof(opts->title))
         {
                 fprintf(stderr, "Title size was greater than supported\n");
                 free(opts);
-                agent_free_instance(agent_llama);
                 free(window);
                 exit(1);
         }
@@ -640,7 +628,6 @@ window_new(const window_t options,
         opts->window = gtk_window;
         opts->webview = webview;
         opts->manager = manager;
-        opts->agent_llama = agent_llama;
         opts->next = nullptr;
         opts->parent = nullptr;
         opts->cb_window_realized = cb_window_realized;
@@ -651,4 +638,41 @@ window_new(const window_t options,
         window->private = opts;
 
         return window;
+}
+
+void
+window_get_agent_instance(window_t *restrict const self,
+                          agent_llama_t **const dest)
+{
+        if (!self || !self->private || !self->private->agent_llama || !dest)
+        {
+                return;
+        }
+
+        *dest = self->private->agent_llama;
+}
+
+void
+window_set_agent_instance(window_t *const self,
+                          agent_llama_t *restrict const src)
+{
+        if (!self || !self->private || self->private->agent_llama || !src)
+        {
+                return;
+        }
+
+        self->private->agent_llama = src;
+}
+
+void
+window_free_agent_instance(window_t *const self)
+{
+        if (!self || !self->private || !self->private->agent_llama)
+        {
+                return;
+        }
+
+        agent_free_instance(self->private->agent_llama);
+
+        self->private->agent_llama = nullptr;
 }

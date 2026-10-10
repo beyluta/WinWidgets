@@ -30,7 +30,8 @@ enum dynamic_event : uint8_t
         DYNAMIC_EVENT_ON_GET_WIDGET_FILENAMES,
         DYNAMIC_EVENT_ON_OPEN_WIDGET_BY_FILENAME,
         DYNAMIC_EVENT_ON_OPEN_DEFAULT_DIRECTORY,
-        DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED
+        DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED,
+        DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY,
 };
 
 struct agent_send_prompt_options
@@ -57,6 +58,8 @@ dynamic_event_get_str(dynamic_event_t code)
                 return "on_open_default_directory";
         case DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED:
                 return "on_agent_user_prompt_received";
+        case DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY:
+                return "on_agent_unload_from_memory";
         }
 }
 
@@ -407,6 +410,19 @@ on_agent_prompt_processing(void *data)
         agent_send_prompt_options_t *options =
                 (agent_send_prompt_options_t *)data;
 
+        agent_llama_t *agent_llama = nullptr;
+        window_get_agent_instance(options->self, &agent_llama);
+        if (!agent_llama)
+        {
+                agent_llama_t *new_agent = window_llama_init();
+                window_set_agent_instance(options->self, new_agent);
+                if (!new_agent)
+                {
+                        fprintf(stderr, "Failed to create agent instance\n");
+                        pthread_exit(nullptr);
+                }
+        }
+
         string response =
                 window_agent_send_prompt(options->self, options->prompt);
         if (!response)
@@ -414,6 +430,13 @@ on_agent_prompt_processing(void *data)
                 fprintf(stderr, "Failed to get a response from the agent\n");
                 free(options->prompt);
                 pthread_exit(nullptr);
+        }
+
+        string no_think = agent_tool_strip_think_response(response);
+        if (no_think)
+        {
+                free(response);
+                response = no_think;
         }
 
         string safe_response = nullptr;
@@ -539,6 +562,13 @@ on_agent_user_prompt_received(void *, void *webkit_data, void *user_data)
         pthread_create(
                 &thread, nullptr, on_agent_prompt_processing, prompt_options);
         pthread_detach(thread);
+}
+
+static void
+on_agent_unload_from_memory(void *, void *webkit_data, void *user_data)
+{
+        window_t *self = (window_t *)user_data;
+        window_free_agent_instance(self);
 }
 
 static void
@@ -753,6 +783,13 @@ main()
                 dynamic_event_get_str(
                         DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED),
                 on_agent_user_prompt_received,
+                self);
+
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY),
+                on_agent_unload_from_memory,
                 self);
 
         window_show(self);

@@ -54,6 +54,15 @@ agent_append_system_instruction(agent_llama_t *agent_llama,
                                 const string prompt);
 
 /**
+ * @brief Function to strip the <think> from the result
+ * @param src Source containing the think block
+ * @return The text after the think block
+ * @note - Programmer must free the memory after use
+ */
+string
+agent_tool_strip_think_response(const string src);
+
+/**
  * @brief Function to strip the final codeblock from the response
  * @param src Source containing the codeblock
  * @return The text before the codeblock

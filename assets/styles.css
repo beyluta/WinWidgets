@@ -144,11 +144,13 @@ nav .theme-toggle:hover img {
   opacity: 1;
 }
 
-nav .nav-item.show-tooltip::after,
-nav .theme-toggle.show-tooltip::after {
+.interact.show-tooltip::after,
+.nav-item.show-tooltip::after,
+.theme-toggle.show-tooltip::after {
   content: attr(data-tooltip);
   position: absolute;
-  left: calc(100% + 12px);
+  bottom: 125%;
+  left: 0;
   background-color: var(--bg-secondary);
   color: var(--primary-text-color);
   padding: 8px 12px;
@@ -345,7 +347,7 @@ body.dark-mode .label {
   box-shadow: var(--shadow-small);
   background-color: var(--bg-secondary);
   display: grid;
-  grid-template-columns: 1fr max(150px);
+  grid-template-columns: 1fr auto max(150px);
   gap: 12px;
   margin-top: 16px;
 }
@@ -377,7 +379,7 @@ body.dark-mode .label {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  grid-column: 1/3;
+  grid-column: 1/4;
   max-height: calc(100vh - 300px);
   overflow-y: auto;
   padding: 10px;
@@ -398,7 +400,7 @@ body.dark-mode .chat-window input {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-.chat-window button {
+.chat-window button:not(.unload-button) {
   padding: 10px 24px;
   background-color: var(--accent-color);
   color: white;
@@ -410,8 +412,32 @@ body.dark-mode .chat-window input {
   transition: all 0.2s ease;
 }
 
-.chat-window button:hover {
-  background-color: var(--accent-hover);
+.unload-button {
+  flex: 1;
+  position: relative;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  font-size: 14px;
+  color: var(--primary-text-color);
+  background-color: rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+}
+
+.unload-button:hover {
+  cursor: pointer;
+}
+
+.unload-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.unload-button img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: brightness(0) invert(1);
 }
 
 .chat-window #chat-submit:disabled {

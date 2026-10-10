@@ -2,7 +2,9 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#include "agent.h"
 #include "utils.h"
+#include <stdint.h>
 
 typedef struct window_opts_t window_opts_t;
 
@@ -113,5 +115,37 @@ window_save_state_remove(window_t *const self);
  */
 string
 window_agent_send_prompt(window_t *self, const string prompt);
+
+/**
+ * @brief Gets the current agent_llama_t instance
+ * @param self Pointer to the window object
+ * @param dest Pointer to a pointer to the agent instance
+ * @note - Destination parameter may be NULL. Pointer should never be freed
+ */
+void
+window_get_agent_instance(window_t *self, agent_llama_t **dest);
+
+/**
+ * @brief Sets the current agent_llama_t instance
+ * @param self Pointer to the window object
+ * @param src Pointer to the new instance
+ */
+void
+window_set_agent_instance(window_t *self, agent_llama_t *src);
+
+/**
+ * @brief Frees the default running agent instance
+ * @param self Pointer to the window object
+ */
+void
+window_free_agent_instance(window_t *const self);
+
+/**
+ * @brief Initializes a new instance of agent llama with window
+ * @return New instance of the agent_llama_t
+ * @note - Programmer must free this memory when no longer used
+ */
+agent_llama_t *
+window_llama_init();
 
 #endif

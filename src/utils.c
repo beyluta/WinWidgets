@@ -141,7 +141,7 @@ AllocSubstr(const string src,
                 return nullptr;
         }
 
-        if (offset > max || n >= max - offset)
+        if (offset > max || n > max - offset)
         {
                 fprintf(stderr, "Failed to write outside of array bounds\n");
                 return nullptr;

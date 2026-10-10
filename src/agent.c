@@ -209,6 +209,14 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                         return nullptr;
                 }
 
+#ifdef LLAMA_DEBUG
+                fprintf(stdout,
+                        "Part: %s\nTokens: %d/%d\n\n",
+                        response,
+                        n_ctx_used,
+                        n_ctx);
+#endif
+
                 tokens = &new_toked_id;
                 n_tokens = 1;
                 free(piece);
@@ -250,12 +258,44 @@ agent_new_message(const string role, const string content)
         return message;
 }
 
+static bool
+agent_substr_match(const string src,
+                   const size_t offset,
+                   const size_t max,
+                   const string substr)
+{
+        if (!src || !substr)
+        {
+                return false;
+        }
+
+        const size_t substrsize = strlen(substr);
+        if (substrsize > max - offset)
+        {
+                return false;
+        }
+
+        for (size_t i = offset, j = 0; i < offset + substrsize; i++, j++)
+        {
+                if (src[i] != substr[j])
+                {
+                        return false;
+                }
+        }
+
+        return true;
+}
+
 // Public members
 
 agent_llama_t *
 agent_new_instance(agent_llama_options_t options)
 {
         llama_model_params_t model_params = llama_model_default_params();
+#ifdef LLAMA_GPU_LAYERS
+        model_params.n_gpu_layers = LLAMA_GPU_LAYERS;
+#endif
+
         llama_model_t *model =
                 llama_model_load_from_file(options.model_path, model_params);
         if (!model)
@@ -533,6 +573,52 @@ agent_append_system_instruction(agent_llama_t *agent_llama, const string prompt)
                 fprintf(stderr, "Failed to add system instruction\n");
                 return;
         }
+}
+
+string
+agent_tool_strip_think_response(const string src)
+{
+        if (!src)
+        {
+                fprintf(stderr, "Source cannot be empty for stripping think\n");
+                return nullptr;
+        }
+
+        const size_t max = strlen(src);
+        size_t size = max, end = 0;
+        for (size_t i = 0; i < max; i++)
+        {
+                if (agent_substr_match(src, i, max, "</think>"))
+                {
+                        end = i + 8;
+                        size = max - end;
+                        break;
+                }
+        }
+
+        if (!end)
+        {
+                return nullptr;
+        }
+
+        if (end > max || size > max)
+        {
+                fprintf(stderr, "Failure trying to read past buffer size\n");
+                exit(1);
+                return nullptr;
+        }
+
+        string data = (string)malloc(sizeof(char) * (size + 1));
+        if (!data)
+        {
+                fprintf(stderr, "Failed to allocate memory for new buffer\n");
+                return nullptr;
+        }
+
+        memcpy(data, &src[end], size);
+        data[size] = 0;
+
+        return data;
 }
 
 string

@@ -50,27 +50,31 @@ These are the platforms officially supported by WinWidgets.
 | Platform | Availability | Supported Version |
 | -------- | ------------ | ----------------- |
 | Windows  | ✅           | Windows 11        |
-| Linux    | ⚠️ (W.I.P)   | Arch              |
-| MacOS    | ❌           | Not planned       |
+| Linux    | ✅           | Arch Linux        |
+| MacOS    | ❌           | -                 |
 
 > The software may run on operating systems or distributions not
 > listed here but it isn't guaranteed.
+
+---
 
 ### Feature Parity
 
 Current status of widget features on supported platforms:
 
-| Feature                 | Windows 11 | Linux |
-| ----------------------- | ---------- | ----- |
-| Opening widgets         | ✅         | ✅    |
-| Transparency            | ✅         | ✅    |
-| Restore widget position | ✅         | ⚠️    |
-| Top most                | ✅         | ⚠️    |
-| System functions        | ✅         | ⚠️    |
+| Feature                 | Windows 11 | Linux | Status                  |
+| ----------------------- | ---------- | ----- | ----------------------- |
+| Opening widgets         | ✅         | ✅    | Working                 |
+| Transparency            | ✅         | ✅    | Working                 |
+| System functions        | ✅         | ⚠️    | Linux work in progress  |
+| Restore widget position | ✅         | ⚠️    | Wayland technical block |
+| Top most                | ✅         | ⚠️    | Wayland technical block |
+
+---
 
 ### Linux Feature Limitations
 
-**WinWidgets** on Linux is still work-in-progress. Some features currently unavailable on Linux are not possible due to Wayland technical limitations:
+Some features currently unavailable on Linux are not possible due to Wayland technical limitations:
 
 - **Window restore position**: Not possible under Wayland.
 - **Window top most**: Not possible under Wayland.
@@ -89,25 +93,40 @@ Wayland is a display server for Linux. Features blocked by Wayland architecture 
 
 This is a brief guide for all supported platforms to compile and run the application.
 
+---
+
 ### Windows prerequisites
 
-Download the following applications using Chocolatey:
+**Required packages**: Download the following applications using Chocolatey
 
 ```bash
 choco install git msys2 mingw make llvm
 ```
 
-> You may also download them manually. If you choose to do so:
-> `msys2` and `mingw` must be in the PATH environment variables.
+> If downloaded manually: `msys2` and `mingw` must be in the PATH environment variables.
 
-After installing, open the MSYS2 terminal application and install these dependencies:
+**Dependencies**: After installing, open the MSYS2 terminal
+application and install these dependencies
 
 ```bash
 pacman -S mingw-w64-x86_64-curl mingw-w64-x86_64-libzip
 ```
 
-`curl` and its dependencies will be installed by default in `C:/tools/msys64`. Verify
-this path is correct and update the `MINGW64` variable in the makefile if needed.
+**Verify installation**: `curl` and `libzip` **MUST** be installed by in
+`C:/tools/msys64`. If this path is incorrect then update the
+`MINGW64` variable in the makefile
+
+```makefile
+...
+# ---------------------------------------------------------------------------
+# Building for Windows platform
+# ---------------------------------------------------------------------------
+ifeq ($(OS), Windows_NT)
+MINGW64 := C:/tools/msys64/mingw64
+...
+```
+
+---
 
 ### Linux prerequisites
 
@@ -115,37 +134,37 @@ For Linux you need the packages `gtk-3.0`, `appindicator3` and `webkitgtk-4.1`.
 Make sure to get their corresponding `-dev` packages as well or else you
 won't be able to compile.
 
+---
+
 ### Compiling the software
 
-Clone the repository:
+**Cloning**: Clone the repository
 
 ```bash
 git clone https://www.github.com/beyluta/WinWidgets.git
 ```
 
-When building for the first time you must run the following command to fetch dependencies:
+**Fetch dependencies**: When building for the first time you must run the following command to fetch dependencies
 
 ```bash
 git submodule update --init --recursive
 ```
 
-(Optional) Consider running the following when pulling remote changes to update dependencies:
+**Build external dependencies**: Downloading and/or building required libraries
 
 ```bash
-git submodule update --recursive --remote
+make prepare
 ```
 
-Compile for Windows 11:
+> use `make prepare LLAMA_GPU_CUDA=ON` for NVIDIA GPU cards
 
-```bash
-make prepare && make
-```
-
-Compile for supported Linux distributions:
+**Compiling the software**: Building WinWidgets itself
 
 ```bash
 make
 ```
+
+> use `make LLAMA_GPU_LAYERS=99` to offload all layers to the GPU
 
 ## Contributing
 

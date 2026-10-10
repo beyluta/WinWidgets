@@ -3,6 +3,14 @@
 # Desired compiler
 CC = gcc
 
+# Resources
+NPROCS := 1
+ifeq ($(OS), Windows_NT)
+ NPROCS := $(shell %NUMBER_OF_PROCESSORS%)
+else
+ NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
+endif
+
 # Sources
 SRC_DIR = src
 SRC = $(wildcard $(SRC_DIR)/*.c) \
@@ -16,7 +24,8 @@ BUILD = out
 # LLAMA Library
 LLAMA_DIR = lib/llama.cpp
 LLAMA_LIBS_DIR = $(LLAMA_DIR)/build/bin
-LLAMA_LIBS = *.so*
+LLAMA_GPU_CUDA ?= OFF
+LLAMA_GPU_LAYERS ?= 0
 
 # Build dir and output names
 BUILD_DIR = build
@@ -35,6 +44,11 @@ CFLAGS := -MMD \
 					-Iinclude \
 				  -Ilib/minimal-json-c-parser/include \
 			 	  -Ilib/c-yaml-parser/include
+
+ifeq ($(shell test $(LLAMA_GPU_LAYERS) -gt 0; echo $$?),0)
+	CFLAGS := $(CFLAGS) \
+						-DLLAMA_GPU_LAYERS=$(LLAMA_GPU_LAYERS)
+endif
 
 # ---------------------------------------------------------------------------
 # Building for Windows platform
@@ -120,7 +134,7 @@ SRC := $(SRC) \
 
 make: $(SCRIPTS_DIR)/$(BUILD)
 
-$(SCRIPTS_DIR)/$(BUILD): $(LLAMA_LIBS_DIR)/$(LLAMA_LIBS)
+$(SCRIPTS_DIR)/$(BUILD): $(BUILD_DIR)/$(TARGET)
 	clang-format -i $(CURDIR)/src/*.c \
 	$(CURDIR)/include/*.h
 	mkdir -p "$(BUILD_DIR)"
@@ -130,17 +144,6 @@ $(SCRIPTS_DIR)/$(BUILD): $(LLAMA_LIBS_DIR)/$(LLAMA_LIBS)
 	./"$(BUILD_DIR)/$(BUILD)" "$(CURDIR)/assets/index.html" __linux__
 	mv "$(CURDIR)/index.html" "$(BUILD_DIR)/assets"
 
-$(LLAMA_LIBS_DIR)/$(LLAMA_LIBS): $(LLAMA_DIR)
-	cp $@ "$(BUILD_DIR)"
-
-$(LLAMA_DIR): $(BUILD_DIR)/$(TARGET)
-	cd $@ && if [ ! -d build ]; then \
-		mkdir -p build && \
-		cd build && \
-		cmake .. -DGGML_BUILD_SHARED_LIB=ON -DGGML_CUDA=OFF -DGGML_METAL=OFF -DGGML_SYCL=OFF -DGGML_OPENCL=OFF && \
-		cmake --build . --config Release; \
-		fi
-
 $(BUILD_DIR)/$(TARGET): $(OBJS)
 	mkdir -p "$(dir $@)"
 	$(CC) -o $@ $^ $(LDFLAGS) $(GTKFLAGS)
@@ -149,6 +152,19 @@ $(OBJS_DIR)/%.o: %.c
 	mkdir -p "$(dir $@)"
 	$(CC) -c $(CFLAGS) $(GTKFLAGS) -o $@ $<
 
+prepare:
+	cd $(LLAMA_DIR) && if [ ! -d build ]; then \
+		mkdir -p build && \
+		cd build && \
+		cmake .. -DGGML_BUILD_SHARED_LIB=ON \
+		-DGGML_CUDA="$(LLAMA_GPU_CUDA)" \
+		-DGGML_METAL=OFF \
+		-DGGML_SYCL=OFF \
+		-DGGML_OPENCL=OFF && \
+		cmake --build . -j "$(NPROCS)" --config Release; \
+		fi
+	mkdir -p "$(BUILD_DIR)"
+	find "$(LLAMA_LIBS_DIR)" -name \*.so* -exec cp {} "$(BUILD_DIR)" \;
 endif
 
 -include $(DEPS)

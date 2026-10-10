@@ -8,6 +8,7 @@ const EVENT_IDS = {
   "on_toggle_setting": "3",
   "on_theme_changed": "4",
   "on_agent_user_prompt_received": "5",
+  "on_agent_unload_from_memory": "6",
 };
 
 /**
@@ -19,6 +20,8 @@ const TOOLTIPDELAY = 500;
  * Tooltip timeout trackers
  */
 let tooltipTimeouts = new Map();
+let loadingInterval = null;
+let isModelLoaded = false;
 
 /**
  * Opens the specified scene in the application.
@@ -96,8 +99,8 @@ function hideTooltip(element) {
  * Initializes tooltip behavior for navigation items
  */
 function initializeTooltips() {
-  const navItems = document.querySelectorAll('.nav-item, .theme-toggle');
-  navItems.forEach(item => {
+  const interactables = document.querySelectorAll('.nav-item, .theme-toggle, .interact');
+  interactables.forEach(item => {
     item.addEventListener('mouseenter', () => showTooltipDelayed(item));
     item.addEventListener('mouseleave', () => hideTooltip(item));
   });
@@ -168,9 +171,15 @@ function addWidget(title, path) {
 }
 
 /**
- * Submits a chat message as either a user or the agent
- * @param {string} agentMessage - Message from the agent
+ * Updates the unload button's enabled state based on isModelLoaded.
  */
+function updateUnloadButtonUI() {
+  const unloadButton = document.getElementById('unload-button');
+  if (unloadButton) {
+    unloadButton.disabled = !isModelLoaded;
+  }
+}
+
 function submitChat(agentMessage) {
   const message = document.getElementById('chat-messages');
   const input = document.getElementById('chat-input');
@@ -200,16 +209,30 @@ function submitChat(agentMessage) {
     const submitButton = document.getElementById('chat-submit');
     if (submitButton) {
       submitButton.disabled = false;
+      submitButton.classList.remove('loading');
+      clearInterval(loadingInterval);
+      submitButton.textContent = 'Submit';
     }
+    isModelLoaded = true;
+    updateUnloadButtonUI();
   } else {
     msgDiv.style.alignSelf = 'end';
     msgDiv.style.textAlign = 'right';
     msgDiv.setAttribute('user', 'true');
     onAgentSendUserPrompt(input.value);
 
+    isModelLoaded = true;
+    updateUnloadButtonUI();
+
     const submitButton = document.getElementById('chat-submit');
     if (submitButton) {
       submitButton.disabled = true;
+      submitButton.classList.add('loading');
+      let dotCount = 0;
+      loadingInterval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        submitButton.textContent = '.'.repeat(dotCount);
+      }, 500);
     }
   }
 
@@ -225,6 +248,15 @@ function submitChat(agentMessage) {
  */
 function onAgentSendUserPrompt(prompt) {
   postMessage("on_agent_user_prompt_received", prompt);
+}
+
+/**
+ * Asks the C backend to unload the current model from memory
+ */
+function unloadModel() {
+  postMessage("on_agent_unload_from_memory");
+  isModelLoaded = false;
+  updateUnloadButtonUI();
 }
 
 /**
@@ -401,5 +433,15 @@ document.addEventListener('DOMContentLoaded', async function() {
   initializeSearch();
   blockContextMenu();
   blockTextSelection();
+  updateUnloadButtonUI();
   postMessage("on_get_widget_filenames");
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitChat();
+      }
+    });
+  }
 });
