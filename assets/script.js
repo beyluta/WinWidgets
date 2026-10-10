@@ -439,8 +439,11 @@ document.addEventListener('DOMContentLoaded', async function() {
   if (chatInput) {
     chatInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        e.preventDefault();
-        submitChat();
+        const submitButton = document.getElementById('chat-submit');
+        if (submitButton && !submitButton.disabled) {
+          e.preventDefault();
+          submitChat();
+        }
       }
     });
   }
