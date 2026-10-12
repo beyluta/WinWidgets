@@ -331,7 +331,6 @@ body.dark-mode .label {
 .widget:hover {
   cursor: pointer;
   transform: translateY(-4px);
-  box-shadow: var(--shadow-large);
   border-color: var(--accent-color);
 }
 
@@ -751,8 +750,88 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
   transition: all 0.2s ease;
 }
 
+.delete-button:hover {
+  background: var(--delete-button-border);
+}
+
 .delete-button img {
   width: 16px;
   height: 16px;
   filter: brightness(0) invert(1);
+}
+
+.modal-new {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.modal-content-new {
+  background-color: var(--bg-secondary);
+  padding: 32px;
+  border-radius: var(--border-radius-large);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-large);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  color: white;
+}
+
+.modal-content-new h3 {
+  color: white;
+  margin-bottom: 16px;
+}
+
+.modal-content-new p {
+  color: white;
+  margin-bottom: 24px;
+}
+
+.modal-actions-new {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.modal-actions-new>button {
+  font-size: 14px;
+}
+
+.btn-confirm-new {
+  padding: 10px 24px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-confirm-new:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-cancel-new {
+  padding: 10px 24px;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: white;
+  border-radius: var(--border-radius-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel-new:hover {
+  background-color: rgba(255, 255, 255, 0.05);
 }

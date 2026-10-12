@@ -73,7 +73,7 @@
     </div>
   </main>
 
-<main class="development">
+  <main class="development">
     <div class="dev-section chat-window">
         <div class="chat-messages" id="chat-messages">
         <div class="chat-message" assistant="true">Welcome! Please describe the widget you'd like to generate in this terminal, and rest assured that all your data stays strictly local as no information is ever transmitted to any external server or cloud service.</div>
@@ -141,7 +141,7 @@
     </div>
 
 #if _WIN32
-  <div class="dev-section">
+    <div class="dev-section">
       <h3>System functions</h3>
       <span>
         Use this to move the selected widget to a specific position:
@@ -210,6 +210,15 @@
     </div>
 #endif
   </main>
-</body>
-
+    <div id="delete-confirm-modal-new" class="modal-new">
+      <div class="modal-content-new">
+        <h3>Delete Widget?</h3>
+        <p>Are you sure you want to delete this widget? This action cannot be undone.</p>
+        <div class="modal-actions-new">
+          <button id="confirm-delete-btn-new" class="btn-confirm-new">Confirm</button>
+          <button id="cancel-delete-btn-new" class="btn-cancel-new">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

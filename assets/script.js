@@ -329,7 +329,20 @@ function openWidget(path) {
 }
 
 function deleteWidget(path) {
-  postMessage("on_delete_widget", path);
+  const modal = document.getElementById('delete-confirm-modal-new');
+  const confirmBtn = document.getElementById('confirm-delete-btn-new');
+  const cancelBtn = document.getElementById('cancel-delete-btn-new');
+
+  modal.style.display = 'flex';
+
+  confirmBtn.onclick = () => {
+    postMessage("on_delete_widget", path);
+    modal.style.display = 'none';
+  };
+
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
 }
 
 /**
