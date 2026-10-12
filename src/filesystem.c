@@ -384,6 +384,24 @@ ww_write_to_file(const char *src, const char *content, const size_t mode)
 }
 
 bool
+ww_rm_file(const string src)
+{
+        if (!src)
+        {
+                fprintf(stderr, "Source file for deletion must not be null\n");
+                return false;
+        }
+
+        if (remove(src) != 0)
+        {
+                fprintf(stderr, "Failed to remove file %s\n", src);
+                return false;
+        }
+
+        return true;
+}
+
+bool
 ww_open_folder(const char *src)
 {
 #if __linux__

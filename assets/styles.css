@@ -21,6 +21,8 @@
   --shadow-large: 0 8px 24px rgba(0, 0, 0, 0.12);
   --code-bg: #1e1e1e;
   --code-text: #d4d4d4;
+  --delete-button-bg: rgba(255, 0, 0, 0.1);
+  --delete-button-border: rgba(255, 0, 0, 0.2);
 }
 
 body.dark-mode {
@@ -729,6 +731,27 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .save-icon {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
+}
+
+.delete-button {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  padding: 6px;
+  background-color: var(--delete-button-bg);
+  border: 1px solid var(--delete-button-border);
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.delete-button img {
   width: 16px;
   height: 16px;
   filter: brightness(0) invert(1);

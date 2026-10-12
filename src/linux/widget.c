@@ -36,6 +36,7 @@ enum dynamic_event : uint8_t
         DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED,
         DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY,
         DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET,
+        DYNAMIC_EVENT_ON_DELETE_WIDGET,
 };
 
 struct agent_send_prompt_options
@@ -66,6 +67,8 @@ dynamic_event_get_str(dynamic_event_t code)
                 return "on_agent_unload_from_memory";
         case DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET:
                 return "on_agent_save_widget";
+        case DYNAMIC_EVENT_ON_DELETE_WIDGET:
+                return "on_delete_widget";
         }
 }
 
@@ -732,6 +735,44 @@ on_agent_save_widget(void *, void *webkit_data, void *user_data)
 }
 
 static void
+on_delete_widget(void *, void *webkit_data, void *user_data)
+{
+        WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
+        JSCValue *jsstr = webkit_javascript_result_get_js_value(result);
+        if (!jsstr)
+        {
+                fprintf(stderr, "Failed to get a value from JavaScript\n");
+                return;
+        }
+
+        if (jsc_value_is_string(jsstr) <= 0)
+        {
+                fprintf(stderr, "Value received is not a string\n");
+                return;
+        }
+
+        string cstr = jsc_value_to_string(jsstr);
+        if (!cstr)
+        {
+                fprintf(stderr, "No user prompt received from JavaScript\n");
+                return;
+        }
+
+        string copy = strdup(cstr);
+        if (!copy)
+        {
+                return;
+        }
+
+        if (!ww_rm_file(copy))
+        {
+                fprintf(stderr, "Failed to remove widget from directory\n");
+        }
+
+        free(copy);
+}
+
+static void
 on_window_realized(window_t *self)
 {
         ww_file_t *file = nullptr;
@@ -954,6 +995,13 @@ main()
                 window_get_manager(self),
                 dynamic_event_get_str(DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET),
                 on_agent_save_widget,
+                self);
+
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVENT_ON_DELETE_WIDGET),
+                on_delete_widget,
                 self);
 
         window_show(self);

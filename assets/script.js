@@ -10,6 +10,7 @@ const EVENT_IDS = {
   "on_agent_user_prompt_received": "5",
   "on_agent_unload_from_memory": "6",
   "on_agent_save_widget": "7",
+  "on_delete_widget": "8",
 };
 
 /**
@@ -168,7 +169,17 @@ function addWidget(title, path) {
   newElement.setAttribute('src', path);
   newWrapper.appendChild(newLabel);
   newWrapper.appendChild(newElement);
-  parent.appendChild(newWrapper)
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'delete-button';
+  deleteBtn.innerHTML = `<img src="svgs/trash.svg" alt="Delete" />`;
+  deleteBtn.onclick = (e) => {
+    e.stopPropagation();
+    deleteWidget(path);
+  };
+  newWrapper.appendChild(deleteBtn);
+
+  parent.appendChild(newWrapper);
 }
 
 /**
@@ -315,6 +326,10 @@ function saveWidget(html) {
  */
 function openWidget(path) {
   postMessage("on_open_widget_by_filename", `file://${path}`);
+}
+
+function deleteWidget(path) {
+  postMessage("on_delete_widget", path);
 }
 
 /**

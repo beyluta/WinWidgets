@@ -102,6 +102,14 @@ bool
 ww_write_to_file(const char *src, const char *content, const size_t mode);
 
 /**
+ * @brief Removes a file from the system via its absolute path
+ * @param src Full absolute path to the file
+ * @return Whether the deletion was successful = `true` or failed = `false`
+ */
+bool
+ww_rm_file(const string src);
+
+/**
  * @brief Opens the file explorer and nagivates to the specified directory
  * @param src Absolute path to the file on the system
  * @return Status of the operation
