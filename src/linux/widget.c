@@ -11,6 +11,9 @@
 #include "widget.h"
 #include "filesystem.h"
 #include "cyaml.h"
+#include "json.h"
+#include <limits.h>
+#include <linux/limits.h>
 #include <pthread.h>
 #include <stdint.h>
 
@@ -32,6 +35,7 @@ enum dynamic_event : uint8_t
         DYNAMIC_EVENT_ON_OPEN_DEFAULT_DIRECTORY,
         DYNAMIC_EVENT_ON_AGENT_USER_PROMPT_RECEIVED,
         DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY,
+        DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET,
 };
 
 struct agent_send_prompt_options
@@ -60,6 +64,8 @@ dynamic_event_get_str(dynamic_event_t code)
                 return "on_agent_user_prompt_received";
         case DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY:
                 return "on_agent_unload_from_memory";
+        case DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET:
+                return "on_agent_save_widget";
         }
 }
 
@@ -572,6 +578,160 @@ on_agent_unload_from_memory(void *, void *webkit_data, void *user_data)
 }
 
 static void
+on_agent_save_widget(void *, void *webkit_data, void *user_data)
+{
+        WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
+        JSCValue *jsstr = webkit_javascript_result_get_js_value(result);
+        if (!jsstr)
+        {
+                fprintf(stderr, "Failed to get a value from JavaScript\n");
+                return;
+        }
+
+        if (jsc_value_is_string(jsstr) <= 0)
+        {
+                fprintf(stderr, "Value received is not a string\n");
+                return;
+        }
+
+        string cstr = jsc_value_to_string(jsstr);
+        if (!cstr)
+        {
+                fprintf(stderr, "No user prompt received from JavaScript\n");
+                return;
+        }
+
+        if (strlen(cstr) > USHRT_MAX)
+        {
+                fprintf(stderr,
+                        "Buffer is bigger than allowed by the JSON parser\n");
+                return;
+        }
+
+        string copy = strdup(cstr);
+        if (!copy)
+        {
+                return;
+        }
+
+        string_json_t json;
+        status_json_t err = ConvertStringToJson(copy, &json);
+        if (err != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting string to json: %d\n", err);
+                free(copy);
+                return;
+        }
+
+        string_json_t json_title;
+        err = GetProperty(json, &json_title, "title");
+        if (err != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error getting title property: %d\n", err);
+                free(copy);
+                return;
+        }
+
+        string_json_t json_html;
+        err = GetProperty(json, &json_html, "html");
+        if (err != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error getting html property: %d\n", err);
+                free(copy);
+                return;
+        }
+
+        string title = (string)malloc(sizeof(char) * (USHRT_MAX + 1));
+        if (!title)
+        {
+
+                fprintf(stderr, "Error allocating memory for title\n");
+                free(copy);
+                return;
+        }
+
+        string html = (string)malloc(sizeof(char) * (USHRT_MAX + 1));
+        if (!html)
+        {
+
+                fprintf(stderr, "Error allocating memory for html\n");
+                free(title);
+                free(copy);
+                return;
+        }
+
+        err = ConvertJsonToString(json_title, title);
+        if (err != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting title json: %d\n", err);
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        ConvertJsonToString(json_html, html);
+        if (err != FUNC_SUCCESS)
+        {
+                fprintf(stderr, "Error converting html json: %d\n", err);
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        char path[PATH_MAX];
+        ssize_t bytes = ww_default_widgets_dir(path, sizeof(path) - 1);
+        if (bytes == 0)
+        {
+                fprintf(stderr, "Error writing path to buffer\n");
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        char filename[PATH_MAX];
+        bytes = snprintf(
+                filename, sizeof(filename) - 1, "%s/%s.html", path, title);
+        if (bytes < 0)
+        {
+                fprintf(stderr, "Error writing to filename buffer\n");
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        string unescaped_html = UnescapeHTMLString(html);
+        if (!unescaped_html)
+        {
+                fprintf(stderr, "Failed to unescape HTML content\n");
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        const bool stat =
+                ww_write_to_file(filename, unescaped_html, WRITE_OVERWRITE);
+        if (stat)
+        {
+                fprintf(stderr, "Error writing file to disk\n");
+                free(unescaped_html);
+                free(html);
+                free(title);
+                free(copy);
+                return;
+        }
+
+        free(unescaped_html);
+        free(html);
+        free(title);
+        free(copy);
+}
+
+static void
 on_window_realized(window_t *self)
 {
         ww_file_t *file = nullptr;
@@ -724,9 +884,6 @@ cleanup:
 int
 main()
 {
-        setenv("WEBKIT_DISABLE_COMPOSITING_MODE", "1", true);
-        setenv("GDK_BACKEND", "x11", true);
-
         string12_t temp;
         if (ww_default_widgets_dir(temp, sizeof(temp) - 1) == true)
         {
@@ -790,6 +947,13 @@ main()
                 window_get_manager(self),
                 dynamic_event_get_str(DYNAMIC_EVEN_ON_AGENT_UNLOAD_FROM_MEMORY),
                 on_agent_unload_from_memory,
+                self);
+
+        window_register_event_callback(
+                self,
+                window_get_manager(self),
+                dynamic_event_get_str(DYNAMIC_EVEN_ON_AGENT_SAVE_WIDGET),
+                on_agent_save_widget,
                 self);
 
         window_show(self);

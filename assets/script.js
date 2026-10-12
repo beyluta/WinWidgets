@@ -9,6 +9,7 @@ const EVENT_IDS = {
   "on_theme_changed": "4",
   "on_agent_user_prompt_received": "5",
   "on_agent_unload_from_memory": "6",
+  "on_agent_save_widget": "7",
 };
 
 /**
@@ -273,9 +274,39 @@ function addHtmlMessage(htmlContent) {
   iframe.style.width = '500px';
   iframe.style.height = '400px';
   iframe.style.border = 'none';
+  iframe.style.display = 'block';
 
   message.appendChild(iframe);
+
+  const saveButton = document.createElement('button');
+  saveButton.className = 'save-button';
+
+  const icon = document.createElement('img');
+  icon.src = 'svgs/save.svg';
+  icon.className = 'save-icon';
+  saveButton.appendChild(icon);
+
+  const text = document.createTextNode(' Save');
+  saveButton.appendChild(text);
+
+  saveButton.onclick = () => {
+    const htmlContent = iframe.getAttribute('srcdoc');
+    saveWidget(htmlContent);
+  };
+  message.appendChild(saveButton);
   chatMessages.appendChild(message);
+}
+
+/**
+ * Calls the C backend to save a widget to the widgets folder
+ * @param {string} html - Entire raw html content to save
+ */
+function saveWidget(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const metaTag = doc.querySelector('meta[name="applicationTitle"]')
+  const title = metaTag.content || metaTag.textContent;
+  postMessage("on_agent_save_widget", JSON.stringify({ title, html }));
 }
 
 /**

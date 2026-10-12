@@ -125,9 +125,20 @@ on_window_realized(void *, void *data)
 static gboolean
 on_context_menu_item_close_selected(GAction *, GVariant *, gpointer data)
 {
+        if (!data)
+        {
+                return FALSE;
+        }
+
         window_t *self = (window_t *)data;
+        if (!self->private || !self->private->cb_context_menu_open)
+        {
+                return FALSE;
+        }
+
         self->private->cb_context_menu_open(
                 self, WINDOW_CONTEXT_MENU_SELECTION_CLOSE);
+
         return FALSE;
 }
 
@@ -480,6 +491,11 @@ window_register_event_callback(window_t *self,
 void
 window_destroy(window_t *self)
 {
+        if (!self || !self->private || !self->private->window)
+        {
+                return;
+        }
+
         GtkWidget *window = self->private->window;
         g_signal_connect(self->private->window,
                          SIGNAL_DESTROY,
@@ -633,6 +649,7 @@ window_new(const window_t options,
         opts->cb_window_realized = cb_window_realized;
         opts->cb_mouse_button_press = nullptr;
         opts->cb_context_menu_open = nullptr;
+        opts->agent_llama = nullptr;
 
         window->guid = guid > 0 ? guid : window_generate_id();
         window->private = opts;

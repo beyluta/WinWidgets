@@ -689,13 +689,47 @@ body.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 
+
 .html-message-in-chat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   padding: 12px;
   border-radius: 8px;
   overflow-wrap: break-word;
   max-width: 75%;
-  background-color: var(--bg-tertiary);
-  align-self: flex-start;
   text-align: left;
   white-space: pre-wrap;
+}
+
+.save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-small);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.save-button:hover {
+  background-color: var(--accent-hover);
+  box-shadow: var(--shadow-small);
+}
+
+.save-button:active {
+  transform: scale(0.95);
+}
+
+.save-icon {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
 }

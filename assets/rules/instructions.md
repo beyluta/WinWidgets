@@ -22,10 +22,15 @@ Follow these requirements below unless user says otherwise.
 
 2. **Styling**:
    - Widgets are transparent by default.
+   - Widgets must take 100% of the DOM body. No margins, no paddings.
    - Use `body { background-color: rgba(r, g, b, a); }` for background.
    - Use `body { overflow: hidden; margin: 0; padding: 0; height: 100%; }`.
    - Content inside the body must be centered vertical and horizontal.
    - Use [FontAwesome](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css) if user wants any icons.
+   - Avoid drop-shadows
+
+3. **General**:
+   - Any symbols that are not letters a-Z must be included as HTML code
 
 Add these root variables and use them for all generated widgets:
 

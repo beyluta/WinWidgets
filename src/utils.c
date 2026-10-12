@@ -221,3 +221,55 @@ EscapeJavaScriptParamString(string src)
 
         return result;
 }
+
+string
+UnescapeHTMLString(string src)
+{
+        if (!src)
+        {
+                fprintf(stderr, "Source string cannot be null\n");
+                return nullptr;
+        }
+
+        const size_t max = strlen(src);
+        size_t len = 0;
+        for (size_t i = 0; i < max; i++)
+        {
+                if (i + 1 < max && src[i] == '\\' && src[i + 1] == '"')
+                {
+                        continue;
+                }
+
+                len++;
+        }
+
+        string result = (string)malloc(sizeof(char) * (len + 1));
+        if (!result)
+        {
+                return nullptr;
+        }
+
+        for (size_t i = 0, j = 0; i < max; i++)
+        {
+                if (i + 1 < max && src[i] == '\\' && src[i + 1] == '"')
+                {
+                        continue;
+                }
+
+                if (j > len || i > max)
+                {
+                        fprintf(stderr,
+                                "Cannot write or read outside the bounds of "
+                                "the array\n");
+                        free(result);
+                        return nullptr;
+                }
+
+                result[j] = src[i];
+                j++;
+        }
+
+        result[len] = 0;
+
+        return result;
+}

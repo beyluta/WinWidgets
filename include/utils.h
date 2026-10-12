@@ -139,4 +139,13 @@ isStringDigit(const char *const src, const size_t len);
 string
 EscapeJavaScriptParamString(string src);
 
+/**
+ * @brief Function to unescape all escaped double quotes in HTML
+ * @param src The complete HTML content
+ * @return Heap allocated pointer to a new escaped string
+ * @note - Programmer must free this memory after use
+ */
+string
+UnescapeHTMLString(string src);
+
 #endif
