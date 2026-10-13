@@ -6,7 +6,7 @@ CC = gcc
 # Resources
 NPROCS := 1
 ifeq ($(OS), Windows_NT)
- NPROCS := $(shell %NUMBER_OF_PROCESSORS%)
+ NPROCS := $(shell powershell -command "(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors")
 else
  NPROCS := $(shell grep -c ^processor /proc/cpuinfo)
 endif
@@ -22,8 +22,16 @@ SCRIPTS_DIR = scripts
 BUILD = out
 
 # LLAMA Library
-LLAMA_DIR = lib/llama.cpp
+LLAMA_DIR := lib/llama.cpp
+ifeq ($(OS), Windows_NT)
+ LLAMA_DIR := lib\llama.cpp
+endif
+
 LLAMA_LIBS_DIR = $(LLAMA_DIR)/build/bin
+ifeq ($(OS), Windows_NT)
+ LLAMA_LIBS_DIR = $(LLAMA_DIR)\build\bin\Release
+endif
+
 LLAMA_GPU_CUDA ?= OFF
 LLAMA_GPU_LAYERS ?= 0
 
@@ -45,9 +53,16 @@ CFLAGS := -MMD \
 				  -Ilib/minimal-json-c-parser/include \
 			 	  -Ilib/c-yaml-parser/include
 
+ifeq ($(OS), Windows_NT)
+ifeq ($(shell powershell -command "if ([int]$(LLAMA_GPU_LAYERS) -gt 0) { 1 } else { 0 }"),0)
+	CFLAGS := $(CFLAGS) \
+						-DLLAMA_GPU_LAYERS=$(LLAMA_GPU_LAYERS)
+endif
+else
 ifeq ($(shell test $(LLAMA_GPU_LAYERS) -gt 0; echo $$?),0)
 	CFLAGS := $(CFLAGS) \
 						-DLLAMA_GPU_LAYERS=$(LLAMA_GPU_LAYERS)
+endif
 endif
 
 # ---------------------------------------------------------------------------
@@ -59,12 +74,15 @@ CFLAGS := $(CFLAGS) \
 				-Iinclude/windows \
 				-I$(MINGW64)/include \
 				-isystem lib/WebView2/build/native/include \
+				-isystem $(LLAMA_DIR)\include \
+				-isystem $(LLAMA_DIR)\ggml\include \
 				-O3 \
 				-xc \
 				-std=c23
 
 LDFLAGS := -L$(MINGW64)/lib \
 					 -Llib/WebView2/build/native/x64 \
+					 -L$(LLAMA_LIBS_DIR) \
 					 -mwindows \
 					 -lole32 \
 					 -loleaut32 \
@@ -79,6 +97,7 @@ LDFLAGS := -L$(MINGW64)/lib \
 					 -lWebView2Loader \
 					 -lpthread \
 					 -lstdc++ \
+					 -lllama \
 			  	 "$(CURDIR)/src/windows/resources.o"
 SRC := $(SRC) \
 			 $(wildcard $(SRC_DIR)/windows/*.c)
@@ -102,6 +121,17 @@ prepare:
 		powershell -command "Expand-Archive -Force -Path '$(CURDIR)/lib/WebView2.zip' -DestinationPath '$(CURDIR)/lib/WebView2'" && \
 		powershell -command "Remove-Item -Force '$(CURDIR)/lib/WebView2.zip'" \
 	)
+	@if not exist "$(CURDIR)/$(LLAMA_DIR)/build" ( \
+		mkdir "$(CURDIR)/$(LLAMA_DIR)/build" && \
+		cd "$(CURDIR)/$(LLAMA_DIR)/build" && \
+		cmake .. -DGGML_BUILD_SHARED_LIB=ON \
+		-DGGML_CUDA="$(LLAMA_GPU_CUDA)" \
+		-DGGML_METAL=OFF \
+		-DGGML_SYCL=OFF \
+		-DGGML_OPENCL=OFF && \
+		cmake --build . -j "$(NPROCS)" --config Release \
+	)
+	copy "$(CURDIR)\$(LLAMA_LIBS_DIR)\*.dll" "$(CURDIR)\$(BUILD_DIR)" /Y
 	windres "$(CURDIR)/src/windows/resources.rc" "$(CURDIR)/src/windows/resources.o"
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
 	- robocopy "$(CURDIR)/assets" "$(BUILD_DIR)/assets" /E
