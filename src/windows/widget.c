@@ -1,9 +1,13 @@
+// ======================= Purpose ==========================
+//
+// Entry point of the sofware.
+//
+// ==========================================================
 #include "filesystem.h"
 #include "global.h"
 #include "remres.h"
 #include "config.h"
 #include "widget.h"
-#include <stdint.h>
 #include <stdio.h>
 #include <minwindef.h>
 #include <limits.h>

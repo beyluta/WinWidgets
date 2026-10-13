@@ -85,7 +85,11 @@ typedef enum : uint8_t
         EVENT_GET_WGT_FILENAMES,
         EVENT_OPEN_WGT_FILENAME,
         EVENT_TOGGLE_SETTING,
-        EVENT_THEME_CHANGED
+        EVENT_THEME_CHANGED,
+        EVENT_AGENT_USER_PROMPT_RECEIVED,
+        EVENT_AGENT_UNLOAD_FROM_MEMORY,
+        EVENT_AGENT_SAVE_WIDGET,
+        EVENT_DELETE_WIDGET
 } manager_events_t;
 
 typedef enum : uint8_t
@@ -1708,6 +1712,11 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                         goto cleanup;
                 }
 
+                break;
+        }
+        case EVENT_DELETE_WIDGET:
+        {
+                ww_rm_file(argument);
                 break;
         }
         }
