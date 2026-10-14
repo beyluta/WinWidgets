@@ -228,15 +228,7 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                 }
 
 #ifdef LLAMA_DEBUG
-#if __linux__
-                fprintf(stdout,
-                        "Part: %s\nTokens: %d/%d\n\n",
-                        response,
-                        n_ctx_used,
-                        n_ctx);
-#elif _WIN32
-                Debug(response);
-#endif
+                LogInfo(response);
 #endif
 
                 tokens = &new_toked_id;

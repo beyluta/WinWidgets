@@ -32,6 +32,7 @@ ifeq ($(OS), Windows_NT)
  LLAMA_LIBS_DIR = $(LLAMA_DIR)\build\bin\Release
 endif
 
+LLAMA_DEBUG ?= OFF
 LLAMA_GPU_CUDA ?= OFF
 LLAMA_GPU_LAYERS ?= 0
 
@@ -52,6 +53,11 @@ CFLAGS := -MMD \
 					-Iinclude \
 				  -Ilib/minimal-json-c-parser/include \
 			 	  -Ilib/c-yaml-parser/include
+
+ifeq ($(LLAMA_DEBUG), ON)
+ CFLAGS := $(CFLAGS) \
+					 -DLLAMA_DEBUG=$(LLAMA_DEBUG)
+endif
 
 ifeq ($(OS), Windows_NT)
 ifeq ($(shell powershell -command "if ([int]$(LLAMA_GPU_LAYERS) -gt 0) { 1 } else { 0 }"),0)

@@ -90,20 +90,6 @@ void
 ReplaceChars(char *const srcDest, const char target, const char replace);
 
 /**
- * @brief Gets a substring of a string by its start and end indexes
- * @pram src Source string
- * @param dest Destination string
- * @param start Start index
- * @param end End index
- */
-[[deprecated("use 'AllocSubstring' instead")]]
-void
-GetSubstring(const char *const src,
-             char *const dest,
-             const size_t start,
-             const size_t end);
-
-/**
  * @brief Function to allocate a new substring in the heap
  * @param src Source string
  * @param max Max size of the src string

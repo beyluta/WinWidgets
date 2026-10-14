@@ -111,17 +111,6 @@ ReplaceChars(char *const srcDest, const char target, const char replace)
         }
 }
 
-void
-GetSubstring(const char *const src,
-             char *const dest,
-             const size_t start,
-             const size_t end)
-{
-        const size_t maxSize = (end - start) + 1;
-        memcpy(dest, &src[start], maxSize);
-        dest[maxSize] = '\0';
-}
-
 char *
 AllocSubstr(const string src,
             const size_t max,

@@ -579,12 +579,19 @@ ParseLastSessionWidgets(const string_json_t src)
 
                 if (src.str[i] == '}')
                 {
-                        char obj[JSONBUFFSIZE];
-                        GetSubstring(src.str, obj, start, i);
+                        string obj = AllocSubstr((char *)src.str,
+                                                 src.length,
+                                                 start,
+                                                 (i - start) + 1);
+                        if (!obj)
+                        {
+                                return FUNC_STATUS_ERR;
+                        }
 
                         string_json_t jsonObj;
                         if (ConvertStringToJson(obj, &jsonObj) != FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -592,12 +599,14 @@ ParseLastSessionWidgets(const string_json_t src)
                         if (GetProperty(jsonObj, &jsonPath, "path") !=
                             FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
                         char path[BUFFSIZE];
                         if (ConvertJsonToString(jsonPath, path) != FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -605,6 +614,7 @@ ParseLastSessionWidgets(const string_json_t src)
                         if (GetProperty(jsonObj, &jsonPosition, "position") !=
                             FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -612,12 +622,14 @@ ParseLastSessionWidgets(const string_json_t src)
                         if (ConvertJsonToString(jsonPosition, position) !=
                             FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
                         const char *const prefix = "file:\\\\%s";
                         if (strlen(path) + strlen(prefix) >= BUFFSIZE)
                         {
+                                free(obj);
                                 return FUNC_STATUS_MEM_ERR;
                         }
 
@@ -627,12 +639,14 @@ ParseLastSessionWidgets(const string_json_t src)
                                      prefix,
                                      path) < 0)
                         {
+                                free(obj);
                                 return FUNC_STATUS_MEM_ERR;
                         }
 
                         size_t x, y;
                         if (!Get2DValue(position, &x, &y))
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -640,6 +654,7 @@ ParseLastSessionWidgets(const string_json_t src)
                         if (GetProperty(jsonObj, &jsonTopMost, "alwaysOnTop") !=
                             FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -647,6 +662,7 @@ ParseLastSessionWidgets(const string_json_t src)
                         if (ConvertJsonToString(jsonTopMost, topMost) !=
                             FUNC_SUCCESS)
                         {
+                                free(obj);
                                 return FUNC_STATUS_ERR;
                         }
 
@@ -659,6 +675,8 @@ ParseLastSessionWidgets(const string_json_t src)
                         Push(item);
 
                         start = 0;
+
+                        free(obj);
                 }
         }
 
@@ -1724,7 +1742,7 @@ enqueuePrompt(wchar_t *restrict const prompt)
                 return;
         }
 
-        for (size_t i = 0; i < g_promptQueueDepth; i++)
+        for (ssize_t i = 0; i < g_promptQueueDepth; i++)
         {
                 g_promptQueue[i + 1] = g_promptQueue[i];
         }
