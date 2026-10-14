@@ -80,4 +80,27 @@ agent_tool_strip_codeblock_response(const string src);
 string
 agent_tool_codeblock_scan(const string src);
 
+/**
+ * @brief Function to trigger the cancellation of a running model
+ * @param agent_llama Pointer to the running llama instance
+ *
+ * @note - This function halts execution of the current thread until token
+ * generation has been stopped. This is neccessary because generation runs in a
+ * separate thread to avoid hanging the UI. This this process is usually
+ * completed very fast, the waiting time is almost negligible.
+ */
+void
+agent_cancel_generation_wait(agent_llama_t *agent_llama);
+
+/**
+ * @brief Function to get the status of the generation
+ * @param agent_llama Pointer to the running llama instance
+ * @return Whether the generation should cease
+ *
+ * @note - The returned value does not mean that the generation has already
+ * ceased. It must means that the flag to stop generation has been set.
+ */
+bool
+agent_should_generation_cancel(agent_llama_t *agent_llama);
+
 #endif

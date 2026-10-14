@@ -9,6 +9,7 @@
 // which Windows 11 out of the box.
 //
 // ==========================================================
+#include "libgen.h"
 #include "widget.h"
 #include "decl_webview.h"
 #include "filesystem.h"
@@ -18,6 +19,7 @@
 #include "routine.h"
 #include "utils.h"
 #include "sysinfo.h"
+#include "agent.h"
 
 #include <ddraw.h>
 #include <dwmapi.h>
@@ -119,9 +121,9 @@ typedef enum : uint8_t
 
 typedef struct
 {
-        ww_window_ctx context;
         ICoreWebView2Controller *controller;
         ICoreWebView2 *window;
+        ww_window_ctx context;
         HWND hWnd;
 } webview_widget_t;
 
@@ -154,6 +156,11 @@ static volatile bool g_dirChangesDetected = false;
 
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
+
+static wchar_t *g_promptQueue[UINT8_MAX] = {};
+static volatile ssize_t g_promptQueueDepth = 0;
+
+static agent_llama_t *g_agent_llama = nullptr;
 
 // ---------------------------------------------------------------------
 // Forward declaration of functions that will be used later
@@ -1575,6 +1582,351 @@ ToggleSettingByName(const char *const src)
 }
 
 /**
+ * @brief Helper function to create already dettached threads
+ * @param func Function pointer to the thread function
+ * @param arg Argument to the thread function
+ * @return The unique id of the thread
+ */
+static pthread_t
+CreateDettachedThread(void *(*func)(void *), void *const arg)
+{
+        pthread_t thread;
+        pthread_create(&thread, nullptr, func, arg);
+        pthread_detach(thread);
+        return thread;
+}
+
+static agent_llama_t *
+WindowInitAgent()
+{
+        char path[PATH_MAX];
+        if (ww_get_executable_path(path, sizeof(path) - 1) != 0)
+        {
+                return nullptr;
+        }
+
+        const string folder = dirname(path);
+
+        ww_file_t *file_model =
+                ww_get_all_files_from_directory(folder, FILE_FILTER_GGUF);
+        if (!file_model)
+        {
+                return nullptr;
+        }
+
+        char model_path[PATH_MAX];
+        ssize_t written = snprintf(model_path,
+                                   sizeof(model_path) - 1,
+                                   "%s\\%s",
+                                   folder,
+                                   file_model->name);
+
+        agent_llama_options_t agent_options = {.model_path = model_path,
+                                               .max_ctx_size = 32768,
+                                               .min_p = 0.05f,
+                                               .temp = 1.0f};
+
+        agent_llama_t *agent_llama = agent_new_instance(agent_options);
+        if (!agent_llama)
+        {
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        char rules_dir[PATH_MAX];
+        written = snprintf(
+                rules_dir, sizeof(rules_dir) - 1, "%s/assets/rules", folder);
+        if (written < 0)
+        {
+                fprintf(stderr, "Failed to write md file to local buffer\n");
+                agent_free_instance(agent_llama);
+                agent_llama = nullptr;
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        ww_file_t *file_rule =
+                ww_get_all_files_from_directory(rules_dir, FILE_FILTER_MD);
+        if (!file_rule)
+        {
+                fprintf(stderr, "Rule files not found in %s\n", folder);
+                agent_free_instance(agent_llama);
+                agent_llama = nullptr;
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        char rule_path[PATH_MAX];
+        written = snprintf(rule_path,
+                           sizeof(rule_path) - 1,
+                           "%s/%s",
+                           rules_dir,
+                           file_rule->name);
+        if (written < 0)
+        {
+                fprintf(stderr, "Failed to write absolute path to buffer\n");
+                agent_free_instance(agent_llama);
+                agent_llama = nullptr;
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        const size_t bytes = ww_get_file_bytes(rule_path);
+
+        string file = (string)malloc(sizeof(char) * (bytes + 1));
+        if (!file)
+        {
+                fprintf(stderr, "Failed to allocate memory for file buffer\n");
+                agent_free_instance(agent_llama);
+                agent_llama = nullptr;
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        written = ww_get_file_content(rule_path, file, bytes);
+        if (written == 0)
+        {
+                fprintf(stderr, "Failed write rule file to local buffer\n");
+                free(file);
+                agent_free_instance(agent_llama);
+                agent_llama = nullptr;
+                ww_free_all_files_from_directory(file_rule);
+                ww_free_all_files_from_directory(file_model);
+                return nullptr;
+        }
+
+        agent_append_system_instruction(agent_llama, file);
+
+        free(file);
+        ww_free_all_files_from_directory(file_rule);
+        ww_free_all_files_from_directory(file_model);
+
+        return agent_llama;
+}
+
+static ssize_t
+build_js_command(string dest,
+                 const size_t max,
+                 const string func,
+                 const string param)
+{
+        const size_t size = !dest ? 0 : max + 1;
+        return snprintf(dest, size, "%s(\"%s\")", func, param);
+}
+
+static void
+enqueuePrompt(wchar_t *restrict const prompt)
+{
+        if (g_promptQueueDepth + 1 > UINT8_MAX)
+        {
+                return;
+        }
+
+        for (size_t i = 0; i < g_promptQueueDepth; i++)
+        {
+                g_promptQueue[i + 1] = g_promptQueue[i];
+        }
+
+        g_promptQueue[0] = prompt;
+        g_promptQueueDepth++;
+}
+
+/**
+ * @brief Thread that runs to generate a new LLM prompt
+ * @param arg Argument containing the new prompt
+ * @return Irrelevant; NULL is always returned
+ */
+static void *
+OnAgentUserPromptReceived(void *const arg)
+{
+        if (!arg)
+        {
+                pthread_exit(nullptr);
+        }
+
+        string user_prompt = (string)arg;
+
+        if (!g_agent_llama)
+        {
+                g_agent_llama = WindowInitAgent();
+                if (!g_agent_llama)
+                {
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+        }
+
+        string response = agent_generate_prompt(g_agent_llama, user_prompt);
+        if (!response)
+        {
+                if (!agent_should_generation_cancel(g_agent_llama))
+                {
+                        agent_free_instance(g_agent_llama);
+                        g_agent_llama = nullptr;
+                }
+
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+
+        string no_think = agent_tool_strip_think_response(response);
+        if (no_think)
+        {
+                free(response);
+                response = no_think;
+        }
+
+        string safe_response = nullptr;
+        string text = agent_tool_strip_codeblock_response(response);
+        if (text)
+        {
+                safe_response = EscapeJavaScriptParamString(text);
+                free(text);
+        }
+        else
+        {
+                safe_response = EscapeJavaScriptParamString(response);
+        }
+
+        if (!safe_response)
+        {
+                free(safe_response);
+                free(response);
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+
+        const ssize_t len =
+                build_js_command(nullptr, 0, "submitChat", safe_response);
+        if (len < 0)
+        {
+                free(safe_response);
+                free(response);
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+
+        string c_command = (string)malloc(sizeof(char) * (len + 1));
+        if (!c_command)
+        {
+                free(safe_response);
+                free(response);
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+
+        build_js_command(c_command, len, "submitChat", safe_response);
+
+        wchar_t *w_command = (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+        if (!w_command)
+        {
+                free(c_command);
+                free(safe_response);
+                free(response);
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+
+        if (mbstowcs(w_command, c_command, len) == (size_t)-1)
+        {
+                free(w_command);
+                free(c_command);
+                free(safe_response);
+                free(response);
+                free(user_prompt);
+                pthread_exit(nullptr);
+        }
+        w_command[len] = 0;
+
+        enqueuePrompt(w_command);
+
+        string codeblock = agent_tool_codeblock_scan(response);
+        if (codeblock)
+        {
+                string safe_codeblock = EscapeJavaScriptParamString(codeblock);
+                if (!safe_codeblock)
+                {
+                        free(codeblock);
+                        free(c_command);
+                        free(safe_response);
+                        free(response);
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+
+                const ssize_t len = build_js_command(
+                        nullptr, 0, "addHtmlMessage", safe_codeblock);
+                if (len < 0)
+                {
+                        free(safe_codeblock);
+                        free(codeblock);
+                        free(c_command);
+                        free(safe_response);
+                        free(response);
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+
+                string c_htmlMessage = (string)malloc(sizeof(char) * (len + 1));
+                if (!c_htmlMessage)
+                {
+                        free(safe_codeblock);
+                        free(codeblock);
+                        free(c_command);
+                        free(safe_response);
+                        free(response);
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+
+                build_js_command(
+                        c_htmlMessage, len, "addHtmlMessage", safe_codeblock);
+
+                wchar_t *w_htmlMessage =
+                        (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+                if (!w_htmlMessage)
+                {
+                        free(c_htmlMessage);
+                        free(safe_codeblock);
+                        free(codeblock);
+                        free(c_command);
+                        free(safe_response);
+                        free(response);
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+
+                if (mbstowcs(w_htmlMessage, c_htmlMessage, len) == (size_t)-1)
+                {
+                        free(w_htmlMessage);
+                        free(c_htmlMessage);
+                        free(safe_codeblock);
+                        free(codeblock);
+                        free(c_command);
+                        free(safe_response);
+                        free(response);
+                        free(user_prompt);
+                        pthread_exit(nullptr);
+                }
+                w_htmlMessage[len] = 0;
+
+                enqueuePrompt(w_htmlMessage);
+
+                free(c_htmlMessage);
+                free(safe_codeblock);
+                free(codeblock);
+        }
+
+        free(c_command);
+        free(safe_response);
+        free(response);
+        free(user_prompt);
+        return nullptr;
+}
+
+/**
  * @brief Handles incoming events from JavaScript
  * @param handler Received event handler
  * @param webview Context of the webview
@@ -1712,6 +2064,23 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                         goto cleanup;
                 }
 
+                break;
+        }
+        case EVENT_AGENT_USER_PROMPT_RECEIVED:
+        {
+                CreateDettachedThread(OnAgentUserPromptReceived,
+                                      strdup(argument));
+                break;
+        }
+        case EVENT_AGENT_UNLOAD_FROM_MEMORY:
+        {
+                agent_cancel_generation_wait(g_agent_llama);
+                agent_free_instance(g_agent_llama);
+                g_agent_llama = nullptr;
+                break;
+        }
+        case EVENT_AGENT_SAVE_WIDGET:
+        {
                 break;
         }
         case EVENT_DELETE_WIDGET:
@@ -2625,14 +2994,23 @@ event_loop()
         BOOL bRet;
         while ((bRet = GetMessage(&msg, NULL, 0, 0)) != 0)
         {
+                ICoreWebView2 *webview = g_widgets[PARENT_INDEX].window;
+
                 if (g_dirChangesDetected)
                 {
-                        ICoreWebView2 *parentWebview =
-                                g_widgets[PARENT_INDEX].window;
-
-                        AppendWidgetsToDOM(parentWebview);
-
+                        AppendWidgetsToDOM(webview);
                         g_dirChangesDetected = false;
+                }
+
+                if (g_promptQueueDepth)
+                {
+                        g_promptQueueDepth--;
+                        webview->lpVtbl->ExecuteScript(
+                                webview,
+                                g_promptQueue[g_promptQueueDepth],
+                                nullptr);
+                        free(g_promptQueue[g_promptQueueDepth]);
+                        g_promptQueue[g_promptQueueDepth] = nullptr;
                 }
 
                 if (bRet == -1)

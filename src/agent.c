@@ -16,10 +16,16 @@
  */
 #include "agent.h"
 #include "llama.h"
+#include "syswrap.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <uchar.h>
+#ifdef LLAMA_DEBUG
+#if _WIN32
+#include "debug.h"
+#endif
+#endif
 
 // Private members
 
@@ -40,6 +46,8 @@ struct agent_llama
         llama_chat_message *messages;
         size_t message_size;
         int prev_len;
+        bool cancel_generation;
+        bool is_generating;
 };
 
 static void
@@ -105,6 +113,12 @@ static string
 agent_send_prompt(agent_llama_t *restrict const agent_llama,
                   const string prompt)
 {
+        if (!agent_llama || !prompt)
+        {
+                fprintf(stderr, "Neither llama nor the prompt may be null\n");
+                return nullptr;
+        }
+
         llama_memory_t memory = llama_get_memory(agent_llama->context);
 
         const bool is_first = llama_memory_seq_pos_max(memory, 0) == -1;
@@ -141,7 +155,11 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
 
         string response = nullptr;
         llama_token new_toked_id;
-        while (true)
+
+        agent_llama->cancel_generation = false;
+        agent_llama->is_generating = true;
+
+        while (!agent_llama->cancel_generation)
         {
                 int n_ctx = llama_n_ctx(agent_llama->context);
                 int n_ctx_used =
@@ -210,17 +228,32 @@ agent_send_prompt(agent_llama_t *restrict const agent_llama,
                 }
 
 #ifdef LLAMA_DEBUG
+#if __linux__
                 fprintf(stdout,
                         "Part: %s\nTokens: %d/%d\n\n",
                         response,
                         n_ctx_used,
                         n_ctx);
+#elif _WIN32
+                Debug(response);
+#endif
 #endif
 
                 tokens = &new_toked_id;
                 n_tokens = 1;
                 free(piece);
         }
+
+        if (agent_llama->cancel_generation)
+        {
+                if (response)
+                {
+                        free(response);
+                        response = nullptr;
+                }
+        }
+
+        agent_llama->is_generating = false;
 
         free(prompt_tokens);
         return response;
@@ -355,6 +388,8 @@ agent_new_instance(agent_llama_options_t options)
         agent_llama->message_size = 0;
         agent_llama->prev_len = 0;
         agent_llama->messages = nullptr;
+        agent_llama->cancel_generation = false;
+        agent_llama->is_generating = false;
 
         return agent_llama;
 }
@@ -483,7 +518,6 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (new_len < 0)
         {
                 fprintf(stderr, "Failed to apply chat template\n");
-                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -495,7 +529,6 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (!new_prompt)
         {
                 fprintf(stderr, "Failed to apply chat template\n");
-                agent_free_message(user_message);
                 free(formatted);
         }
 
@@ -504,7 +537,6 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         {
                 fprintf(stderr, "Failed sending prompt for processing\n");
                 free(new_prompt);
-                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -515,7 +547,6 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         {
                 fprintf(stderr, "Failed to create prompt for assistant\n");
                 free(new_prompt);
-                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -525,9 +556,7 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
                                     assistant_message) == 0)
         {
                 fprintf(stderr, "Failed to create prompt for assistant\n");
-                agent_free_message(assistant_message);
                 free(new_prompt);
-                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -542,9 +571,7 @@ agent_generate_prompt(agent_llama_t *restrict const agent_llama,
         if (agent_llama->prev_len < 0)
         {
                 fprintf(stderr, "Failed to apply template for assistant\n");
-                agent_free_message(assistant_message);
                 free(new_prompt);
-                agent_free_message(user_message);
                 free(formatted);
                 return nullptr;
         }
@@ -713,4 +740,31 @@ agent_tool_codeblock_scan(const string src)
         }
 
         return data;
+}
+
+void
+agent_cancel_generation_wait(agent_llama_t *restrict const agent_llama)
+{
+        if (!agent_llama)
+        {
+                return;
+        }
+
+        agent_llama->cancel_generation = true;
+
+        while (agent_llama->is_generating)
+        {
+                SleepFor(500);
+        }
+}
+
+bool
+agent_should_generation_cancel(agent_llama_t *agent_llama)
+{
+        if (!agent_llama)
+        {
+                return false;
+        }
+
+        return agent_llama->cancel_generation;
 }

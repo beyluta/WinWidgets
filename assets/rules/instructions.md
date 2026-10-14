@@ -21,7 +21,6 @@ Follow these requirements below unless user says otherwise.
    - `<meta name="topMost" content="true" />` (Windows only)
 
 2. **Styling**:
-   - Widgets are transparent by default.
    - Widgets must take 100% of the DOM body. No margins, no paddings.
    - Use `body { background-color: rgba(r, g, b, a); }` for background.
    - Use `body { overflow: hidden; margin: 0; padding: 0; height: 100%; }`.
