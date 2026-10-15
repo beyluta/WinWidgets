@@ -428,6 +428,11 @@ on_agent_prompt_processing(void *data)
                 if (!new_agent)
                 {
                         fprintf(stderr, "Failed to create agent instance\n");
+                        window_run_javascript(
+                                options->self,
+                                "window.showNotification && "
+                                "window.showNotification('Failed to initialize "
+                                "LLM model.', true)");
                         pthread_exit(nullptr);
                 }
         }

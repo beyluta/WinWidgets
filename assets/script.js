@@ -13,6 +13,40 @@ const EVENT_IDS = {
   "on_delete_widget": "8",
 };
 
+function showNotification(message, isError = false) {
+  const notification = document.createElement('div');
+  notification.className = `notification-toast ${isError ? 'error' : ''}`;
+
+  if (isError) {
+    const submitButton = document.getElementById('chat-submit');
+    if (submitButton) {
+      clearInterval(loadingInterval);
+      submitButton.disabled = false;
+      submitButton.classList.remove('loading');
+      submitButton.textContent = 'Submit';
+    }
+
+    const errorLabel = document.createElement('span');
+    errorLabel.className = 'error-label';
+    errorLabel.textContent = 'Error: ';
+    notification.appendChild(errorLabel);
+  }
+
+  const text = document.createElement('span');
+  text.textContent = message;
+  notification.appendChild(text);
+
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add('hide');
+    // Wait for the transition to complete before removing from DOM
+    setTimeout(() => {
+      notification.remove();
+    }, 400);
+  }, 5000);
+}
+
 /**
  * Default delay of the tooltip before it appears.
 */
