@@ -22,8 +22,25 @@
         } while (0);
 
 #elif __linux__
-#include <unistd.h>
-#define SleepFor(x) usleep(x * 1000)
+#include <errno.h>
+#include <time.h>
+#define SleepFor(x)                                                            \
+        do                                                                     \
+        {                                                                      \
+                struct timespec ts;                                            \
+                int res;                                                       \
+                if (x < 0)                                                     \
+                {                                                              \
+                        errno = EINVAL;                                        \
+                        break;                                                 \
+                }                                                              \
+                ts.tv_sec = x / 1000;                                          \
+                ts.tv_nsec = (x % 1000) * 1000000;                             \
+                do                                                             \
+                {                                                              \
+                        res = nanosleep(&ts, &ts);                             \
+                } while (res && errno == EINTR);                               \
+        } while (0);
 #define LogInfo(msg)                                                           \
         do                                                                     \
         {                                                                      \
