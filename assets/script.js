@@ -318,6 +318,7 @@ function saveWidget(html) {
   const metaTag = doc.querySelector('meta[name="applicationTitle"]')
   const title = metaTag.content || metaTag.textContent;
   postMessage("on_agent_save_widget", JSON.stringify({ title, html }));
+  openScene('widgets', 'block');
 }
 
 /**
