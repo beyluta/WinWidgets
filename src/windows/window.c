@@ -1749,6 +1749,21 @@ enqueuePrompt(wchar_t *restrict const prompt)
 }
 
 /**
+ * @brief Function to build the notification string
+ * @param src Pointer to the soruce string
+ * @param max String max size
+ * @return The size of written bytes
+ */
+static ssize_t
+BuildNotificationString(const string src, const size_t max)
+{
+        return snprintf(src,
+                        max == 0 ? 0 : max + 1,
+                        "showNotification(\"Couldn't load the "
+                        "LLM into memory.\", true)");
+}
+
+/**
  * @brief Thread that runs to generate a new LLM prompt
  * @param arg Argument containing the new prompt
  * @return Irrelevant; NULL is always returned
@@ -1769,6 +1784,45 @@ OnAgentUserPromptReceived(void *const arg)
                 if (!g_agent_llama)
                 {
                         free(user_prompt);
+
+                        ssize_t len = BuildNotificationString(nullptr, 0);
+                        if (len < 0)
+                        {
+                                pthread_exit(nullptr);
+                        }
+
+                        string str = (string)malloc(sizeof(char) * (len + 1));
+                        if (!str)
+                        {
+                                pthread_exit(nullptr);
+                        }
+
+                        len = BuildNotificationString(str, len);
+                        if (len < 0)
+                        {
+                                free(str);
+                                pthread_exit(nullptr);
+                        }
+
+                        wchar_t *data =
+                                (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+                        if (!data)
+                        {
+                                free(str);
+                                pthread_exit(nullptr);
+                        }
+
+                        if (mbstowcs(data, str, len) == (size_t)-1)
+                        {
+                                free(data);
+                                free(str);
+                                pthread_exit(nullptr);
+                        }
+                        data[len] = 0;
+
+                        enqueuePrompt(data);
+
+                        free(str);
                         pthread_exit(nullptr);
                 }
         }
