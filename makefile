@@ -1,4 +1,4 @@
-.PHONY: all prepare
+.PHONY: all prepare clean
 
 # Desired compiler
 CC = gcc
@@ -148,6 +148,9 @@ prepare:
 	cmd /c "$(CURDIR)/$(BUILD_DIR)/$(BUILD).exe" "$(CURDIR)/assets/index.html" _WIN32
 	move /Y "index.html" "$(BUILD_DIR)/assets/index.html"
 
+clean:
+	rmdir /S /Q "$(OBJS_DIR)"
+
 # ---------------------------------------------------------------------------
 # Building for Linux platform
 # ---------------------------------------------------------------------------
@@ -201,6 +204,9 @@ prepare:
 		fi
 	mkdir -p "$(BUILD_DIR)"
 	find "$(LLAMA_LIBS_DIR)" -name \*.so* -exec cp {} "$(BUILD_DIR)" \;
+
+clean:
+	rm -rf "$(OBJS_DIR)"
 endif
 
 -include $(DEPS)

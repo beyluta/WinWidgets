@@ -164,7 +164,12 @@ make prepare
 make
 ```
 
-> use `make LLAMA_GPU_LAYERS=99` to offload all layers to the GPU
+**MakeFile Flags**: Additional flags for compilation
+
+| Flag | Purpose | Range |
+| ----- | ------ | ----- |
+| LLAMA_GPU_LAYERS=99 | Set amount of layers to offload | `0` <= `x` <= `99`|
+| LLAMA_DEBUG=ON | Shows LLM generation tokens in real time | `ON` / `OFF` |
 
 ## Contributing
 
