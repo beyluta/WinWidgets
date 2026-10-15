@@ -15,8 +15,10 @@ const EVENT_IDS = {
 
 /**
  * Default delay of the tooltip before it appears.
- */
+*/
 const TOOLTIPDELAY = 500;
+let lastSavedTitle = null;
+let isSaving = false;
 
 /**
  * Tooltip timeout trackers
@@ -164,7 +166,7 @@ function addWidget(title, path) {
   newLabel.innerText = title;
   newLabel.setAttribute('class', 'label');
   newWrapper.setAttribute('onclick', `openWidget('${path}')`);
-  newWrapper.setAttribute('class', 'widget');
+  newWrapper.setAttribute('class', (lastSavedTitle && title.toLowerCase() === lastSavedTitle.toLowerCase()) ? 'widget new-widget' : 'widget');
   newWrapper.setAttribute('data-widget-title', title.toLowerCase());
   newElement.setAttribute('src', path);
   newWrapper.appendChild(newLabel);
@@ -179,7 +181,14 @@ function addWidget(title, path) {
   };
   newWrapper.appendChild(deleteBtn);
 
-  parent.appendChild(newWrapper);
+  parent.prepend(newWrapper);
+
+  if (lastSavedTitle && title.toLowerCase() === lastSavedTitle.toLowerCase()) {
+    setTimeout(() => {
+      newWrapper.classList.remove('new-widget');
+    }, 3000);
+  }
+
 }
 
 /**
@@ -316,7 +325,13 @@ function saveWidget(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   const metaTag = doc.querySelector('meta[name="applicationTitle"]')
-  const title = metaTag.content || metaTag.textContent;
+  let title = null;
+  if (metaTag) {
+    title = metaTag.content || metaTag.textContent;
+  }
+  if (title) {
+    lastSavedTitle = title;
+  }
   postMessage("on_agent_save_widget", JSON.stringify({ title, html }));
   openScene('widgets', 'block');
 }

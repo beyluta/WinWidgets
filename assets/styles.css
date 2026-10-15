@@ -305,8 +305,10 @@ body.dark-mode .widgets .search img {
   box-shadow: var(--shadow-small);
 }
 
-.widget.hidden {
-  display: none;
+.new-widget {
+  outline: 3px solid #ff9800;
+  outline-offset: 2px;
+  transition: outline 0.3s ease;
 }
 
 .label {
