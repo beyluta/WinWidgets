@@ -201,15 +201,13 @@ function updateUnloadButtonUI() {
   }
 }
 
-function submitChat(agentMessage) {
-  const message = document.getElementById('chat-messages');
-  const input = document.getElementById('chat-input');
-  const text = (agentMessage ?? input.value).trim();
-
-  if (!text) {
-    return;
-  }
-
+/**
+ * Appends a message to the chat
+ * @param {string} text Text message to append
+ * @param {boolean} isAssistant Whehter message belongs to the agent
+ */
+function appendChatMessage(text, isAssistant) {
+  const messageContainer = document.getElementById('chat-messages');
   const msgDiv = document.createElement('div');
   msgDiv.textContent = text;
 
@@ -223,44 +221,85 @@ function submitChat(agentMessage) {
       max-width: 75%;
     `;
 
-  if (message.querySelectorAll('.chat-message').length % 2 === 0) {
+  if (isAssistant) {
     msgDiv.style.alignSelf = 'start';
     msgDiv.style.textAlign = 'left';
     msgDiv.setAttribute('assistant', 'true');
-    const submitButton = document.getElementById('chat-submit');
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.classList.remove('loading');
-      clearInterval(loadingInterval);
-      submitButton.textContent = 'Submit';
-    }
-    isModelLoaded = true;
-    updateUnloadButtonUI();
   } else {
     msgDiv.style.alignSelf = 'end';
     msgDiv.style.textAlign = 'right';
     msgDiv.setAttribute('user', 'true');
-    onAgentSendUserPrompt(input.value);
-
-    isModelLoaded = true;
-    updateUnloadButtonUI();
-
-    const submitButton = document.getElementById('chat-submit');
-    if (submitButton) {
-      submitButton.disabled = true;
-      submitButton.classList.add('loading');
-      let dotCount = 0;
-      loadingInterval = setInterval(() => {
-        dotCount = (dotCount + 1) % 4;
-        submitButton.textContent = '.'.repeat(dotCount);
-      }, 500);
-    }
   }
 
-  message.appendChild(msgDiv);
+  messageContainer.appendChild(msgDiv);
+  messageContainer.scrollTop = messageContainer.scrollHeight;
+}
+
+/**
+ * Function to submit a user message from the input box
+ */
+function submitUserMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+
+  if (!text) {
+    return;
+  }
+
+  appendChatMessage(text, false);
+  onAgentSendUserPrompt(input.value);
+
+  isModelLoaded = true;
+  updateUnloadButtonUI();
+
+  const submitButton = document.getElementById('chat-submit');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.classList.add('loading');
+    let dotCount = 0;
+    loadingInterval = setInterval(() => {
+      dotCount = (dotCount + 1) % 4;
+      submitButton.textContent = '.'.repeat(dotCount);
+    }, 500);
+  }
 
   input.value = '';
-  message.scrollTop = message.scrollHeight;
+}
+
+/**
+ * Function to submit an assistant message
+ * @param {string} agentMessage Message of the agent
+ */
+function submitAssistantMessage(agentMessage) {
+  const text = (agentMessage ?? "").trim();
+  if (!text) {
+    return;
+  }
+
+  appendChatMessage(text, true);
+
+  isModelLoaded = true;
+  updateUnloadButtonUI();
+
+  const submitButton = document.getElementById('chat-submit');
+  if (submitButton) {
+    submitButton.disabled = false;
+    submitButton.classList.remove('loading');
+    clearInterval(loadingInterval);
+    submitButton.textContent = 'Submit';
+  }
+}
+
+/**
+ * Function that decides whether the message is an assistant's or an user's
+ * @param {string} agentMessage Message of the agent if available
+ */
+function submitChat(agentMessage) {
+  if (agentMessage) {
+    submitAssistantMessage(agentMessage);
+  } else {
+    submitUserMessage();
+  }
 }
 
 /**
@@ -276,6 +315,7 @@ function onAgentSendUserPrompt(prompt) {
  */
 function unloadModel() {
   postMessage("on_agent_unload_from_memory");
+  submitAssistantMessage("Agent model has been ejected from memory.");
   isModelLoaded = false;
   updateUnloadButtonUI();
 }
