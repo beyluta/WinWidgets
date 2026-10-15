@@ -1641,7 +1641,9 @@ WindowInitAgent()
 
         agent_llama_options_t agent_options = {.model_path = model_path,
                                                .max_ctx_size = 32768,
-                                               .min_p = 0.05f,
+                                               .min_p = 0.0f,
+                                               .top_p = 0.95f,
+                                               .top_k = 20,
                                                .temp = 1.0f};
 
         agent_llama_t *agent_llama = agent_new_instance(agent_options);

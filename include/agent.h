@@ -13,8 +13,12 @@ struct agent_llama_options
         const string model_path;
         // Max content window
         const size_t max_ctx_size;
+        // Number of highest-probability tokens to consider
+        const uint32_t top_k;
         // Min token confidence threshold
         const float min_p;
+        // Cumulative probability threshold
+        const float top_p;
         // Temperature of the model
         const float temp;
 };

@@ -25,7 +25,10 @@ Follow these requirements below unless user says otherwise.
    - Use `body { background-color: rgba(r, g, b, a); }` for background.
    - Use `body { overflow: hidden; margin: 0; padding: 0; height: 100%; }`.
    - Content inside the body must be centered vertical and horizontal.
-   - Use [FontAwesome](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css) if user wants any icons.
+   - Use [FontAwesome](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css) for icons.
+   - Use at least 1 icon.
+   - Use at least 2 colors.
+   - Make texts and icons use colors with strong contrast against their background.
    - Avoid drop-shadows
 
 3. **General**:

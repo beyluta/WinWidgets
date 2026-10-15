@@ -574,14 +574,14 @@ on_agent_user_prompt_received(void *, void *webkit_data, void *user_data)
 }
 
 static void
-on_agent_unload_from_memory(void *, void *webkit_data, void *user_data)
+on_agent_unload_from_memory(void *, void *, void *user_data)
 {
         window_t *self = (window_t *)user_data;
         window_free_agent_instance(self);
 }
 
 static void
-on_agent_save_widget(void *, void *webkit_data, void *user_data)
+on_agent_save_widget(void *, void *webkit_data, void *)
 {
         WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
         JSCValue *jsstr = webkit_javascript_result_get_js_value(result);
@@ -735,7 +735,7 @@ on_agent_save_widget(void *, void *webkit_data, void *user_data)
 }
 
 static void
-on_delete_widget(void *, void *webkit_data, void *user_data)
+on_delete_widget(void *, void *webkit_data, void *)
 {
         WebKitJavascriptResult *result = (WebKitJavascriptResult *)webkit_data;
         JSCValue *jsstr = webkit_javascript_result_get_js_value(result);

@@ -358,6 +358,10 @@ agent_new_instance(agent_llama_options_t options)
                                 llama_sampler_init_min_p(options.min_p, 1));
         llama_sampler_chain_add(sampler, llama_sampler_init_temp(options.temp));
         llama_sampler_chain_add(sampler,
+                                llama_sampler_init_top_p(options.top_p, 1));
+        llama_sampler_chain_add(sampler,
+                                llama_sampler_init_top_k(options.top_k));
+        llama_sampler_chain_add(sampler,
                                 llama_sampler_init_dist(LLAMA_DEFAULT_SEED));
 
         llama_batch_ext_t *batch = llama_batch_ext_init(context);
