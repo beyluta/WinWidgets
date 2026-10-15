@@ -1656,7 +1656,6 @@ WindowInitAgent()
                 rules_dir, sizeof(rules_dir) - 1, "%s/assets/rules", folder);
         if (written < 0)
         {
-                fprintf(stderr, "Failed to write md file to local buffer\n");
                 agent_free_instance(agent_llama);
                 agent_llama = nullptr;
                 ww_free_all_files_from_directory(file_model);
@@ -1667,7 +1666,6 @@ WindowInitAgent()
                 ww_get_all_files_from_directory(rules_dir, FILE_FILTER_MD);
         if (!file_rule)
         {
-                fprintf(stderr, "Rule files not found in %s\n", folder);
                 agent_free_instance(agent_llama);
                 agent_llama = nullptr;
                 ww_free_all_files_from_directory(file_model);
@@ -1682,7 +1680,6 @@ WindowInitAgent()
                            file_rule->name);
         if (written < 0)
         {
-                fprintf(stderr, "Failed to write absolute path to buffer\n");
                 agent_free_instance(agent_llama);
                 agent_llama = nullptr;
                 ww_free_all_files_from_directory(file_rule);
@@ -1695,7 +1692,6 @@ WindowInitAgent()
         string file = (string)malloc(sizeof(char) * (bytes + 1));
         if (!file)
         {
-                fprintf(stderr, "Failed to allocate memory for file buffer\n");
                 agent_free_instance(agent_llama);
                 agent_llama = nullptr;
                 ww_free_all_files_from_directory(file_rule);
@@ -1706,7 +1702,6 @@ WindowInitAgent()
         written = ww_get_file_content(rule_path, file, bytes);
         if (written == 0)
         {
-                fprintf(stderr, "Failed write rule file to local buffer\n");
                 free(file);
                 agent_free_instance(agent_llama);
                 agent_llama = nullptr;
@@ -1945,6 +1940,105 @@ OnAgentUserPromptReceived(void *const arg)
 }
 
 /**
+ * @brief Function to save a new widget to the default directory
+ * @param webview Pointer to the webview instance
+ * @param src_json String containing the source of the widget
+ */
+static void __attribute__((optimize("O0")))
+WindowSaveWidget(const string src_json)
+{
+        if (strlen(src_json) > USHRT_MAX)
+        {
+                return;
+        }
+
+        string_json_t json;
+        status_json_t err = ConvertStringToJson(src_json, &json);
+        if (err != FUNC_SUCCESS)
+        {
+                return;
+        }
+
+        string_json_t json_title;
+        err = GetProperty(json, &json_title, "title");
+        if (err != FUNC_SUCCESS)
+        {
+                return;
+        }
+
+        string_json_t json_html;
+        err = GetProperty(json, &json_html, "html");
+        if (err != FUNC_SUCCESS)
+        {
+                return;
+        }
+
+        string title = (string)malloc(sizeof(char) * (USHRT_MAX + 1));
+        if (!title)
+        {
+
+                return;
+        }
+
+        string html = (string)malloc(sizeof(char) * (USHRT_MAX + 1));
+        if (!html)
+        {
+
+                free(title);
+                return;
+        }
+
+        err = ConvertJsonToString(json_title, title);
+        if (err != FUNC_SUCCESS)
+        {
+                free(html);
+                free(title);
+                return;
+        }
+
+        ConvertJsonToString(json_html, html);
+        if (err != FUNC_SUCCESS)
+        {
+                free(html);
+                free(title);
+                return;
+        }
+
+        char path[PATH_MAX];
+        ssize_t bytes = ww_default_widgets_dir(path, sizeof(path) - 1);
+        if (bytes == 0)
+        {
+                free(html);
+                free(title);
+                return;
+        }
+
+        char filename[PATH_MAX];
+        bytes = snprintf(
+                filename, sizeof(filename) - 1, "%s/%s.html", path, title);
+        if (bytes < 0)
+        {
+                free(html);
+                free(title);
+                return;
+        }
+
+        string unescaped_html = UnescapeHTMLString(html);
+        if (!unescaped_html)
+        {
+                free(html);
+                free(title);
+                return;
+        }
+
+        ww_write_to_file(filename, unescaped_html, WRITE_OVERWRITE);
+
+        free(unescaped_html);
+        free(html);
+        free(title);
+}
+
+/**
  * @brief Handles incoming events from JavaScript
  * @param handler Received event handler
  * @param webview Context of the webview
@@ -2099,6 +2193,11 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         }
         case EVENT_AGENT_SAVE_WIDGET:
         {
+                string unescaped_argument = UnescapeHTMLString(argument);
+                string unescaped_html = UnescapeHTMLString(unescaped_argument);
+                WindowSaveWidget(unescaped_html);
+                free(unescaped_html);
+                free(unescaped_argument);
                 break;
         }
         case EVENT_DELETE_WIDGET:
