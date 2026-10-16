@@ -212,7 +212,7 @@ EscapeJavaScriptParamString(string src)
 }
 
 string
-UnescapeHTMLString(string src)
+UnescapeHTMLString(const string src)
 {
         if (!src)
         {
@@ -220,47 +220,27 @@ UnescapeHTMLString(string src)
                 return nullptr;
         }
 
-        const size_t max = strlen(src);
-        size_t len = 0;
-        for (size_t i = 0; i < max; i++)
+        const size_t size = strlen(src);
+        string buf = (string)malloc(sizeof(char) * (size + 1));
+        if (!buf)
         {
-                if (i + 1 < max && src[i] == '\\' && src[i + 1] == '"')
-                {
-                        continue;
-                }
-
-                len++;
-        }
-
-        string result = (string)malloc(sizeof(char) * (len + 1));
-        if (!result)
-        {
+                fprintf(stderr, "Failed to allocate buffer for string\n");
                 return nullptr;
         }
 
-        for (size_t i = 0, j = 0; i < max; i++)
+        size_t len = 0;
+        for (size_t i = 0; i < size; i++)
         {
-                if (i + 1 < max && src[i] == '\\' && src[i + 1] == '"')
+                if (i + 1 < size && src[i] == '\\' && src[i + 1] == '"')
                 {
                         continue;
                 }
 
-                if (j > len || i > max)
-                {
-                        fprintf(stderr,
-                                "Cannot write or read outside the bounds of "
-                                "the array\n");
-                        free(result);
-                        return nullptr;
-                }
-
-                result[j] = src[i];
-                j++;
+                buf[len++] = src[i];
         }
+        buf[len] = 0;
 
-        result[len] = 0;
-
-        return result;
+        return buf;
 }
 
 bool

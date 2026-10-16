@@ -132,7 +132,7 @@ EscapeJavaScriptParamString(string src);
  * @note - Programmer must free this memory after use
  */
 string
-UnescapeHTMLString(string src);
+UnescapeHTMLString(const string src);
 
 /**
  * @brief Function to check whether a string appears within a substring
