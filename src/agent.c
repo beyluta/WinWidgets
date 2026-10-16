@@ -290,34 +290,6 @@ agent_new_message(const string role, const string content)
         return message;
 }
 
-static bool
-agent_substr_match(const string src,
-                   const size_t offset,
-                   const size_t max,
-                   const string substr)
-{
-        if (!src || !substr)
-        {
-                return false;
-        }
-
-        const size_t substrsize = strlen(substr);
-        if (substrsize > max - offset)
-        {
-                return false;
-        }
-
-        for (size_t i = offset, j = 0; i < offset + substrsize; i++, j++)
-        {
-                if (src[i] != substr[j])
-                {
-                        return false;
-                }
-        }
-
-        return true;
-}
-
 static codeblock_bounds_t
 agent_codeblock_bounds(const string src, const size_t max)
 {
@@ -649,7 +621,7 @@ agent_tool_strip_think_response(const string src)
         size_t size = max, end = 0;
         for (size_t i = 0; i < max; i++)
         {
-                if (agent_substr_match(src, i, max, "</think>"))
+                if (compsubstr(&src[i], max, "</think>"))
                 {
                         end = i + 8;
                         size = max - end;
