@@ -36,6 +36,7 @@ typedef struct llama_sampler llama_sampler_t;
 typedef struct llama_batch_ext llama_batch_ext_t;
 typedef struct llama_model_params llama_model_params_t;
 typedef struct llama_context_params llama_context_params_t;
+typedef struct codeblock_bounds codeblock_bounds_t;
 
 struct agent_llama
 {
@@ -48,6 +49,12 @@ struct agent_llama
         int prev_len;
         bool cancel_generation;
         bool is_generating;
+};
+
+struct codeblock_bounds
+{
+        ssize_t start;
+        ssize_t end;
 };
 
 static void
@@ -309,6 +316,37 @@ agent_substr_match(const string src,
         }
 
         return true;
+}
+
+static codeblock_bounds_t
+agent_codeblock_bounds(const string src, const size_t max)
+{
+        codeblock_bounds_t bounds = {.end = -1, .start = -1};
+
+        if (!src)
+        {
+                fprintf(stderr,
+                        "Source for strip codeblock response may not be "
+                        "null\n");
+                return bounds;
+        }
+
+        for (size_t i = 0; i < max; i++)
+        {
+                if (compsubstr(&src[i], max - i, "```html"))
+                {
+                        bounds.start = i + 7;
+                        continue;
+                }
+
+                if (compsubstr(&src[i], max - i, "```"))
+                {
+                        bounds.end = i - 1;
+                        continue;
+                }
+        }
+
+        return bounds;
 }
 
 // Public members
@@ -649,42 +687,46 @@ agent_tool_strip_codeblock_response(const string src)
 {
         if (!src)
         {
-                fprintf(stderr, "Source cannot be empty for strip\n");
+                fprintf(stderr,
+                        "Source for strip codeblock response may not be "
+                        "null\n");
                 return nullptr;
         }
 
         const size_t size = strlen(src);
-        for (size_t i = 0; i < size; i++)
+        codeblock_bounds_t bounds = agent_codeblock_bounds(src, size);
+        const ssize_t start = bounds.start;
+        const ssize_t end = bounds.end;
+
+        const size_t len = (end - start) + 1;
+        const size_t total = size - len - 10;
+        const size_t offset = (start - 7) + len + 10;
+        const size_t nbytes = (size - len) - (start - 7) - 10;
+
+        if (start - 7 > size || start - 7 > total || offset > size ||
+            start - 7 > total || nbytes > total - (start - 7) ||
+            nbytes > total - (start - 7))
         {
-
-                if (i + 2 < size && i > 0 && src[i] == '`' &&
-                    src[i + 1] == '`' && src[i + 2] == '`')
-                {
-                        const size_t max = i - 1;
-
-                        if (max >= size)
-                        {
-                                fprintf(stderr,
-                                        "Cannot copy more bytes than "
-                                        "allocated\n");
-                                return nullptr;
-                        }
-
-                        string data = (string)malloc(sizeof(char) * (max + 1));
-                        if (!data)
-                        {
-                                fprintf(stderr,
-                                        "Failed to allocate memory for "
-                                        "stripped message without codeblock\n");
-                                return nullptr;
-                        }
-                        memcpy(data, src, max);
-                        data[max] = 0;
-                        return data;
-                }
+                fprintf(stderr,
+                        "Bounds checking for codeblock stripped response "
+                        "failed\n");
+                return nullptr;
         }
 
-        return nullptr;
+        char *result = (char *)malloc(sizeof(char) * (total + 1));
+        if (!result)
+        {
+                fprintf(stderr,
+                        "Failed to allocate memory for stripped codeblock "
+                        "response string\n");
+                return nullptr;
+        }
+
+        memcpy(result, src, start - 7);
+        memcpy(&result[start - 7], &src[offset], nbytes);
+        result[total] = 0;
+
+        return result;
 }
 
 string
@@ -692,50 +734,33 @@ agent_tool_codeblock_scan(const string src)
 {
         if (!src)
         {
-                fprintf(stderr, "Prompt source cannot be empty for scan\n");
+                fprintf(stderr, "Source of codeblock scan may not be null\n");
                 return nullptr;
         }
 
-        string data = nullptr;
-        const size_t max = strlen(src);
-        size_t offset = 0;
+        const size_t size = strlen(src);
+        codeblock_bounds_t bounds = agent_codeblock_bounds(src, size);
+        const ssize_t start = bounds.start;
+        const ssize_t end = bounds.end;
 
-        for (size_t i = 0; i < max; i++)
+        if (start < 0 || end < 0 || start > end || start > size)
         {
-                if (offset == 0 && i + 1 < max && i > 1 && src[i] == '`' &&
-                    src[i - 1] == '`' && src[i - 2] == '`')
-                {
-                        offset = i + 1;
-                }
-
-                if (offset > 0 && i - 1 > 0 && i + 2 < max && src[i] == '`' &&
-                    src[i + 1] == '`' && src[i + 2] == '`')
-                {
-                        const size_t size = (i - 1) - offset;
-                        if (offset >= max || offset + size >= max)
-                        {
-                                fprintf(stderr,
-                                        "Cannot read or write outside of "
-                                        "bounds of the memory region\n");
-                                return nullptr;
-                        }
-
-                        data = malloc(sizeof(char) * (size + 1));
-                        if (!data)
-                        {
-                                fprintf(stderr,
-                                        "Failed to allocate memory for "
-                                        "resulting codeblock string\n");
-                                return nullptr;
-                        }
-
-                        memcpy(data, &src[offset], size);
-                        data[size] = 0;
-                        break;
-                }
+                fprintf(stderr, "Bound checking for array failed\n");
+                return nullptr;
         }
 
-        return data;
+        const size_t len = (end - start) + 1;
+        char *result = (char *)malloc(sizeof(char) * (len + 1));
+        if (!result)
+        {
+                fprintf(stderr, "Failed to allocate memory for codeblock\n");
+                return nullptr;
+        }
+
+        memcpy(result, &src[start], len);
+        result[len] = 0;
+
+        return result;
 }
 
 void

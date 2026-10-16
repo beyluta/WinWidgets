@@ -262,3 +262,23 @@ UnescapeHTMLString(string src)
 
         return result;
 }
+
+bool
+compsubstr(const string str, const size_t max, const string substr)
+{
+        const size_t len = strlen(substr);
+        if (len > max)
+        {
+                return 0;
+        }
+
+        for (size_t i = 0; i < len; i++)
+        {
+                if (str[i] != substr[i])
+                {
+                        return false;
+                }
+        }
+
+        return true;
+}

@@ -134,4 +134,14 @@ EscapeJavaScriptParamString(string src);
 string
 UnescapeHTMLString(string src);
 
+/**
+ * @brief Function to check whether a string appears within a substring
+ * @param str Pointer to the string
+ * @param max Max bytes to read from str
+ * @param substr The substring to check for
+ * @return Whether str contains the substring given the max amount of bytes
+ */
+bool
+compsubstr(const string str, const size_t max, const string substr);
+
 #endif
