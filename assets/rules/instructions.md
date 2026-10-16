@@ -22,6 +22,7 @@ Follow these requirements below unless user says otherwise.
 
 2. **Styling**:
    - Widgets must take 100% of the DOM body. No margins, no paddings.
+   - Must use the `Complete widget template` when creating widgets.
    - Use `body { background-color: rgba(r, g, b, a); }` for background.
    - Use `body { overflow: hidden; margin: 0; padding: 0; height: 100%; }`.
    - Content inside the body must be centered vertical and horizontal.
@@ -127,21 +128,65 @@ You must not generate any widgets or codeblocks. Talk with the user and answer t
 **Development**: Fulfill the requirements of the user
 
 Provide a short, message about what has been done, then the final,
-complete HTML code wrapped in triple backticks. After the three backticks NEVER
-put html as the language identifier.
+complete HTML code wrapped in triple backticks.
 
-**Examples:**
+**Important**: After the three backticks NEVER put html as the language identifier.
 
-❌ **Wrong:**
+## Complete widget template
 
 ```html
-<p>Example</p>
-```
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="applicationTitle" content="Sample Widget" />
+  <meta name="windowSize" content="350 180" />
+  <meta name="windowLocation" content="0 0" />
+  <meta name="windowBorderRadius" content="0" />
+  <meta name="topMost" content="false" />
 
-✅ **Correct:**
+  <style>
+    :root {
+      --bg-color: rgba(32, 32, 32, 0.95);
+      --text-color: #FFFFFF;
+    }
 
-Done! This new widget shows the word "Example"
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
 
-```
-<p>Example</p>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-color);
+      font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #widget {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 0;
+      box-sizing: border-box;
+      border-radius: 2rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="widget">
+    <main><!-- Widget content goes here --></main>
+  </div>
+ </body>
+</html>
 ```
