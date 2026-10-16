@@ -667,8 +667,13 @@ agent_tool_strip_codeblock_response(const string src)
 
         const size_t size = strlen(src);
         codeblock_bounds_t bounds = agent_codeblock_bounds(src, size);
-        const ssize_t start = bounds.start;
-        const ssize_t end = bounds.end;
+        if (bounds.end < 0 || bounds.start < 0)
+        {
+                return nullptr;
+        }
+
+        const size_t start = bounds.start;
+        const size_t end = bounds.end;
 
         const size_t len = (end - start) + 1;
         const size_t total = size - len - 10;
@@ -712,10 +717,15 @@ agent_tool_codeblock_scan(const string src)
 
         const size_t size = strlen(src);
         codeblock_bounds_t bounds = agent_codeblock_bounds(src, size);
-        const ssize_t start = bounds.start;
-        const ssize_t end = bounds.end;
+        if (bounds.end < 0 || bounds.start < 0)
+        {
+                return nullptr;
+        }
 
-        if (start < 0 || end < 0 || start > end || start > size)
+        const size_t start = bounds.start;
+        const size_t end = bounds.end;
+
+        if (start > end || start > size)
         {
                 fprintf(stderr, "Bound checking for array failed\n");
                 return nullptr;
