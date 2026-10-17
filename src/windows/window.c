@@ -2000,7 +2000,7 @@ OnAgentUserPromptReceived(void *const arg)
  * @param webview Pointer to the webview instance
  * @param src_json String containing the source of the widget
  */
-static void __attribute__((optimize("O0")))
+static void
 WindowSaveWidget(const string src_json)
 {
         if (strlen(src_json) > USHRT_MAX)
@@ -2109,13 +2109,21 @@ ManagerWebMessageReceivedEventHandlerInvoke(
 {
         func_status_t status = FUNC_STATUS_OK;
         LPWSTR wMessage = nullptr;
+        string argument = nullptr;
+        string cMessage = nullptr;
         if (args->lpVtbl->TryGetWebMessageAsString(args, &wMessage) != S_OK)
         {
                 status = FUNC_STATUS_ERR;
                 goto cleanup;
         }
 
-        char cMessage[BUFFSIZE];
+        cMessage = (string)malloc(sizeof(char) * (JSONBUFFSIZE + 1));
+        if (!cMessage)
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
         const size_t wMessageLen = wcslen(wMessage);
         if (wcstombs(cMessage, wMessage, wMessageLen) == (size_t)-1)
         {
@@ -2156,7 +2164,13 @@ ManagerWebMessageReceivedEventHandlerInvoke(
                 goto cleanup;
         }
 
-        char argument[BUFFSIZE];
+        argument = (string)malloc(sizeof(char) * (JSONBUFFSIZE + 1));
+        if (!argument)
+        {
+                status = FUNC_STATUS_ERR;
+                goto cleanup;
+        }
+
         if (ConvertJsonToString(argsJson, argument) != FUNC_SUCCESS)
         {
                 status = FUNC_STATUS_ERR;
@@ -2250,7 +2264,18 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         case EVENT_AGENT_SAVE_WIDGET:
         {
                 string unescaped_argument = UnescapeHTMLString(argument);
+                if (!unescaped_argument)
+                {
+                        break;
+                }
+
                 string unescaped_html = UnescapeHTMLString(unescaped_argument);
+                if (!unescaped_html)
+                {
+                        free(unescaped_argument);
+                        break;
+                }
+
                 WindowSaveWidget(unescaped_html);
                 free(unescaped_html);
                 free(unescaped_argument);
@@ -2267,6 +2292,16 @@ cleanup:
         if (wMessage != nullptr)
         {
                 CoTaskMemFree(wMessage);
+        }
+
+        if (argument)
+        {
+                free(argument);
+        }
+
+        if (cMessage)
+        {
+                free(cMessage);
         }
         return status;
 }

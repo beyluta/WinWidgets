@@ -130,8 +130,6 @@ You must not generate any widgets or codeblocks. Talk with the user and answer t
 Provide a short, message about what has been done, then the final,
 complete HTML code wrapped in triple backticks.
 
-**Important**: After the three backticks NEVER put html as the language identifier.
-
 ## Complete widget template
 
 ```html
