@@ -56,6 +56,14 @@ ww_get_files_from_dir(const char *src,
                       const size_t size);
 
 /**
+ * @brief Gets whehter a file exists
+ * @param s Absolute path to the file
+ * @return `true` if the file exists `false` if not
+ */
+bool
+ww_file_exists(const string s);
+
+/**
  * @brief Gets the amount of bytes a file has
  * @param src File to count the bytes
  * @returns Amount of bytes reported by the operating system

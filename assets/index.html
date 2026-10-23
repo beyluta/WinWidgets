@@ -71,12 +71,26 @@
       </div>
       <div id="isWidgetAutostartEnabled" class="toggle" onclick="toggleSetting(this, true)"></div>
     </div>
+    <div class="setting-item">
+      <div class="setting-info">
+        <span class="setting-title">Delete default model</span>
+        <span class="setting-description">Remove the previously downloaded AI model file from disk</span>
+      </div>
+      <button class="delete-model-button interact" data-tooltip="Delete the default AI model" onclick="showDeleteModelModal()">Delete</button>
+    </div>
   </main>
 
   <main class="development">
     <div class="dev-section chat-window">
         <div class="chat-messages" id="chat-messages">
         <div class="chat-message" assistant="true">Welcome! Please describe the widget you'd like to generate in this terminal, and rest assured that all your data stays strictly local as no information is ever transmitted to any external server or cloud service.</div>
+    </div>
+    <div class="chat-progress" id="chat-progress" hidden>
+      <span class="chat-progress-title">Downloading model…</span>
+      <div class="chat-progress-track">
+        <div class="chat-progress-fill" id="chat-progress-fill"></div>
+      </div>
+      <span class="chat-progress-label" id="chat-progress-label"></span>
     </div>
     <input type="text" id="chat-input" placeholder="Ask AI to generate widget...">
     <button id="unload-button" onclick="unloadModel()" class="unload-button interact" data-tooltip="Eject model from memory"><img src="svgs/eject.svg" alt="Unload" /></button>
@@ -210,6 +224,16 @@
     </div>
 #endif
   </main>
+    <div id="delete-model-confirm-modal" class="modal-new">
+      <div class="modal-content-new">
+        <h3>Delete Default Model?</h3>
+        <p>Are you sure you want to delete the previously downloaded default AI model from disk? You will need to download it again to use AI features.</p>
+        <div class="modal-actions-new">
+          <button id="confirm-delete-model-btn" class="btn-confirm-new" onclick="confirmDeleteModel()">Confirm</button>
+          <button id="cancel-delete-model-btn" class="btn-cancel-new" onclick="cancelDeleteModel()">Cancel</button>
+        </div>
+      </div>
+    </div>
     <div id="delete-confirm-modal-new" class="modal-new">
       <div class="modal-content-new">
         <h3>Delete Widget?</h3>

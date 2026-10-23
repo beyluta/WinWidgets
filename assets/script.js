@@ -11,6 +11,7 @@ const EVENT_IDS = {
   "on_agent_unload_from_memory": "6",
   "on_agent_save_widget": "7",
   "on_delete_widget": "8",
+  "on_delete_default_model": "9",
 };
 
 function showNotification(message, isError = false) {
@@ -60,6 +61,14 @@ let isSaving = false;
 let tooltipTimeouts = new Map();
 let loadingInterval = null;
 let isModelLoaded = false;
+
+/**
+ * Download progress stall tracking. The progress bar is hidden if its
+ * value has not changed for more than 5 seconds.
+ */
+const PROGRESS_STALL_DELAY = 5000;
+let progressCurrentValue = null;
+let progressStallTimer = null;
 
 /**
  * Opens the specified scene in the application.
@@ -337,6 +346,94 @@ function submitChat(agentMessage) {
 }
 
 /**
+ * Updates the model download progress bar.
+ * @param {number} value Download progress in percent (0-100). The bar is
+ * shown only when the value is strictly greater than 0 and strictly
+ * less than 100; it is hidden otherwise. The bar is also hidden if the
+ * value has not changed for more than 5 seconds.
+ */
+function updateDownloadProgress(value) {
+  const progressBar = document.getElementById('chat-progress');
+  const progressFill = document.getElementById('chat-progress-fill');
+  const progressLabel = document.getElementById('chat-progress-label');
+
+  if (!progressBar || !progressFill) {
+    return;
+  }
+
+  if (!Number.isFinite(value) || value <= 0 || value >= 99) {
+    progressCurrentValue = value;
+    clearProgressStallTimer();
+    progressBar.hidden = true;
+    progressBar.style.display = 'none';
+    progressFill.style.width = '0%';
+    if (progressLabel) {
+      progressLabel.textContent = '';
+    }
+    return;
+  }
+
+  const clamped = Math.min(value, 100);
+  progressBar.hidden = false;
+  progressBar.style.display = 'flex';
+  progressFill.style.width = `${clamped}%`;
+  if (progressLabel) {
+    progressLabel.textContent = `${Math.floor(clamped)}%`;
+  }
+
+  trackProgressStall(value);
+}
+
+/**
+ * Tracks the current download progress value and hides the progress bar
+ * if it has not changed for more than 5 seconds.
+ * @param {number} value - Download progress in percent (0-100)
+ */
+function trackProgressStall(value) {
+  if (progressCurrentValue === value) {
+    return;
+  }
+
+  progressCurrentValue = value;
+
+  clearProgressStallTimer();
+
+  progressStallTimer = setTimeout(() => {
+    progressStallTimer = null;
+
+    // The progress changed again; nothing to hide.
+    if (progressCurrentValue !== value) {
+      return;
+    }
+
+    const progressBar = document.getElementById('chat-progress');
+    const progressFill = document.getElementById('chat-progress-fill');
+    const progressLabel = document.getElementById('chat-progress-label');
+
+    if (!progressBar || !progressFill) {
+      return;
+    }
+
+    progressBar.hidden = true;
+    progressBar.style.display = 'none';
+    progressFill.style.width = '0%';
+    if (progressLabel) {
+      progressLabel.textContent = '';
+    }
+  }, PROGRESS_STALL_DELAY);
+}
+
+/**
+ * Clears a pending progress bar stall timer.
+ */
+function clearProgressStallTimer() {
+  if (progressStallTimer) {
+    clearTimeout(progressStallTimer);
+    progressStallTimer = null;
+  }
+}
+
+/**
  * Sends a prompt to the C backend and processes the request
  * @param {string} prompt - The user prompt to process
  */
@@ -408,6 +505,36 @@ function saveWidget(html) {
   }
   postMessage("on_agent_save_widget", JSON.stringify({ title, html }));
   openScene('widgets', 'block');
+}
+
+/**
+ * Shows the confirmation modal for deleting the default AI model
+ */
+function showDeleteModelModal() {
+  const modal = document.getElementById('delete-model-confirm-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+}
+
+/**
+ * Confirms the deletion of the default AI model by notifying the C backend
+ */
+function confirmDeleteModel() {
+  const modal = document.getElementById('delete-model-confirm-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  postMessage("on_delete_default_model");
+}
+
+/**
+ * Cancels the deletion of the default AI model
+ */
+function cancelDeleteModel() {
+  const modal = document.getElementById('delete-model-confirm-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
 }
 
 /**

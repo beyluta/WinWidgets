@@ -462,6 +462,69 @@ body.dark-mode .chat-window input {
   position: relative;
 }
 
+.chat-progress {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-progress[hidden] {
+  display: none;
+}
+
+.chat-progress-title {
+  color: var(--secondary-text-color);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chat-window .chat-progress-title {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.chat-progress-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+body.dark-mode .chat-progress-track {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.chat-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  border-radius: 4px;
+  background-color: var(--accent-color);
+  transition: width 0.25s ease-out;
+}
+
+.chat-progress-label {
+  min-width: 40px;
+  text-align: right;
+  color: var(--secondary-text-color);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-window .chat-progress-label {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
 .dev-section {
   background-color: var(--bg-secondary);
   padding: 32px;
@@ -664,6 +727,23 @@ body.dark-mode .setting-item:hover {
 
 .settings .enabled::before {
   left: 23px;
+}
+
+.delete-model-button {
+  padding: 8px 16px;
+  background-color: var(--delete-button-bg);
+  color: #ff5252;
+  border: 1px solid var(--delete-button-border);
+  border-radius: var(--border-radius-small);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.delete-model-button:hover {
+  background-color: var(--delete-button-border);
 }
 
 ::-webkit-scrollbar {

@@ -301,6 +301,19 @@ ww_get_file_content(const char *src, char *dest, const size_t max_len)
         return length;
 }
 
+bool
+ww_file_exists(const string s)
+{
+        FILE *file = fopen(s, "rb");
+        if (!file)
+        {
+                return false;
+        }
+
+        fclose(file);
+        return true;
+}
+
 size_t
 ww_get_file_bytes(const char *const src)
 {

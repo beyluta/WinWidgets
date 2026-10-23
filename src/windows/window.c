@@ -91,7 +91,8 @@ typedef enum : uint8_t
         EVENT_AGENT_USER_PROMPT_RECEIVED,
         EVENT_AGENT_UNLOAD_FROM_MEMORY,
         EVENT_AGENT_SAVE_WIDGET,
-        EVENT_DELETE_WIDGET
+        EVENT_DELETE_WIDGET,
+        EVENT_DELETE_DEFAULT_MODEL,
 } manager_events_t;
 
 typedef enum : uint8_t
@@ -1750,7 +1751,7 @@ enqueuePrompt(wchar_t *restrict const prompt)
 
 /**
  * @brief Function to build the notification string
- * @param src Pointer to the soruce string
+ * @param src Pointer to the source string
  * @param max String max size
  * @return The size of written bytes
  */
@@ -1764,6 +1765,85 @@ BuildNotificationString(const string src, const size_t max)
 }
 
 /**
+ * @brief Function to build the notification string
+ * @param src Pointer to the source string
+ * @param max String max size
+ * @param val Progress value
+ * @return The size of written bytes
+ */
+static ssize_t
+BuildProgressString(const string src, const size_t max, double val)
+{
+        return snprintf(src,
+                        max == 0 ? 0 : max + 1,
+                        "updateDownloadProgress(%.1f)",
+                        val);
+}
+
+/**
+ * @brief Calculate and update the progress bar count
+ * @param total Total amount of bytes to download
+ * @param now Total amount of bytes downloaded at the moment
+ */
+static void
+OnUpdateProgress(double total, double now)
+{
+        if (total <= 0)
+        {
+                return;
+        }
+
+        constexpr uint8_t DELAY_SECONDS = 2;
+        static unsigned long prev_time = 0;
+        const unsigned long now_time = (unsigned long)time(nullptr);
+        if (now_time - prev_time < DELAY_SECONDS)
+        {
+                return;
+        }
+
+        prev_time = now_time;
+
+        double percent = 100.0 * (double)now / (double)total;
+
+        ssize_t max = BuildProgressString(nullptr, 0, percent);
+        if (max < 0)
+        {
+                return;
+        }
+
+        string temp = (string)malloc(sizeof(char) * (max + 1));
+        if (!temp)
+        {
+                return;
+        }
+
+        max = BuildProgressString(temp, max, percent);
+        if (max < 0)
+        {
+                free(temp);
+                return;
+        }
+
+        wchar_t *buf = (wchar_t *)malloc(sizeof(wchar_t) * (max + 1));
+        if (!buf)
+        {
+                free(temp);
+                return;
+        }
+
+        if (mbstowcs(buf, temp, max) == (size_t)-1)
+        {
+                free(buf);
+                free(temp);
+                return;
+        }
+        buf[max] = 0;
+
+        free(temp);
+        enqueuePrompt(buf);
+}
+
+/**
  * @brief Thread that runs to generate a new LLM prompt
  * @param arg Argument containing the new prompt
  * @return Irrelevant; NULL is always returned
@@ -1774,6 +1854,16 @@ OnAgentUserPromptReceived(void *const arg)
         if (!arg)
         {
                 pthread_exit(nullptr);
+        }
+
+        if (!agent_default_model_exists(nullptr, 0))
+        {
+                const ssize_t res = agent_huggingface_download_default_model(
+                        &OnUpdateProgress);
+                if (res >= 400)
+                {
+                        pthread_exit(nullptr);
+                }
         }
 
         string user_prompt = (string)arg;
@@ -2284,6 +2374,20 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         case EVENT_DELETE_WIDGET:
         {
                 ww_rm_file(argument);
+                break;
+        }
+        case EVENT_DELETE_DEFAULT_MODEL:
+        {
+                string12_t model_buff;
+                string model_path = model_buff;
+                const bool model_exists = agent_default_model_exists(
+                        &model_path, sizeof(model_buff) - 1);
+                if (!model_exists)
+                {
+                        break;
+                }
+
+                ww_rm_file(model_path);
                 break;
         }
         }

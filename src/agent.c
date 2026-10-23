@@ -17,6 +17,9 @@
 #include "agent.h"
 #include "llama.h"
 #include "syswrap.h"
+#include "filesystem.h"
+#include "fetch.h"
+#include <libgen.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +31,13 @@
 #endif
 
 // Private members
+
+static const string HF_QWEN3_4B_THINKING_Q4_K_M_URL =
+        "https://huggingface.co/unsloth/Qwen3-4B-Thinking-2507-GGUF/resolve/"
+        "main/Qwen3-4B-Thinking-2507-Q4_K_M.gguf?download=true";
+static constexpr char QWEN3_4B_THINKING_Q4_K_M[] =
+        "Qwen3-4B-Thinking-2507-Q4_K_M.gguf";
+static constexpr char CERTIFICATE_AUTHORITY_PATH[] = "assets/certs/cacert.pem";
 
 typedef struct llama_model llama_model_t;
 typedef struct llama_vocab llama_vocab_t;
@@ -770,4 +780,125 @@ agent_should_generation_cancel(agent_llama_t *agent_llama)
         }
 
         return agent_llama->cancel_generation;
+}
+
+ssize_t
+agent_huggingface_download_default_model(void (*cb)(double, double))
+{
+        char path[PATH_MAX];
+        if (ww_get_executable_path(path, sizeof(path) - 1) != 0)
+        {
+                fprintf(stderr, "Failed to get path to exec bin\n");
+                return 1;
+        }
+
+        string folder = dirname(path);
+
+        ssize_t n = snprintf(
+                nullptr, 0, "%s\\%s", folder, QWEN3_4B_THINKING_Q4_K_M);
+
+        if (n > PATH_MAX)
+        {
+                fprintf(stderr, "Path len cannot be greater than allowable\n");
+                return 1;
+        }
+
+        string filename = (string)malloc(sizeof(char) * (n + 1));
+        if (!filename)
+        {
+                fprintf(stderr, "Failed to allocate memory for filename\n");
+                return 1;
+        }
+
+        n = snprintf(filename, n + 1, "%s\\%s", path, QWEN3_4B_THINKING_Q4_K_M);
+        if (n < 0)
+        {
+                fprintf(stderr, "Failed copy to model filename\n");
+                free(filename);
+                return 1;
+        }
+
+        n = snprintf(nullptr, 0, "%s/%s", path, CERTIFICATE_AUTHORITY_PATH);
+        if (n < 0)
+        {
+                fprintf(stderr, "Failed to ensure min size for cert CA\n");
+                free(filename);
+                return 1;
+        }
+
+        string ca_cert = (string)malloc(sizeof(char) * (n + 1));
+        if (!ca_cert)
+        {
+                fprintf(stderr, "Failed to allocate memory for cert CA\n");
+                free(filename);
+                return 1;
+        }
+
+        n = snprintf(ca_cert, n + 1, "%s/%s", path, CERTIFICATE_AUTHORITY_PATH);
+        if (n < 0)
+        {
+                fprintf(stderr, "Failed copy to certificate authority\n");
+                free(ca_cert);
+                free(filename);
+                return 1;
+        }
+
+        size_t code = fetch_download_file(
+                cb, filename, ca_cert, HF_QWEN3_4B_THINKING_Q4_K_M_URL);
+
+        free(ca_cert);
+        free(filename);
+
+        return code;
+}
+
+bool
+agent_default_model_exists(string *const model_path, const size_t model_max)
+{
+        char path[PATH_MAX];
+        if (ww_get_executable_path(path, sizeof(path) - 1) != 0)
+        {
+                fprintf(stderr, "Failed to get path to exec bin\n");
+                return false;
+        }
+
+        string folder = dirname(path);
+
+        ssize_t n = snprintf(
+                nullptr, 0, "%s\\%s", folder, QWEN3_4B_THINKING_Q4_K_M);
+
+        if (n > PATH_MAX)
+        {
+                fprintf(stderr, "Path len cannot be greater than allowable\n");
+                return false;
+        }
+
+        string filename = (string)malloc(sizeof(char) * (n + 1));
+        if (!filename)
+        {
+                fprintf(stderr, "Failed to allocate memory for filename\n");
+                return false;
+        }
+
+        n = snprintf(
+                filename, n + 1, "%s\\%s", folder, QWEN3_4B_THINKING_Q4_K_M);
+        if (n < 0)
+        {
+                fprintf(stderr, "Failed copy to model filename\n");
+                free(filename);
+                return false;
+        }
+
+        const bool ret = ww_file_exists(filename);
+
+        if (model_path && model_max > (size_t)n)
+        {
+                string buff = *model_path;
+                memcpy(buff, filename, n);
+                buff[n] = 0;
+        }
+
+        free(filename);
+
+        return ret;
 }

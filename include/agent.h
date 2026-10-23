@@ -107,4 +107,21 @@ agent_cancel_generation_wait(agent_llama_t *agent_llama);
 bool
 agent_should_generation_cancel(agent_llama_t *agent_llama);
 
+/**
+ * @brief Function to download the default model from HuggingFace
+ * @param cb Callback to a progress function; may be null
+ * @return The value code of the operation; 0 is success; not 0 is error
+ */
+ssize_t
+agent_huggingface_download_default_model(void (*cb)(double, double));
+
+/**
+ * @brief Function to tell if a default model exists
+ * @param model_path Output parameter of the function; may be passed as null
+ * @param model_max Depends on the `model_path` parameter. Max length of it
+ * @return `true` if it exists `false` if missing
+ */
+bool
+agent_default_model_exists(string *model_path, const size_t model_max);
+
 #endif
