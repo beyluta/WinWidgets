@@ -63,14 +63,6 @@ let loadingInterval = null;
 let isModelLoaded = false;
 
 /**
- * Download progress stall tracking. The progress bar is hidden if its
- * value has not changed for more than 5 seconds.
- */
-const PROGRESS_STALL_DELAY = 5000;
-let progressCurrentValue = null;
-let progressStallTimer = null;
-
-/**
  * Opens the specified scene in the application.
  * @param {string} scene - The name of the scene to open.
  * @param {string} mode - Display style of the scene.
@@ -349,8 +341,7 @@ function submitChat(agentMessage) {
  * Updates the model download progress bar.
  * @param {number} value Download progress in percent (0-100). The bar is
  * shown only when the value is strictly greater than 0 and strictly
- * less than 100; it is hidden otherwise. The bar is also hidden if the
- * value has not changed for more than 5 seconds.
+ * less than 100; it is hidden otherwise.
  */
 function updateDownloadProgress(value) {
   const progressBar = document.getElementById('chat-progress');
@@ -362,14 +353,7 @@ function updateDownloadProgress(value) {
   }
 
   if (!Number.isFinite(value) || value <= 0 || value >= 99) {
-    progressCurrentValue = value;
-    clearProgressStallTimer();
-    progressBar.hidden = true;
-    progressBar.style.display = 'none';
-    progressFill.style.width = '0%';
-    if (progressLabel) {
-      progressLabel.textContent = '';
-    }
+    hideProgressBar();
     return;
   }
 
@@ -381,55 +365,26 @@ function updateDownloadProgress(value) {
     progressLabel.textContent = `${Math.floor(clamped)}%`;
   }
 
-  trackProgressStall(value);
 }
 
 /**
- * Tracks the current download progress value and hides the progress bar
- * if it has not changed for more than 5 seconds.
- * @param {number} value - Download progress in percent (0-100)
+ * Hides the model download progress bar, resets its fill and label.
+ * Called by the C backend once the progress bar is no longer needed.
  */
-function trackProgressStall(value) {
-  if (progressCurrentValue === value) {
+function hideProgressBar() {
+  const progressBar = document.getElementById('chat-progress');
+  const progressFill = document.getElementById('chat-progress-fill');
+  const progressLabel = document.getElementById('chat-progress-label');
+
+  if (!progressBar || !progressFill) {
     return;
   }
 
-  progressCurrentValue = value;
-
-  clearProgressStallTimer();
-
-  progressStallTimer = setTimeout(() => {
-    progressStallTimer = null;
-
-    // The progress changed again; nothing to hide.
-    if (progressCurrentValue !== value) {
-      return;
-    }
-
-    const progressBar = document.getElementById('chat-progress');
-    const progressFill = document.getElementById('chat-progress-fill');
-    const progressLabel = document.getElementById('chat-progress-label');
-
-    if (!progressBar || !progressFill) {
-      return;
-    }
-
-    progressBar.hidden = true;
-    progressBar.style.display = 'none';
-    progressFill.style.width = '0%';
-    if (progressLabel) {
-      progressLabel.textContent = '';
-    }
-  }, PROGRESS_STALL_DELAY);
-}
-
-/**
- * Clears a pending progress bar stall timer.
- */
-function clearProgressStallTimer() {
-  if (progressStallTimer) {
-    clearTimeout(progressStallTimer);
-    progressStallTimer = null;
+  progressBar.hidden = true;
+  progressBar.style.display = 'none';
+  progressFill.style.width = '0%';
+  if (progressLabel) {
+    progressLabel.textContent = '';
   }
 }
 

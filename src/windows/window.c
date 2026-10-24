@@ -10,6 +10,7 @@
 //
 // ==========================================================
 #include "libgen.h"
+#include "pthread.h"
 #include "widget.h"
 #include "decl_webview.h"
 #include "filesystem.h"
@@ -135,6 +136,13 @@ typedef struct
         char filename[BUFFSIZE];
 } stack_item_t;
 
+typedef struct window_queue_item
+{
+        wchar_t *message;
+        size_t length;
+        struct window_queue_item *next;
+} window_queue_item_t;
+
 // ---------------------------------------------------------------------
 // Global variables to control the state of the application
 // ---------------------------------------------------------------------
@@ -158,10 +166,12 @@ static volatile bool g_dirChangesDetected = false;
 static stack_item_t g_stack[MAX_WIDGETS];
 static volatile ssize_t g_stackHeight = 0;
 
-static wchar_t *g_promptQueue[UINT8_MAX] = {};
-static volatile ssize_t g_promptQueueDepth = 0;
+static window_queue_item_t *g_promptQueueHead = nullptr;
+static window_queue_item_t *g_promptQueueTail = nullptr;
+static pthread_mutex_t g_promptQueueMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static agent_llama_t *g_agent_llama = nullptr;
+static pthread_mutex_t g_agent_llama_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // ---------------------------------------------------------------------
 // Forward declaration of functions that will be used later
@@ -1735,18 +1745,62 @@ build_js_command(string dest,
 static void
 enqueuePrompt(wchar_t *restrict const prompt)
 {
-        if (g_promptQueueDepth + 1 > UINT8_MAX)
+        if (prompt == nullptr)
         {
                 return;
         }
 
-        for (ssize_t i = 0; i < g_promptQueueDepth; i++)
+        const size_t length = wcslen(prompt);
+
+        pthread_mutex_lock(&g_promptQueueMutex);
+
+        window_queue_item_t *item =
+                (window_queue_item_t *)malloc(sizeof(window_queue_item_t));
+        if (item == nullptr)
         {
-                g_promptQueue[i + 1] = g_promptQueue[i];
+                pthread_mutex_unlock(&g_promptQueueMutex);
+                free(prompt);
+                return;
         }
 
-        g_promptQueue[0] = prompt;
-        g_promptQueueDepth++;
+        item->message = prompt;
+        item->length = length;
+        item->next = nullptr;
+
+        if (g_promptQueueTail != nullptr)
+        {
+                g_promptQueueTail->next = item;
+        }
+        else
+        {
+                g_promptQueueHead = item;
+        }
+        g_promptQueueTail = item;
+
+        pthread_mutex_unlock(&g_promptQueueMutex);
+}
+
+static window_queue_item_t *
+dequeuePrompt()
+{
+        pthread_mutex_lock(&g_promptQueueMutex);
+
+        window_queue_item_t *item = g_promptQueueHead;
+        if (item == nullptr)
+        {
+                pthread_mutex_unlock(&g_promptQueueMutex);
+                return nullptr;
+        }
+
+        g_promptQueueHead = item->next;
+        if (g_promptQueueHead == nullptr)
+        {
+                g_promptQueueTail = nullptr;
+        }
+        item->next = nullptr;
+
+        pthread_mutex_unlock(&g_promptQueueMutex);
+        return item;
 }
 
 /**
@@ -1778,6 +1832,18 @@ BuildProgressString(const string src, const size_t max, double val)
                         max == 0 ? 0 : max + 1,
                         "updateDownloadProgress(%.1f)",
                         val);
+}
+
+/**
+ * @brief Function to build the hide progress bar script
+ * @param src Pointer to the source string
+ * @param max String max size
+ * @return The size of written bytes
+ */
+static ssize_t
+BuildHideProgressString(const string src, const size_t max)
+{
+        return snprintf(src, max == 0 ? 0 : max + 1, "hideProgressBar()");
 }
 
 /**
@@ -1864,9 +1930,49 @@ OnAgentUserPromptReceived(void *const arg)
                 {
                         pthread_exit(nullptr);
                 }
+
+                ssize_t len = BuildHideProgressString(nullptr, 0);
+                if (len < 0)
+                {
+                        pthread_exit(nullptr);
+                }
+
+                string hide_progress = (string)malloc(sizeof(char) * (len + 1));
+                if (!hide_progress)
+                {
+                        pthread_exit(nullptr);
+                }
+
+                len = BuildHideProgressString(hide_progress, len);
+                if (len < 0)
+                {
+                        free(hide_progress);
+                        pthread_exit(nullptr);
+                }
+
+                wchar_t *w_hide_progress =
+                        (wchar_t *)malloc(sizeof(wchar_t) * (len + 1));
+                if (!w_hide_progress)
+                {
+                        free(hide_progress);
+                        pthread_exit(nullptr);
+                }
+
+                if (mbstowcs(w_hide_progress, hide_progress, len) == (size_t)-1)
+                {
+                        free(hide_progress);
+                        free(w_hide_progress);
+                        pthread_exit(nullptr);
+                }
+
+                w_hide_progress[len] = 0;
+                free(hide_progress);
+                enqueuePrompt(w_hide_progress);
         }
 
         string user_prompt = (string)arg;
+
+        pthread_mutex_lock(&g_agent_llama_mutex);
 
         if (!g_agent_llama)
         {
@@ -1878,12 +1984,14 @@ OnAgentUserPromptReceived(void *const arg)
                         ssize_t len = BuildNotificationString(nullptr, 0);
                         if (len < 0)
                         {
+                                pthread_mutex_unlock(&g_agent_llama_mutex);
                                 pthread_exit(nullptr);
                         }
 
                         string str = (string)malloc(sizeof(char) * (len + 1));
                         if (!str)
                         {
+                                pthread_mutex_unlock(&g_agent_llama_mutex);
                                 pthread_exit(nullptr);
                         }
 
@@ -1891,6 +1999,7 @@ OnAgentUserPromptReceived(void *const arg)
                         if (len < 0)
                         {
                                 free(str);
+                                pthread_mutex_unlock(&g_agent_llama_mutex);
                                 pthread_exit(nullptr);
                         }
 
@@ -1899,6 +2008,7 @@ OnAgentUserPromptReceived(void *const arg)
                         if (!data)
                         {
                                 free(str);
+                                pthread_mutex_unlock(&g_agent_llama_mutex);
                                 pthread_exit(nullptr);
                         }
 
@@ -1906,6 +2016,7 @@ OnAgentUserPromptReceived(void *const arg)
                         {
                                 free(data);
                                 free(str);
+                                pthread_mutex_unlock(&g_agent_llama_mutex);
                                 pthread_exit(nullptr);
                         }
                         data[len] = 0;
@@ -1913,6 +2024,7 @@ OnAgentUserPromptReceived(void *const arg)
                         enqueuePrompt(data);
 
                         free(str);
+                        pthread_mutex_unlock(&g_agent_llama_mutex);
                         pthread_exit(nullptr);
                 }
         }
@@ -1927,8 +2039,11 @@ OnAgentUserPromptReceived(void *const arg)
                 }
 
                 free(user_prompt);
+                pthread_mutex_unlock(&g_agent_llama_mutex);
                 pthread_exit(nullptr);
         }
+
+        pthread_mutex_unlock(&g_agent_llama_mutex);
 
         string no_think = agent_tool_strip_think_response(response);
         if (no_think)
@@ -2346,9 +2461,11 @@ ManagerWebMessageReceivedEventHandlerInvoke(
         }
         case EVENT_AGENT_UNLOAD_FROM_MEMORY:
         {
+                pthread_mutex_lock(&g_agent_llama_mutex);
                 agent_cancel_generation_wait(g_agent_llama);
                 agent_free_instance(g_agent_llama);
                 g_agent_llama = nullptr;
+                pthread_mutex_unlock(&g_agent_llama_mutex);
                 break;
         }
         case EVENT_AGENT_SAVE_WIDGET:
@@ -3314,15 +3431,13 @@ event_loop()
                         g_dirChangesDetected = false;
                 }
 
-                if (g_promptQueueDepth)
+                window_queue_item_t *promptItem = dequeuePrompt();
+                if (promptItem != nullptr)
                 {
-                        g_promptQueueDepth--;
                         webview->lpVtbl->ExecuteScript(
-                                webview,
-                                g_promptQueue[g_promptQueueDepth],
-                                nullptr);
-                        free(g_promptQueue[g_promptQueueDepth]);
-                        g_promptQueue[g_promptQueueDepth] = nullptr;
+                                webview, promptItem->message, nullptr);
+                        free(promptItem->message);
+                        free(promptItem);
                 }
 
                 if (bRet == -1)
